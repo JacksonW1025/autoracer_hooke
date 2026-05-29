@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>autoracer_bringup</name>
+  <version>0.1.0</version>
+  <description>Top-level launch and configuration for Autoracer Hooke.</description>
+  <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>autoracer_control</exec_depend>
+  <exec_depend>autoracer_description</exec_depend>
+  <exec_depend>autoracer_localization</exec_depend>
+  <exec_depend>autoracer_planning</exec_depend>
+  <exec_depend>autoracer_safety</exec_depend>
+  <exec_depend>autoware_gnss_poser</exec_depend>
+  <exec_depend>autoware_map_loader</exec_depend>
+  <exec_depend>autoware_map_projection_loader</exec_depend>
+  <exec_depend>autoware_ndt_scan_matcher</exec_depend>
+  <exec_depend>can_driver</exec_depend>
+  <exec_depend>fixposition_driver_ros2</exec_depend>
+  <exec_depend>hooke2_interface</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nebula_hesai</exec_depend>
+  <exec_depend>rclcpp_components</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+

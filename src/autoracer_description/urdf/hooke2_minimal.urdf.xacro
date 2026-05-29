@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="hooke2_autoracer">
+  <xacro:property name="vehicle_length" value="2.95"/>
+  <xacro:property name="vehicle_width" value="1.85"/>
+  <xacro:property name="vehicle_height" value="1.80"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0.45 0 0.45" rpy="0 0 0"/>
+      <geometry>
+        <box size="${vehicle_length} ${vehicle_width} ${vehicle_height}"/>
+      </geometry>
+      <material name="hooke2_blue">
+        <color rgba="0.1 0.22 0.85 0.35"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="lidar_top"/>
+  <link name="gnss_base_link"/>
+  <link name="imu_link"/>
+</robot>
+

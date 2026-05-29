@@ -1,0 +1,16 @@
+transforms:
+  - parent: base_link
+    child: lidar_top
+    translation: {x: 2.25, y: 0.0, z: 1.65}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  - parent: base_link
+    child: gnss_base_link
+    translation: {x: 1.90, y: 0.0, z: 1.35}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: -1.57079632679}
+
+  - parent: base_link
+    child: imu_link
+    translation: {x: 1.90, y: 0.0, z: 1.35}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: -1.57079632679}
+

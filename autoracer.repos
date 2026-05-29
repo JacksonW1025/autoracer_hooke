@@ -1,0 +1,78 @@
+repositories:
+  src/external/autoware/autoware_cmake:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_cmake.git
+    version: 0e0794e034fe1b8fea6e3a0bbcb9d9b8cdba03ad
+
+  src/external/autoware/autoware_utils:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_utils.git
+    version: 1.7.0
+
+  src/external/autoware/autoware_msgs:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_msgs.git
+    version: c0bcee78433229d6f447342b9ca6bb228f2d1e75
+
+  src/external/autoware/autoware_internal_msgs:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_internal_msgs.git
+    version: 094122d37e56c7bfd8f3385307d345cfdb2123e6
+
+  src/external/autoware/tier4_autoware_msgs:
+    type: git
+    url: https://github.com/tier4/tier4_autoware_msgs.git
+    version: 325985ec9531d7732f84b6ebb654858a86b0d6a3
+
+  src/external/autoware/autoware_lanelet2_extension:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_lanelet2_extension.git
+    version: 38b5af5ac8121989e018ef6e48a1d508119e0128
+
+  src/external/autoware/core:
+    type: git
+    url: https://github.com/tier4/autoware_core.git
+    version: f24f324ef73307b0da6a8959735ecc9aca5ff133
+
+  # Only selected packages are built from Universe, currently tier4_api_utils
+  # for hooke2_interface and optional vehicle/sensing support packages.
+  src/external/autoware/universe:
+    type: git
+    url: https://github.com/tier4/autoware_universe.git
+    version: 33376986f8f2213edb43cdd3db52479e071cff9d
+
+  src/external/autoware/managed_transform_buffer:
+    type: git
+    url: https://github.com/autowarefoundation/managed_transform_buffer.git
+    version: b12c9c11bccdb0ea24ac3665c91f0933ba43752f
+
+  src/external/description/sensor_component_description:
+    type: git
+    url: https://github.com/tier4/sensor_component_description.git
+    version: 03ba094851ec90febfc0adb20b64b0e19df7a8
+
+  src/external/vendor/nebula:
+    type: git
+    url: https://github.com/tier4/nebula.git
+    version: v0.3.2.2
+
+  src/external/vendor/sync_tooling_msgs:
+    type: git
+    url: https://github.com/tier4/sync_tooling_msgs.git
+    version: v0.2.3
+
+  src/external/vendor/boost_transport_drivers:
+    type: git
+    url: https://github.com/autowarefoundation/transport_drivers.git
+    version: 39ebd8afe1bb9760a6cd6272e428468480f6de90
+
+  src/external/vendor/generate_parameter_library:
+    type: git
+    url: https://github.com/PickNikRobotics/generate_parameter_library.git
+    version: 0.6.0
+
+  src/external/whale_components:
+    type: git
+    url: git@gitee.com:shaobodang/whale_components.git
+    version: eef52bab445729a9c495c15f0d3c62b6a6f443ec
+
