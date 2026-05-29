@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>can_driver</name>
+  <version>0.0.1</version>
+  <description>can driver</description>
+  <maintainer email="boping.du@whaledynamic.com">Tomoya-Sato</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+  <!-- <buildtool_depend>autoware_cmake</buildtool_depend> -->
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>can_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>  

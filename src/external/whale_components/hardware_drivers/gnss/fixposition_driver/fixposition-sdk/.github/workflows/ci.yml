@@ -1,0 +1,196 @@
+name: ci
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+jobs:
+    # Note: job names should be unique across all workflows (e.g. to reference them as pull request checks)!
+
+    ci-fpsdk-trixie:
+        runs-on: ubuntu-latest
+        container:
+            image: ghcr.io/fixposition/fixposition-sdk:trixie-ci
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Build
+              run: |
+                  git config --global --add safe.directory ${GITHUB_WORKSPACE}
+                  ./docker/ci.sh
+            - name: Artefacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: fpsdk_common_versions_trixie
+                  path: build/trixie-ci_build_toplevel_release_noros/*/*_versions.txt
+
+    ci-fpsdk-noetic:
+        runs-on: ubuntu-latest
+        container:
+            image: ghcr.io/fixposition/fixposition-sdk:noetic-ci
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Build
+              run: |
+                  git config --global --add safe.directory ${GITHUB_WORKSPACE}
+                  ./docker/ci.sh
+            - name: Artefacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: fpsdk_common_versions_noetic
+                  path: build/noetic-ci_build_toplevel_release_ros1/*/*_versions.txt
+
+    ci-fpsdk-humble:
+        runs-on: ubuntu-latest
+        container:
+            image: ghcr.io/fixposition/fixposition-sdk:humble-ci
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: CI
+              run: |
+                  git config --global --add safe.directory ${GITHUB_WORKSPACE}
+                  ./docker/ci.sh
+            - name: Artefacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: fpsdk_common_versions_humble
+                  path: build/humble-ci_build_toplevel_release_ros2/*/*_versions.txt
+
+    ci-fpsdk-jazzy:
+        runs-on: ubuntu-latest
+        container:
+            image: ghcr.io/fixposition/fixposition-sdk:jazzy-ci
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: CI
+              run: |
+                  git config --global --add safe.directory ${GITHUB_WORKSPACE}
+                  ./docker/ci.sh
+            - name: Artefacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: fpsdk_common_versions_jazzy
+                  path: build/jazzy-ci_build_toplevel_release_ros2/*/*_versions.txt
+
+    ci-images:
+        runs-on: ubuntu-latest
+        needs: # we build the images only if these are successful
+            - ci-fpsdk-trixie
+            - ci-fpsdk-noetic
+            - ci-fpsdk-humble
+            - ci-fpsdk-jazzy
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Login
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Pull
+              run: |
+                  cd ${GITHUB_WORKSPACE}/docker
+                  COMPOSE_PARALLEL_LIMIT=4 docker compose pull trixie-base noetic-base humble-base jazzy-base
+            - name: Build
+              run: |
+                  cd ${GITHUB_WORKSPACE}/docker
+                  COMPOSE_PARALLEL_LIMIT=1 docker compose build build-trixie-run build-noetic-run build-humble-run build-jazzy-run
+            - name: Push
+              if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/pull/115/merge' }}
+              run: |
+                  cd ${GITHUB_WORKSPACE}/docker
+                  docker compose push build-trixie-run build-noetic-run build-humble-run build-jazzy-run
+            - name: Expire old images
+              uses: actions/delete-package-versions@v5
+              with:
+                  package-name:                  ${{ github.event.repository.name }}
+                  package-type:                  container
+                  min-versions-to-keep:          0
+                  delete-only-untagged-versions: true
+
+    ci-pages:
+        runs-on: ubuntu-latest
+        container:
+            image: ghcr.io/fixposition/fixposition-sdk:trixie-ci
+        needs: # we build the documentation only if these are successful
+            - ci-fpsdk-trixie
+            - ci-fpsdk-noetic
+            - ci-fpsdk-humble
+            - ci-fpsdk-jazzy
+        permissions:
+            pages: write
+            id-token: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            ##### Get artefacts from build jobs
+
+            - name: Get build artefacts
+              uses: actions/download-artifact@v5
+              with:
+                  path: build-artefacts  # See Doxyfile and Makefile
+              # We'll get:
+              #     build-artefacts/fpsdk_common_versions_trixie/fpsdk_common/fpsdk_common_versions.txt
+              #     build-artefacts/fpsdk_common_versions_jazzy/fpsdk_common/fpsdk_common_versions.txt
+              #     ...
+
+            ##### Generate HTML content
+
+            - name: Build documentation
+              shell: bash
+              run: |
+                  echo "github.ref: ${{ github.ref }}"
+                  git config --global --add safe.directory ${GITHUB_WORKSPACE}
+                  buildname=doc-release
+                  make doc INSTALL_PREFIX=install BUILD_TYPE=Release BUILD_DIR=build/${buildname}
+                  mkdir -p github-pages/fixposition-sdk-docs
+                  rsync -rav build/${buildname}/doc/ github-pages/fixposition-sdk-docs/
+                  touch github-pages/fixposition-sdk-docs/.nojekyll
+                  echo '<a href="fixposition-sdk-docs/">Fixposition SDK documentation</a>' >> github-pages/index.html
+
+            # ...we can add more content here... e.g. actions/download-artifact from other jobs
+
+            ##### Archive generated HTML as artefacts
+
+            # https://github.com/actions/upload-pages-artifact (This, not actions/upload-artifact, which doesn't work
+            # for pages deployment. Both actions make the artefact show up as a job artefact.
+            - name: Upload pages artefact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: github-pages
+
+            ##### Deploy to fixposition.github.io/fixposition-sdk (only on main branch)
+
+            # https://github.com/actions/configure-pages
+            - name: Configure pages
+              if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/pull/153/merge' }}
+              uses: actions/configure-pages@v5
+
+            # https://github.com/actions/deploy-pages
+            - name: Deploy pages
+              if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/pull/153/merge' }}
+              uses: actions/deploy-pages@v4
+              with:
+                  artifact_name: github-pages
+
+# eof

@@ -21,6 +21,11 @@ def generate_launch_description():
     max_speed_mps = LaunchConfiguration("max_speed_mps")
     can_channel_id = LaunchConfiguration("can_channel_id")
     can_baudrate = LaunchConfiguration("can_baudrate")
+    lidar_host_ip = LaunchConfiguration("lidar_host_ip")
+    lidar_sensor_ip = LaunchConfiguration("lidar_sensor_ip")
+    lidar_data_port = LaunchConfiguration("lidar_data_port")
+    lidar_sensor_model = LaunchConfiguration("lidar_sensor_model")
+    fixposition_stream = LaunchConfiguration("fixposition_stream")
 
     return LaunchDescription(
         [
@@ -33,6 +38,13 @@ def generate_launch_description():
             DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
             DeclareLaunchArgument("can_channel_id", default_value="0"),
             DeclareLaunchArgument("can_baudrate", default_value="500000"),
+            DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
+            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
+            DeclareLaunchArgument("lidar_data_port", default_value="2368"),
+            DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar64"),
+            DeclareLaunchArgument(
+                "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
+            ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
@@ -42,6 +54,13 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_bringup", "launch", "sensing.launch.py")
                 ),
+                launch_arguments={
+                    "lidar_host_ip": lidar_host_ip,
+                    "lidar_sensor_ip": lidar_sensor_ip,
+                    "lidar_data_port": lidar_data_port,
+                    "sensor_model": lidar_sensor_model,
+                    "fixposition_stream": fixposition_stream,
+                }.items(),
                 condition=IfCondition(launch_sensing),
             ),
             IncludeLaunchDescription(
@@ -94,4 +113,3 @@ def generate_launch_description():
             ),
         ]
     )
-

@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hooke2_interface</name>
+  <version>0.1.0</version>
+  <description>AutonomouStuff Hooke2 interface as a ROS 2 node</description>
+  <maintainer email="weiyu.liang@whaledynamic.com">Autonomou Engineering Department</maintainer>
+  <license>Apache License 2.0</license>
+
+  <author email="weiyu.liang@whaledynamic.com">Weiyu Liang</author>
+
+  <buildtool_depend>ament_cmake_auto</buildtool_depend>
+
+  <depend>autoware_control_msgs</depend>
+  <depend>autoware_vehicle_msgs</depend>
+  <depend>autoware_vehicle_info_utils</depend>
+  <depend>can_msgs</depend>
+  <depend>diagnostic_updater</depend>
+  <depend>fmt</depend>
+  <depend>geometry_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>nav_msgs</depend>
+  <depend>wd_byte</depend>
+  <depend>hooke2_msgs</depend>
+  <exec_depend>hooke2_description</exec_depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>tier4_api_msgs</depend>
+  <depend>tier4_api_utils</depend>
+  <depend>tier4_debug_msgs</depend>
+  <depend>tier4_external_api_msgs</depend>
+  <depend>tier4_vehicle_msgs</depend>
+
+  <!-- <depend>backward_ros</depend> -->
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>autoware_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

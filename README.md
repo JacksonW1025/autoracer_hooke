@@ -6,7 +6,7 @@ This workspace intentionally does not launch the full Autoware stack. It uses se
 Autoware packages as libraries and keeps the vehicle task small:
 
 ```text
-Pandar LiDAR + Fixposition + CAN status
+Pandar LiDAR + Fixposition + Hooke2 vehicle feedback
   -> PCD/Lanelet2 map
   -> LiDAR/GNSS localization
   -> Lanelet centerline route
@@ -28,9 +28,13 @@ scripts/                   Import, build, run, and smoke-test helpers.
 src/autoracer_bringup      Top-level launches and Hooke2 configuration.
 src/autoracer_description  Minimal Hooke2 frames and static TF launch.
 src/autoracer_localization Localization helper nodes.
+src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
 src/autoracer_planning     Lanelet route and trajectory node.
 src/autoracer_control      Pure pursuit controller.
 src/autoracer_safety       Final command gate before the vehicle interface.
+src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
+src/hooke2_vehicle         Vendored Hooke2 interface, launch, and description.
+src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
 ```
 
 ## First Bringup
@@ -40,7 +44,22 @@ cd /home/corage/workspace/project/autoracer-hooke
 ./scripts/import_dependencies.sh
 ./scripts/install_rosdeps.sh
 ./scripts/build_minimal.sh
-source install/setup.bash
+source ./scripts/ros_env.sh
+```
+
+When developing beside the old repository, dependencies can be copied locally instead
+of fetched:
+
+```bash
+IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
+```
+
+Bench validation for the current hardware stage:
+
+```bash
+IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
+./scripts/build_bench.sh
+./scripts/verify_sensing_feedback.sh
 ```
 
 Prepare a map directory containing:
@@ -71,3 +90,6 @@ The default launch keeps `enable_drive_commands` false. The controller and plann
 will run, but the safety gate publishes stop commands to the real vehicle command topic.
 Switch it to true only after TF, steering, velocity, localization, and CAN direction are
 verified.
+
+The helper scripts source `install/local_setup.bash` through `scripts/ros_env.sh` so this
+workspace does not accidentally run packages from `/home/corage/workspace/project/pilot-auto.x1`.

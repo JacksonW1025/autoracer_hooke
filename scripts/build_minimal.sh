@@ -4,11 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-source /opt/ros/humble/setup.bash
+AUTORACER_SOURCE_LOCAL_SETUP=false
+# shellcheck source=scripts/ros_env.sh
+source "$ROOT_DIR/scripts/ros_env.sh"
 
 PACKAGES=(
   autoracer_description
   autoracer_localization
+  autoracer_sensing
   autoracer_planning
   autoracer_control
   autoracer_safety
@@ -35,9 +38,12 @@ PACKAGES=(
   can_driver
   fixposition_driver_msgs
   fixposition_driver_lib
+  rtcm_msgs
+  fpsdk_common
+  fpsdk_ros2
   fixposition_driver_ros2
   hooke2_description
-  hooke2_sensor_kit_description
+  hooke2_launch
   hooke2_interface
 )
 

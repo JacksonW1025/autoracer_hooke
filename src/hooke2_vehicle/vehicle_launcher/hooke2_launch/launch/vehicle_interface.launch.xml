@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<launch>
+  <include file="$(find-pkg-share hooke2_interface)/launch/hooke2_interface.launch.xml">
+    <arg name="hooke2_param_path" value="$(find-pkg-share hooke2_interface)/config/hooke2.param.yaml"/>
+    <arg name="vehicle_info_param_file" value="$(find-pkg-share hooke2_description)/config/vehicle_info.param.yaml"/>
+  </include>
+
+  <!-- vehicle can_driver(can0) -->
+  <include file="$(find-pkg-share can_driver)/launch/can_driver_node_socket_can0.launch.xml">
+    <arg name="channel_id" value="0"/>
+    <arg name="baudrate" value="500000"/>
+    <arg name="can_tx_topic" value="/can_tx_to_autoware"/>
+    <arg name="can_rx_topic" value="/can_rx_from_autoware"/>
+  </include>
+</launch>

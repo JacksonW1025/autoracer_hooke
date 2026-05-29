@@ -1,7 +1,7 @@
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.launch_description_sources import XMLLaunchDescriptionSource
+from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
 
@@ -26,7 +26,7 @@ def generate_launch_description():
             DeclareLaunchArgument("can_channel_id", default_value="0"),
             DeclareLaunchArgument("can_baudrate", default_value="500000"),
             IncludeLaunchDescription(
-                XMLLaunchDescriptionSource(
+                AnyLaunchDescriptionSource(
                     PathJoinSubstitution(
                         [
                             get_package_share_directory("hooke2_interface"),
@@ -41,7 +41,7 @@ def generate_launch_description():
                 }.items(),
             ),
             IncludeLaunchDescription(
-                XMLLaunchDescriptionSource(
+                AnyLaunchDescriptionSource(
                     PathJoinSubstitution(
                         [
                             get_package_share_directory("can_driver"),
@@ -59,4 +59,3 @@ def generate_launch_description():
             ),
         ]
     )
-

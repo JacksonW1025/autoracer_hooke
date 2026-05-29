@@ -13,6 +13,7 @@
   <exec_depend>autoracer_description</exec_depend>
   <exec_depend>autoracer_localization</exec_depend>
   <exec_depend>autoracer_planning</exec_depend>
+  <exec_depend>autoracer_sensing</exec_depend>
   <exec_depend>autoracer_safety</exec_depend>
   <exec_depend>autoware_gnss_poser</exec_depend>
   <exec_depend>autoware_map_loader</exec_depend>
@@ -30,4 +31,3 @@
     <build_type>ament_cmake</build_type>
   </export>
 </package>
-

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="hooke2_param_path" default="$(find-pkg-share hooke2_interface)/config/hooke2.param.yaml"/>
+  <arg name="hooke2_extra_param_path" default="$(find-pkg-share hooke2_interface)/config/hooke2_extra.param.yaml"/>
+  <arg name="hooke2_diag_publisher_param_path" default="$(find-pkg-share hooke2_interface)/config/hooke2_diag_publisher.param.yaml"/>
+
+  <!-- vehicle info -->
+  <arg name="vehicle_info_param_file" default="$(find-pkg-share vehicle_info_util)/config/vehicle_info.param.yaml"/>
+
+  <!-- hooke2 interface -->
+  <node pkg="hooke2_interface" exec="hooke2_interface" name="hooke2_interface" output="screen" launch-prefix="gdb -ex run --args">
+    <param from="$(var hooke2_param_path)"/>
+    <param from="$(var vehicle_info_param_file)"/>
+    <remap from="input/control_mode_request" to="/control/control_mode_request"/>
+  </node>
+
+  <!-- hooke2 diagnostics publisher -->
+  <node pkg="hooke2_interface" exec="hooke2_diag_publisher" name="hooke2_diag_publisher" output="screen">
+    <param from="$(var hooke2_diag_publisher_param_path)"/>
+  </node>
+
+</launch>
