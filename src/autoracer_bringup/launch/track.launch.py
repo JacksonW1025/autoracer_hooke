@@ -17,6 +17,7 @@ def generate_launch_description():
     launch_localization = LaunchConfiguration("launch_localization")
     launch_vehicle = LaunchConfiguration("launch_vehicle")
     launch_rviz = LaunchConfiguration("launch_rviz")
+    rviz_config = LaunchConfiguration("rviz_config")
     enable_drive_commands = LaunchConfiguration("enable_drive_commands")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
     can_channel_id = LaunchConfiguration("can_channel_id")
@@ -27,6 +28,8 @@ def generate_launch_description():
     lidar_sensor_model = LaunchConfiguration("lidar_sensor_model")
     fixposition_stream = LaunchConfiguration("fixposition_stream")
 
+    default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "lidar_pointcloud.rviz")
+
     return LaunchDescription(
         [
             DeclareLaunchArgument("map_path"),
@@ -34,6 +37,7 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_localization", default_value="true"),
             DeclareLaunchArgument("launch_vehicle", default_value="true"),
             DeclareLaunchArgument("launch_rviz", default_value="false"),
+            DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             DeclareLaunchArgument("enable_drive_commands", default_value="false"),
             DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
             DeclareLaunchArgument("can_channel_id", default_value="0"),
@@ -41,7 +45,7 @@ def generate_launch_description():
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
-            DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar64"),
+            DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar40P"),
             DeclareLaunchArgument(
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
@@ -108,6 +112,7 @@ def generate_launch_description():
                 package="rviz2",
                 executable="rviz2",
                 name="rviz2",
+                arguments=["-d", rviz_config],
                 output="screen",
                 condition=IfCondition(launch_rviz),
             ),

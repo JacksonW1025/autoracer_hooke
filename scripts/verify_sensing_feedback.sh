@@ -18,6 +18,7 @@ RUN_LAUNCH="${RUN_LAUNCH:-1}"
 LAUNCH_LIDAR="${LAUNCH_LIDAR:-true}"
 LAUNCH_FIXPOSITION="${LAUNCH_FIXPOSITION:-true}"
 LAUNCH_VEHICLE="${LAUNCH_VEHICLE:-true}"
+LAUNCH_RVIZ="${LAUNCH_RVIZ:-false}"
 WARMUP_SEC="${WARMUP_SEC:-12}"
 SAMPLE_TIMEOUT_SEC="${SAMPLE_TIMEOUT_SEC:-8}"
 HZ_TIMEOUT_SEC="${HZ_TIMEOUT_SEC:-8}"
@@ -221,6 +222,7 @@ setsid ros2 launch autoracer_bringup bench_verification.launch.py \
   launch_lidar:="$LAUNCH_LIDAR" \
   launch_fixposition:="$LAUNCH_FIXPOSITION" \
   launch_vehicle:="$LAUNCH_VEHICLE" \
+  launch_rviz:="$LAUNCH_RVIZ" \
   lidar_host_ip:="${LIDAR_HOST_IP:-192.168.1.120}" \
   lidar_sensor_ip:="${LIDAR_SENSOR_IP:-192.168.1.130}" \
   lidar_data_port:="${LIDAR_DATA_PORT:-2368}" \

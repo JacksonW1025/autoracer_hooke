@@ -105,7 +105,7 @@ def generate_launch_description():
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
-            DeclareLaunchArgument("sensor_model", default_value="Pandar64"),
+            DeclareLaunchArgument("sensor_model", default_value="Pandar40P"),
             DeclareLaunchArgument(
                 "fixposition_param_file", default_value=default_fixposition_param_file
             ),

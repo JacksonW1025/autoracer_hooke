@@ -12,9 +12,9 @@ point cloud topic:
 ```
 
 The default parameter file is `src/autoracer_bringup/config/hooke2/lidar_top.param.yaml`.
-It uses Nebula's `Pandar64` model and `lidar_top` frame for the current Pandar 60/64
-hardware family. Override with `LIDAR_SENSOR_MODEL` when the unit reports a different
-Nebula-supported model.
+The current Pandar 60 unit is decoded with Nebula's `Pandar40P` model and `lidar_top`
+frame; this was the live configuration that produced point clouds. Override with
+`LIDAR_SENSOR_MODEL` when the unit reports a different Nebula-supported model.
 
 ## Fixposition
 
@@ -60,3 +60,12 @@ Use the standalone bench launch when the goal is only to prove the live data sou
 It starts `autoracer_bringup bench_verification.launch.py`, checks LiDAR point cloud
 rate, Fixposition samples, Hooke2 Autoware status topics, and raw CAN frames, then
 writes artifacts under `log/bench_verify_*`.
+
+For the lightest visual check, use:
+
+```bash
+./scripts/run_lidar_rviz.sh
+```
+
+This launches only static TF, the Hesai driver, and RViz with
+`src/autoracer_bringup/rviz/lidar_pointcloud.rviz`.

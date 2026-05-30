@@ -62,6 +62,12 @@ IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
 ./scripts/verify_sensing_feedback.sh
 ```
 
+Lightweight LiDAR visualization:
+
+```bash
+./scripts/run_lidar_rviz.sh
+```
+
 Prepare a map directory containing:
 
 ```text
