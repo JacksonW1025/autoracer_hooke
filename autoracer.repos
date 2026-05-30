@@ -14,6 +14,11 @@ repositories:
     url: https://github.com/autowarefoundation/autoware_msgs.git
     version: c0bcee78433229d6f447342b9ca6bb228f2d1e75
 
+  src/external/autoware/autoware_adapi_msgs:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_adapi_msgs.git
+    version: 34f89d088c2cf0ae7ca72f1a325ddb8308a0daeb
+
   src/external/autoware/autoware_internal_msgs:
     type: git
     url: https://github.com/autowarefoundation/autoware_internal_msgs.git
@@ -75,4 +80,3 @@ repositories:
     type: git
     url: git@gitee.com:shaobodang/whale_components.git
     version: eef52bab445729a9c495c15f0d3c62b6a6f443ec
-

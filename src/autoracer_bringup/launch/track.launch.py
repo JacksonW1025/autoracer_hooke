@@ -1,9 +1,11 @@
+import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 
 
@@ -12,6 +14,7 @@ def _pkg_file(package, *parts):
 
 
 def generate_launch_description():
+    default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
     map_path = LaunchConfiguration("map_path")
     launch_sensing = LaunchConfiguration("launch_sensing")
     launch_localization = LaunchConfiguration("launch_localization")
@@ -32,7 +35,10 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument("map_path"),
+            DeclareLaunchArgument(
+                "map_path",
+                default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
+            ),
             DeclareLaunchArgument("launch_sensing", default_value="true"),
             DeclareLaunchArgument("launch_localization", default_value="true"),
             DeclareLaunchArgument("launch_vehicle", default_value="true"),

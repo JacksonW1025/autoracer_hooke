@@ -16,9 +16,21 @@ PACKAGES=(
   autoracer_control
   autoracer_safety
   autoracer_bringup
+  autoware_adapi_v1_msgs
+  autoware_component_interface_specs
   autoware_control_msgs
+  autoware_geography_utils
+  autoware_internal_debug_msgs
+  autoware_internal_localization_msgs
+  autoware_lanelet2_extension
+  autoware_lanelet2_utils
+  autoware_localization_util
+  autoware_map_msgs
   autoware_planning_msgs
+  autoware_qos_utils
+  autoware_sensing_msgs
   autoware_vehicle_msgs
+  autoware_agnocast_wrapper
   tier4_api_msgs
   tier4_debug_msgs
   tier4_external_api_msgs
@@ -29,7 +41,6 @@ PACKAGES=(
   autoware_map_loader
   autoware_ndt_scan_matcher
   autoware_gnss_poser
-  autoware_downsample_filters
   nebula_msgs
   nebula_hesai
   nebula_hesai_decoders
@@ -47,4 +58,4 @@ PACKAGES=(
   hooke2_interface
 )
 
-colcon build --symlink-install --packages-up-to "${PACKAGES[@]}"
+colcon build --symlink-install --packages-up-to "${PACKAGES[@]}" --cmake-args -DBUILD_TESTING=OFF

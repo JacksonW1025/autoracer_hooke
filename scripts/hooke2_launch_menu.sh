@@ -47,10 +47,14 @@ load_defaults() {
     echo "[ OK ] Loaded defaults.env"
   fi
 
+  MAP_PATH="${MAP_PATH:-${ROOT_DIR}/maps/whale_map_20251107}"
   LIDAR_HOST_IP="${LIDAR_HOST_IP:-192.168.1.120}"
   LIDAR_SENSOR_IP="${LIDAR_SENSOR_IP:-192.168.1.130}"
   LIDAR_DATA_PORT="${LIDAR_DATA_PORT:-2368}"
   LIDAR_SENSOR_MODEL="${LIDAR_SENSOR_MODEL:-Pandar40P}"
+  MAP_RVIZ_LEAF_SIZE="${MAP_RVIZ_LEAF_SIZE:-0.5}"
+  MOCK_LIDAR_SCENARIO_DIR="${MOCK_LIDAR_SCENARIO_DIR:-${MAP_PATH}/mock_lidar_scenarios}"
+  MOCK_LIDAR_SCENARIO="${MOCK_LIDAR_SCENARIO:-latest}"
 }
 
 collect_ros_pids() {
@@ -131,6 +135,10 @@ print_menu() {
   1) 在 RViz 中展示 Hooke2 完整车辆 URDF
   2) 启动 LiDAR 点云 + Hooke2 车辆 URDF 的统一 RViz 展示
   3) 控制话题/CAN 发送链路单次驱动验证
+  4) 检查 LiDAR + Fixposition + 底盘反馈状态
+  5) 在 RViz 中展示 PCD 地图
+  6) 在 RViz 中点选并生成 mock LiDAR 场景
+  7) 启动 mock LiDAR + NDT 定位 RViz 验证
 
 按 Ctrl-C 退出脚本；启动后的进程可用选项 0 清理。
 EOF
@@ -139,7 +147,7 @@ EOF
 main_loop() {
   while true; do
     print_menu
-    printf "输入选项 [0/1/2/3]: "
+    printf "输入选项 [0/1/2/3/4/5/6/7]: "
     if ! IFS= read -r choice; then
       echo
       exit 0
@@ -163,6 +171,30 @@ main_loop() {
         ;;
       3)
         "${ROOT_DIR}/scripts/hooke2_control_can_test.sh"
+        ;;
+      4)
+        "${ROOT_DIR}/scripts/check_sensor_status.sh"
+        ;;
+      5)
+        start_launch "map_rviz" \
+          ros2 launch autoracer_bringup map_rviz.launch.py \
+            map_path:="${MAP_PATH}" \
+            map_leaf_size:="${MAP_RVIZ_LEAF_SIZE}"
+        ;;
+      6)
+        start_launch "mock_lidar_record_scenario" \
+          ros2 launch autoracer_bringup mock_lidar_record_scenario.launch.py \
+            map_path:="${MAP_PATH}" \
+            scenario_dir:="${MOCK_LIDAR_SCENARIO_DIR}" \
+            map_leaf_size:="${MAP_RVIZ_LEAF_SIZE}"
+        ;;
+      7)
+        start_launch "mock_lidar_ndt_rviz" \
+          ros2 launch autoracer_bringup mock_lidar_ndt.launch.py \
+            map_path:="${MAP_PATH}" \
+            scenario_dir:="${MOCK_LIDAR_SCENARIO_DIR}" \
+            scenario:="${MOCK_LIDAR_SCENARIO}" \
+            map_leaf_size:="${MAP_RVIZ_LEAF_SIZE}"
         ;;
       *)
         echo "[WARN] Unknown option: ${choice}"

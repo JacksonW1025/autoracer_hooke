@@ -18,6 +18,9 @@ setup(
     license="Apache-2.0",
     entry_points={
         "console_scripts": [
+            "mock_lidar_generate_scenario = autoracer_sensing.mock_lidar_tools:generate_main",
+            "mock_lidar_publisher = autoracer_sensing.mock_lidar_tools:publisher_main",
+            "mock_lidar_scenario_recorder = autoracer_sensing.mock_lidar_tools:recorder_main",
             "velocity_to_fixposition_speed = autoracer_sensing.velocity_to_fixposition_speed:main",
         ],
     },

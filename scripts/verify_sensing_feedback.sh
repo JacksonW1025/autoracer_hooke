@@ -45,6 +45,10 @@ mark_ok() {
   log "OK   $*"
 }
 
+mark_warn() {
+  log "WARN $*"
+}
+
 is_true() {
   [[ "$1" == "true" || "$1" == "1" || "$1" == "yes" ]]
 }
@@ -138,11 +142,16 @@ probe_can() {
 check_topic_info() {
   local topic="$1"
   local label="$2"
-  if ros2 topic info "$topic" >"$RUN_DIR/topic_info_${label}.txt" 2>&1; then
-    mark_ok "topic exists ${topic}"
-  else
-    mark_fail "topic missing ${topic}"
-  fi
+  local output="$RUN_DIR/topic_info_${label}.txt"
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if ros2 topic info "$topic" >"$output" 2>&1; then
+      mark_ok "topic exists ${topic}"
+      return 0
+    fi
+    sleep 1
+  done
+  mark_fail "topic missing ${topic}"
 }
 
 check_topic_sample() {
@@ -159,6 +168,23 @@ check_topic_sample() {
     mark_ok "sample ${topic}"
   else
     mark_fail "no sample from ${topic} within ${SAMPLE_TIMEOUT_SEC}s"
+  fi
+}
+
+check_topic_sample_optional() {
+  local topic="$1"
+  local label="$2"
+  local field="${3:-}"
+  local output="$RUN_DIR/sample_${label}.yaml"
+  local cmd=(ros2 topic echo "$topic" --once)
+  if [[ -n "$field" ]]; then
+    cmd+=(--field "$field")
+  fi
+
+  if timeout "$SAMPLE_TIMEOUT_SEC" "${cmd[@]}" >"$output" 2>&1 && [[ -s "$output" ]]; then
+    mark_ok "sample ${topic}"
+  else
+    mark_warn "optional sample missing ${topic} within ${SAMPLE_TIMEOUT_SEC}s"
   fi
 }
 
@@ -226,7 +252,7 @@ setsid ros2 launch autoracer_bringup bench_verification.launch.py \
   lidar_host_ip:="${LIDAR_HOST_IP:-192.168.1.120}" \
   lidar_sensor_ip:="${LIDAR_SENSOR_IP:-192.168.1.130}" \
   lidar_data_port:="${LIDAR_DATA_PORT:-2368}" \
-  lidar_sensor_model:="${LIDAR_SENSOR_MODEL:-Pandar64}" \
+  lidar_sensor_model:="${LIDAR_SENSOR_MODEL:-Pandar40P}" \
   fixposition_stream:="${FIXPOSITION_STREAM:-tcpcli://192.168.1.200:21000}" \
   can_channel_id:="${CAN_CHANNEL_ID:-0}" \
   can_baudrate:="${CAN_BAUDRATE:-500000}" \
@@ -255,7 +281,9 @@ if is_true "$LAUNCH_FIXPOSITION"; then
   check_topic_sample /fixposition/rawimu rawimu
   check_topic_sample /fixposition/autoware_orientation autoware_orientation
   check_topic_sample /fixposition/odometry_enu odometry_enu
-  check_topic_sample /fixposition/fpa/odomstatus odomstatus
+  check_topic_sample /fixposition/speed speed
+  check_topic_info /fixposition/fpa/odomstatus odomstatus
+  check_topic_sample_optional /fixposition/fpa/odomstatus odomstatus
 fi
 
 if is_true "$LAUNCH_VEHICLE"; then

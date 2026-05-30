@@ -25,12 +25,17 @@ Only the topics needed by localization are part of the minimal contract:
 /fixposition/fix                    sensor_msgs/msg/NavSatFix
 /fixposition/autoware_orientation   autoware_sensing_msgs/msg/GnssInsOrientationStamped
 /fixposition/rawimu                 sensor_msgs/msg/Imu
+/fixposition/odometry_enu           nav_msgs/msg/Odometry
 /fixposition/speed                  fixposition_driver_msgs/msg/Speed
 ```
 
 `/fixposition/fix` and `/fixposition/autoware_orientation` feed
 `autoware_gnss_poser`, which publishes `/sensing/gnss/pose_with_covariance` for NDT
 initialization and regularization.
+
+The driver may also advertise diagnostic FPA topics such as
+`/fixposition/fpa/odomstatus`. They are useful for status inspection, but are not
+required for the first localization contract above.
 
 ## Hooke2 Feedback
 

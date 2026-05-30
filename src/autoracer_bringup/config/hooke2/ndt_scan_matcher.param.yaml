@@ -16,7 +16,7 @@
       max_iterations: 30
       num_threads: 4
       regularization:
-        enable: true
+        enable: false
         scale_factor: 0.01
 
     initial_pose_estimation:
@@ -59,4 +59,3 @@
       update_distance: 20.0
       map_radius: 150.0
       lidar_radius: 100.0
-

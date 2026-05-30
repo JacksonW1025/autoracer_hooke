@@ -43,8 +43,32 @@ copy_from_pilot_repo() {
     "src/external/autoware/autoware_internal_msgs"
   copy_dir "${pilot_repo}/src/autoware/tier4_autoware_msgs" \
     "src/external/autoware/tier4_autoware_msgs"
+  copy_dir "${pilot_repo}/src/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs" \
+    "src/external/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs"
   copy_dir "${pilot_repo}/src/autoware/core/common/autoware_vehicle_info_utils" \
     "src/external/autoware/core/common/autoware_vehicle_info_utils"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_agnocast_wrapper" \
+    "src/external/autoware/core/common/autoware_agnocast_wrapper"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_component_interface_specs" \
+    "src/external/autoware/core/common/autoware_component_interface_specs"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_geography_utils" \
+    "src/external/autoware/core/common/autoware_geography_utils"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_lanelet2_utils" \
+    "src/external/autoware/core/common/autoware_lanelet2_utils"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_qos_utils" \
+    "src/external/autoware/core/common/autoware_qos_utils"
+  copy_dir "${pilot_repo}/src/autoware/core/localization/autoware_localization_util" \
+    "src/external/autoware/core/localization/autoware_localization_util"
+  copy_dir "${pilot_repo}/src/autoware/core/localization/autoware_ndt_scan_matcher" \
+    "src/external/autoware/core/localization/autoware_ndt_scan_matcher"
+  copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_loader" \
+    "src/external/autoware/core/map/autoware_map_loader"
+  copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_projection_loader" \
+    "src/external/autoware/core/map/autoware_map_projection_loader"
+  copy_dir "${pilot_repo}/src/autoware/core/sensing/autoware_gnss_poser" \
+    "src/external/autoware/core/sensing/autoware_gnss_poser"
+  copy_dir "${pilot_repo}/src/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension" \
+    "src/external/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension"
   copy_dir "${pilot_repo}/src/autoware/universe/common/tier4_api_utils" \
     "src/external/autoware/universe/common/tier4_api_utils"
   copy_dir "${pilot_repo}/src/vendor/nebula" \

@@ -1,12 +1,16 @@
+import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import AnyLaunchDescriptionSource, PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
+    default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
     map_path = LaunchConfiguration("map_path")
 
     ndt_param_file = PathJoinSubstitution(
@@ -25,7 +29,10 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument("map_path"),
+            DeclareLaunchArgument(
+                "map_path",
+                default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
+            ),
             Node(
                 package="autoware_map_projection_loader",
                 executable="autoware_map_projection_loader_node",
@@ -51,13 +58,16 @@ def generate_launch_description():
                         "enable_partial_load": True,
                         "enable_selected_load": False,
                         "leaf_size": 3.0,
-                        "pcd_paths_or_directory": [pointcloud_map],
+                        "pcd_paths_or_directory": ParameterValue(
+                            [[pointcloud_map]], value_type=list[str]
+                        ),
                         "pcd_metadata_path": pointcloud_metadata,
                     }
                 ],
                 remappings=[
                     ("output/pointcloud_map", "/map/pointcloud_map"),
                     ("service/get_partial_pcd_map", "/map/get_partial_pointcloud_map"),
+                    ("service/get_differential_pcd_map", "/map/get_differential_pointcloud_map"),
                     ("service/get_selected_pcd_map", "/map/get_selected_pointcloud_map"),
                 ],
             ),
@@ -79,6 +89,46 @@ def generate_launch_description():
                     "output_topic_gnss_fixed": "/sensing/gnss/fixed",
                 }.items(),
             ),
+            Node(
+                package="autoracer_localization",
+                executable="fixposition_seed_filter",
+                name="fixposition_seed_filter",
+                output="screen",
+                parameters=[
+                    {
+                        "input_pose_topic": "/sensing/gnss/pose_with_covariance",
+                        "input_status_topic": "/fixposition/fpa/odomstatus",
+                        "output_topic": "/localization/fixposition/seed_pose",
+                        "map_frame": "map",
+                        "max_pose_age_sec": 1.0,
+                        "max_xy_stddev_m": 3.0,
+                        "max_jump_m": 5.0,
+                        "status_timeout_sec": 2.0,
+                        "require_status": False,
+                        "use_status_when_available": True,
+                    }
+                ],
+            ),
+            Node(
+                package="autoracer_localization",
+                executable="ndt_initial_pose_predictor",
+                name="ndt_initial_pose_predictor",
+                output="screen",
+                parameters=[
+                    {
+                        "seed_pose_topic": "/localization/fixposition/seed_pose",
+                        "ndt_pose_topic": "/localization/pose_with_covariance",
+                        "velocity_topic": "/vehicle/status/velocity_status",
+                        "steering_topic": "/vehicle/status/steering_status",
+                        "output_topic": "/localization/ndt_initial_pose",
+                        "map_frame": "map",
+                        "publish_rate_hz": 20.0,
+                        "wheel_base_m": 1.9,
+                        "vehicle_status_timeout_sec": 0.5,
+                        "ndt_lost_timeout_sec": 1.0,
+                    }
+                ],
+            ),
             IncludeLaunchDescription(
                 AnyLaunchDescriptionSource(
                     PathJoinSubstitution(
@@ -92,12 +142,35 @@ def generate_launch_description():
                 launch_arguments={
                     "param_file": ndt_param_file,
                     "input_pointcloud": "/sensing/lidar/concatenated/pointcloud",
-                    "input_initial_pose_topic": "/sensing/gnss/pose_with_covariance",
-                    "input_regularization_pose_topic": "/sensing/gnss/pose_with_covariance",
+                    "input_initial_pose_topic": "/localization/ndt_initial_pose",
+                    "input_regularization_pose_topic": "/localization/fixposition/seed_pose",
+                    "input_service_trigger_node": "/localization/ndt_trigger",
                     "output_pose_topic": "/localization/pose",
                     "output_pose_with_covariance_topic": "/localization/pose_with_covariance",
-                    "client_map_loader": "/map/get_partial_pointcloud_map",
+                    "client_map_loader": "/map/get_differential_pointcloud_map",
                 }.items(),
+            ),
+            Node(
+                package="autoracer_localization",
+                executable="ndt_startup_helper",
+                name="ndt_startup_helper",
+                output="screen",
+                parameters=[
+                    {
+                        "initial_pose_topic": "/localization/ndt_initial_pose",
+                        "ndt_pose_topic": "/localization/pose_with_covariance",
+                        "trigger_service": "/localization/ndt_trigger",
+                        "map_service": "/map/get_partial_pointcloud_map",
+                        "wait_for_map_service": True,
+                        "required_initial_messages": 3,
+                        "fresh_initial_pose_sec": 0.5,
+                        "ndt_pose_timeout_sec": 2.0,
+                        "retrigger_cooldown_sec": 5.0,
+                        "min_nvtl_score": 2.3,
+                        "max_iteration_num": 30,
+                        "max_exe_time_ms": 100.0,
+                    }
+                ],
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

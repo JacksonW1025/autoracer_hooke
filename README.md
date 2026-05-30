@@ -68,6 +68,19 @@ Lightweight LiDAR visualization:
 ./scripts/run_lidar_rviz.sh
 ```
 
+Map-only RViz check:
+
+```bash
+./scripts/run_map_rviz.sh
+```
+
+Mock LiDAR NDT localization check:
+
+```bash
+./scripts/run_mock_lidar_record_scenario.sh
+./scripts/run_mock_lidar_ndt_rviz.sh
+```
+
 Prepare a map directory containing:
 
 ```text
