@@ -1,12 +1,11 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://ros.org/wiki/xacro" name="hooke2_vehicle">
-  <!-- load parameter -->
-  <xacro:property name="vehicle_info" value="${xacro.load_yaml('$(find hooke2_description)/config/vehicle_info.param.yaml')}"/>
-  <xacro:property name="wheel_radius" value="${vehicle_info['/**']['ros__parameters']['wheel_radius']}"/>
-  <xacro:property name="lidar_top_mount_z" value="${1.65 - wheel_radius}"/>
-  <xacro:property name="lidar_top_mount_yaw" value="1.57079632679"/>
-  <xacro:property name="gnss_imu_mount_z" value="${1.35 - wheel_radius}"/>
-
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="hooke2_sensor_mounts">
+  <material name="vehicle_blue">
+    <color rgba="0.15 0.28 0.55 0.45"/>
+  </material>
+  <material name="vehicle_outline">
+    <color rgba="0.30 0.42 0.70 0.70"/>
+  </material>
   <material name="lidar_shell">
     <color rgba="0.05 0.08 0.10 1.0"/>
   </material>
@@ -20,21 +19,27 @@
     <color rgba="0.12 0.12 0.14 1.0"/>
   </material>
 
-  <!-- vehicle body -->
   <link name="base_link">
-    <visual>
-      <origin xyz="${vehicle_info['/**']['ros__parameters']['wheel_base']/2.0} 0 0" rpy="${pi/2.0} 0 ${pi}"/>
+    <visual name="body">
+      <origin xyz="0.45 0 0.45" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="package://hooke2_description/mesh/dtv.fbx" scale="0.01 0.01 0.01"/>
+        <box size="2.95 1.85 1.80"/>
       </geometry>
+      <material name="vehicle_blue"/>
+    </visual>
+    <visual name="roof_reference">
+      <origin xyz="0.45 0 1.36" rpy="0 0 0"/>
+      <geometry>
+        <box size="2.25 1.45 0.035"/>
+      </geometry>
+      <material name="vehicle_outline"/>
     </visual>
   </link>
 
-  <!-- Top-front LiDAR. Old Hooke2/X1 heights were ground-referenced, and scan axes need +90deg yaw into base_link. -->
   <joint name="lidar_top_mount_joint" type="fixed">
     <parent link="base_link"/>
     <child link="lidar_top_base_link"/>
-    <origin xyz="1.90 0 ${lidar_top_mount_z}" rpy="0 0 ${lidar_top_mount_yaw}"/>
+    <origin xyz="1.90 0 1.337" rpy="0 0 1.57079632679"/>
   </joint>
 
   <link name="lidar_top_base_link">
@@ -70,11 +75,10 @@
     </visual>
   </link>
 
-  <!-- GNSS/INS unit mounted below the top-front LiDAR. Antenna disks are intentionally omitted. -->
   <joint name="gnss_base_joint" type="fixed">
     <parent link="base_link"/>
     <child link="gnss_base_link"/>
-    <origin xyz="1.90 0 ${gnss_imu_mount_z}" rpy="0 0 -1.57079632679"/>
+    <origin xyz="1.90 0 1.037" rpy="0 0 -1.57079632679"/>
   </joint>
 
   <link name="gnss_base_link">
@@ -90,7 +94,7 @@
   <joint name="imu_joint" type="fixed">
     <parent link="base_link"/>
     <child link="imu_link"/>
-    <origin xyz="1.90 0 ${gnss_imu_mount_z}" rpy="0 0 -1.57079632679"/>
+    <origin xyz="1.90 0 1.037" rpy="0 0 -1.57079632679"/>
   </joint>
 
   <link name="imu_link">

@@ -1,16 +1,22 @@
 transforms:
+  # Old Hooke2/X1 sensor heights were ground-referenced.
+  # Convert them into the vehicle base_link frame by subtracting wheel_radius=0.313 m.
   - parent: base_link
+    child: lidar_top_base_link
+    translation: {x: 1.90, y: 0.0, z: 1.337}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 1.57079632679}
+
+  - parent: lidar_top_base_link
     child: lidar_top
-    translation: {x: 2.25, y: 0.0, z: 1.65}
+    translation: {x: 0.0, y: 0.0, z: 0.047}
     rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}
 
   - parent: base_link
     child: gnss_base_link
-    translation: {x: 1.90, y: 0.0, z: 1.35}
+    translation: {x: 1.90, y: 0.0, z: 1.037}
     rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: -1.57079632679}
 
   - parent: base_link
     child: imu_link
-    translation: {x: 1.90, y: 0.0, z: 1.35}
+    translation: {x: 1.90, y: 0.0, z: 1.037}
     rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: -1.57079632679}
-
