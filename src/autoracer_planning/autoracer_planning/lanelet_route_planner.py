@@ -1,11 +1,14 @@
 import math
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
 from builtin_interfaces.msg import Duration
 from geometry_msgs.msg import Point, Pose, PoseStamped, PoseWithCovarianceStamped
 from nav_msgs.msg import Path as NavPath
 import rclpy
+from rclpy._rclpy_pybind11 import RCLError
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from visualization_msgs.msg import Marker, MarkerArray
 import yaml
@@ -43,7 +46,7 @@ class LaneletRoutePlanner(Node):
         self.declare_parameter("current_pose_topic", "/localization/pose_with_covariance")
         self.declare_parameter("goal_pose_topic", "/goal_pose")
         self.declare_parameter("path_topic", "/planning/mission_path")
-        self.declare_parameter("trajectory_topic", "/planning/trajectory")
+        self.declare_parameter("trajectory_topic", "/planning/global_trajectory")
         self.declare_parameter("marker_topic", "/planning/route_marker")
         self.declare_parameter("speed_limit_mps", 1.5)
         self.declare_parameter("min_point_distance_m", 1.0)
@@ -54,6 +57,7 @@ class LaneletRoutePlanner(Node):
         self._current_pose = None
         self._lanelet_map = None
         self._routing_graph = None
+        self._local_centerline = None
 
         self._path_pub = self.create_publisher(
             NavPath, self.get_parameter("path_topic").value, 1
@@ -81,10 +85,6 @@ class LaneletRoutePlanner(Node):
         self._load_map()
 
     def _load_map(self):
-        if lanelet2 is None:
-            self.get_logger().error("lanelet2 Python bindings are not available")
-            return
-
         osm_path = Path(self.get_parameter("osm_path").value)
         projector_path = Path(self.get_parameter("map_projector_info_path").value)
         if not osm_path.exists():
@@ -96,6 +96,19 @@ class LaneletRoutePlanner(Node):
 
         with projector_path.open("r", encoding="utf-8") as stream:
             projector_info = yaml.safe_load(stream) or {}
+        projector_type = projector_info.get("projector_type", "")
+        if projector_type == "Local":
+            self._local_centerline = self._load_local_centerline(osm_path)
+            self.get_logger().info(
+                f"Loaded Local Lanelet2 route corridor: {osm_path} "
+                f"points={len(self._local_centerline)}"
+            )
+            return
+
+        if lanelet2 is None:
+            self.get_logger().error("lanelet2 Python bindings are not available")
+            return
+
         origin_info = projector_info.get("map_origin", {})
         origin = lanelet2.io.Origin(
             float(origin_info.get("latitude", 0.0)),
@@ -115,6 +128,40 @@ class LaneletRoutePlanner(Node):
         self._routing_graph = lanelet2.routing.RoutingGraph(self._lanelet_map, traffic_rules)
         self.get_logger().info(f"Loaded Lanelet2 map: {osm_path}")
 
+    def _load_local_centerline(self, osm_path):
+        tree = ET.parse(osm_path)
+        root = tree.getroot()
+        nodes = {}
+        for node in root.findall("node"):
+            tags = {tag.attrib.get("k"): tag.attrib.get("v") for tag in node.findall("tag")}
+            if "local_x" not in tags or "local_y" not in tags:
+                continue
+            nodes[node.attrib["id"]] = (
+                float(tags["local_x"]),
+                float(tags["local_y"]),
+                float(tags.get("ele", "0.0")),
+            )
+
+        ways = {}
+        for way in root.findall("way"):
+            ways[way.attrib["id"]] = [nd.attrib["ref"] for nd in way.findall("nd")]
+
+        for relation in root.findall("relation"):
+            relation_tags = {
+                tag.attrib.get("k"): tag.attrib.get("v") for tag in relation.findall("tag")
+            }
+            if relation_tags.get("type") != "lanelet":
+                continue
+            for member in relation.findall("member"):
+                if member.attrib.get("role") != "centerline":
+                    continue
+                node_ids = ways.get(member.attrib["ref"], [])
+                centerline = [nodes[node_id] for node_id in node_ids if node_id in nodes]
+                if len(centerline) >= 2:
+                    return centerline
+
+        raise RuntimeError(f"Local lanelet2_map.osm does not contain a centerline way: {osm_path}")
+
     def _on_current_pose(self, msg):
         self._current_pose = msg.pose.pose
 
@@ -122,13 +169,15 @@ class LaneletRoutePlanner(Node):
         if self._current_pose is None:
             self.get_logger().warn("Goal received before localization pose is available")
             return
-        if self._lanelet_map is None or self._routing_graph is None:
-            self.get_logger().error("Lanelet2 map is not ready")
-            return
-
         start = (self._current_pose.position.x, self._current_pose.position.y)
         goal = (msg.pose.position.x, msg.pose.position.y)
-        points = self._plan_centerline(start, goal)
+        if self._local_centerline is not None:
+            points = self._plan_local_centerline(start, goal)
+        elif self._lanelet_map is None or self._routing_graph is None:
+            self.get_logger().error("Lanelet2 map is not ready")
+            return
+        else:
+            points = self._plan_centerline(start, goal)
         if len(points) < 2:
             self.get_logger().error("Route planning produced fewer than two points")
             return
@@ -136,7 +185,26 @@ class LaneletRoutePlanner(Node):
         self._publish_path(points)
         self._publish_trajectory(points)
         self._publish_marker(points)
-        self.get_logger().info(f"Published route with {len(points)} centerline points")
+        self.get_logger().info(f"Published global route with {len(points)} centerline points")
+
+    def _plan_local_centerline(self, start_xy, goal_xy):
+        start_index = self._nearest_index(self._local_centerline, start_xy)
+        goal_index = self._nearest_index(self._local_centerline, goal_xy)
+        if start_index is None or goal_index is None or goal_index <= start_index:
+            return []
+        return self._local_centerline[start_index : goal_index + 1]
+
+    def _nearest_index(self, points, xy):
+        if not points:
+            return None
+        best_index = 0
+        best_distance = math.inf
+        for index, point in enumerate(points):
+            distance = _distance(point, xy)
+            if distance < best_distance:
+                best_index = index
+                best_distance = distance
+        return best_index
 
     def _nearest_lanelet(self, xy):
         point = lanelet2.core.BasicPoint2d(float(xy[0]), float(xy[1]))
@@ -237,14 +305,38 @@ class LaneletRoutePlanner(Node):
         self._marker_pub.publish(MarkerArray(markers=[marker]))
 
 
+def _shutdown_if_context_ok():
+    if not rclpy.ok():
+        return
+    try:
+        rclpy.shutdown()
+    except RCLError as exc:
+        if not _is_shutdown_rcl_error(exc):
+            raise
+
+
+def _is_shutdown_rcl_error(exc: RCLError) -> bool:
+    text = str(exc)
+    return (
+        "rcl_shutdown already called" in text
+        or "context is not valid" in text
+        or "rcl_init() was not called or rcl_shutdown() was called" in text
+    )
+
+
 def main():
     rclpy.init()
     node = LaneletRoutePlanner()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except RCLError as exc:
+        if not _is_shutdown_rcl_error(exc):
+            raise
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        _shutdown_if_context_ok()
 
 
 if __name__ == "__main__":

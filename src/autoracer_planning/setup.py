@@ -12,6 +12,7 @@ setup(
         (f"share/{package_name}/launch", ["launch/planning.launch.py"]),
     ],
     install_requires=["setuptools"],
+    tests_require=["pytest"],
     zip_safe=True,
     maintainer="Autoracer Team",
     maintainer_email="autoracer@example.com",
@@ -20,7 +21,8 @@ setup(
     entry_points={
         "console_scripts": [
             "lanelet_route_planner = autoracer_planning.lanelet_route_planner:main",
+            "local_trajectory_planner = autoracer_planning.local_trajectory_planner:main",
+            "route_goal_publisher = autoracer_planning.route_goal_publisher:main",
         ],
     },
 )
-

@@ -10,6 +10,8 @@ __pycache__/
 *.bag
 *.db3
 
+.serena/
+scripts/.spec-workflow/
+
 maps/*
 !maps/.gitkeep
-

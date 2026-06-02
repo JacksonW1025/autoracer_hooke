@@ -1,7 +1,10 @@
 from autoware_control_msgs.msg import Control
+from autoware_planning_msgs.msg import Trajectory
 from autoware_vehicle_msgs.msg import GearCommand, HazardLightsCommand, TurnIndicatorsCommand
 from geometry_msgs.msg import PoseWithCovarianceStamped
 import rclpy
+from rclpy._rclpy_pybind11 import RCLError
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import String
 
@@ -23,12 +26,16 @@ class CommandGate(Node):
         self.declare_parameter("input_topic", "/autoracer/control/raw_control_cmd")
         self.declare_parameter("output_topic", "/control/command/control_cmd")
         self.declare_parameter("pose_topic", "/localization/pose_with_covariance")
+        self.declare_parameter("trajectory_topic", "/planning/trajectory")
         self.declare_parameter("gear_topic", "/control/command/gear_cmd")
         self.declare_parameter("hazard_topic", "/control/command/hazard_lights_cmd")
         self.declare_parameter("turn_topic", "/control/command/turn_indicators_cmd")
         self.declare_parameter("state_topic", "/autoracer/safety/state")
         self.declare_parameter("command_timeout_sec", 0.5)
         self.declare_parameter("localization_timeout_sec", 1.0)
+        self.declare_parameter("require_trajectory", False)
+        self.declare_parameter("trajectory_timeout_sec", 1.0)
+        self.declare_parameter("min_trajectory_points", 2)
         self.declare_parameter("max_speed_mps", 1.5)
         self.declare_parameter("max_accel_mps2", 0.8)
         self.declare_parameter("max_decel_mps2", -1.5)
@@ -39,6 +46,9 @@ class CommandGate(Node):
         self._enabled = _as_bool(self.get_parameter("enable_drive_commands").value)
         self._command_timeout = float(self.get_parameter("command_timeout_sec").value)
         self._localization_timeout = float(self.get_parameter("localization_timeout_sec").value)
+        self._require_trajectory = _as_bool(self.get_parameter("require_trajectory").value)
+        self._trajectory_timeout = float(self.get_parameter("trajectory_timeout_sec").value)
+        self._min_trajectory_points = int(self.get_parameter("min_trajectory_points").value)
         self._max_speed = float(self.get_parameter("max_speed_mps").value)
         self._max_accel = float(self.get_parameter("max_accel_mps2").value)
         self._max_decel = float(self.get_parameter("max_decel_mps2").value)
@@ -48,6 +58,7 @@ class CommandGate(Node):
         self._raw_command = None
         self._last_raw_time = None
         self._last_pose_time = None
+        self._last_trajectory_time = None
         self._last_output_time = None
         self._last_steer = 0.0
 
@@ -73,6 +84,12 @@ class CommandGate(Node):
         self.create_subscription(
             PoseWithCovarianceStamped, self.get_parameter("pose_topic").value, self._on_pose, 10
         )
+        self.create_subscription(
+            Trajectory,
+            self.get_parameter("trajectory_topic").value,
+            self._on_trajectory,
+            10,
+        )
 
         period = 1.0 / float(self.get_parameter("publish_rate_hz").value)
         self.create_timer(period, self._on_timer)
@@ -84,6 +101,10 @@ class CommandGate(Node):
 
     def _on_pose(self, _msg):
         self._last_pose_time = self.get_clock().now()
+
+    def _on_trajectory(self, msg):
+        if len(msg.points) >= self._min_trajectory_points:
+            self._last_trajectory_time = self.get_clock().now()
 
     def _age_sec(self, stamp):
         if stamp is None:
@@ -112,6 +133,12 @@ class CommandGate(Node):
         pose_age = self._age_sec(self._last_pose_time)
         if pose_age is None or pose_age > self._localization_timeout:
             return "localization_timeout"
+        trajectory_age = self._age_sec(self._last_trajectory_time)
+        if (
+            self._require_trajectory
+            and (trajectory_age is None or trajectory_age > self._trajectory_timeout)
+        ):
+            return "trajectory_timeout"
         return None
 
     def _limited_command(self, raw):
@@ -186,16 +213,39 @@ class CommandGate(Node):
         self._turn_pub.publish(turn)
 
 
+def _shutdown_if_context_ok():
+    if not rclpy.ok():
+        return
+    try:
+        rclpy.shutdown()
+    except RCLError as exc:
+        if not _is_shutdown_rcl_error(exc):
+            raise
+
+
+def _is_shutdown_rcl_error(exc: RCLError) -> bool:
+    text = str(exc)
+    return (
+        "rcl_shutdown already called" in text
+        or "context is not valid" in text
+        or "rcl_init() was not called or rcl_shutdown() was called" in text
+    )
+
+
 def main():
     rclpy.init()
     node = CommandGate()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except RCLError as exc:
+        if not _is_shutdown_rcl_error(exc):
+            raise
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        _shutdown_if_context_ok()
 
 
 if __name__ == "__main__":
     main()
-

@@ -24,9 +24,22 @@ def generate_launch_description():
                             [map_path, "map_projector_info.yaml"]
                         ),
                         "speed_limit_mps": max_speed_mps,
+                        "trajectory_topic": "/planning/global_trajectory",
+                    }
+                ],
+            ),
+            Node(
+                package="autoracer_planning",
+                executable="local_trajectory_planner",
+                name="local_trajectory_planner",
+                output="screen",
+                parameters=[
+                    {
+                        "global_trajectory_topic": "/planning/global_trajectory",
+                        "trajectory_topic": "/planning/trajectory",
+                        "max_speed_mps": max_speed_mps,
                     }
                 ],
             ),
         ]
     )
-

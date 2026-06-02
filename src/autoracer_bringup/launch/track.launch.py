@@ -17,6 +17,7 @@ def generate_launch_description():
     default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
     map_path = LaunchConfiguration("map_path")
     launch_sensing = LaunchConfiguration("launch_sensing")
+    launch_fixposition = LaunchConfiguration("launch_fixposition")
     launch_localization = LaunchConfiguration("launch_localization")
     launch_vehicle = LaunchConfiguration("launch_vehicle")
     launch_rviz = LaunchConfiguration("launch_rviz")
@@ -40,6 +41,7 @@ def generate_launch_description():
                 default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
             ),
             DeclareLaunchArgument("launch_sensing", default_value="true"),
+            DeclareLaunchArgument("launch_fixposition", default_value="true"),
             DeclareLaunchArgument("launch_localization", default_value="true"),
             DeclareLaunchArgument("launch_vehicle", default_value="true"),
             DeclareLaunchArgument("launch_rviz", default_value="false"),
@@ -69,6 +71,7 @@ def generate_launch_description():
                     "lidar_sensor_ip": lidar_sensor_ip,
                     "lidar_data_port": lidar_data_port,
                     "sensor_model": lidar_sensor_model,
+                    "launch_fixposition": launch_fixposition,
                     "fixposition_stream": fixposition_stream,
                 }.items(),
                 condition=IfCondition(launch_sensing),

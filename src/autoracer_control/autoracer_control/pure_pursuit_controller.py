@@ -5,6 +5,8 @@ from autoware_planning_msgs.msg import Trajectory
 from autoware_vehicle_msgs.msg import VelocityReport
 from geometry_msgs.msg import PoseWithCovarianceStamped
 import rclpy
+from rclpy._rclpy_pybind11 import RCLError
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 
 
@@ -161,16 +163,39 @@ class PurePursuitController(Node):
         self._control_pub.publish(command)
 
 
+def _shutdown_if_context_ok():
+    if not rclpy.ok():
+        return
+    try:
+        rclpy.shutdown()
+    except RCLError as exc:
+        if not _is_shutdown_rcl_error(exc):
+            raise
+
+
+def _is_shutdown_rcl_error(exc: RCLError) -> bool:
+    text = str(exc)
+    return (
+        "rcl_shutdown already called" in text
+        or "context is not valid" in text
+        or "rcl_init() was not called or rcl_shutdown() was called" in text
+    )
+
+
 def main():
     rclpy.init()
     node = PurePursuitController()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    except RCLError as exc:
+        if not _is_shutdown_rcl_error(exc):
+            raise
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        _shutdown_if_context_ok()
 
 
 if __name__ == "__main__":
     main()
-
