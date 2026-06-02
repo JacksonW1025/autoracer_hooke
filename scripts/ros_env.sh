@@ -42,6 +42,35 @@ _autoracer_filter_old_repo_paths() {
   done
 }
 
+_autoracer_filter_conda_paths() {
+  local var_name
+  local conda_prefix
+  for conda_prefix in \
+    "/opt/anaconda3" \
+    "${HOME:-}/anaconda3" \
+    "${HOME:-}/miniconda3"
+  do
+    [[ -z "${conda_prefix}" ]] && continue
+    for var_name in \
+      CMAKE_PREFIX_PATH \
+      LD_LIBRARY_PATH \
+      LIBRARY_PATH \
+      PKG_CONFIG_PATH \
+      PYTHONPATH \
+      PATH
+    do
+      _autoracer_filter_path_var "${var_name}" "${conda_prefix}"
+    done
+  done
+
+  _autoracer_filter_path_var CMAKE_IGNORE_PREFIX_PATH "/opt/anaconda3"
+  _autoracer_filter_path_var CMAKE_IGNORE_PATH "/opt/anaconda3/bin"
+  _autoracer_filter_path_var CMAKE_IGNORE_PATH "/opt/anaconda3/include"
+  _autoracer_filter_path_var CMAKE_IGNORE_PATH "/opt/anaconda3/lib"
+  export CMAKE_IGNORE_PREFIX_PATH="/opt/anaconda3${CMAKE_IGNORE_PREFIX_PATH:+:${CMAKE_IGNORE_PREFIX_PATH}}"
+  export CMAKE_IGNORE_PATH="/opt/anaconda3/bin:/opt/anaconda3/include:/opt/anaconda3/lib${CMAKE_IGNORE_PATH:+:${CMAKE_IGNORE_PATH}}"
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   echo "source scripts/ros_env.sh from another script or shell"
   exit 0
@@ -58,6 +87,9 @@ fi
 
 unset AMENT_CURRENT_PREFIX COLCON_CURRENT_PREFIX
 _autoracer_filter_old_repo_paths
+if [[ "${AUTORACER_FILTER_CONDA:-true}" == "true" ]]; then
+  _autoracer_filter_conda_paths
+fi
 
 _autoracer_had_nounset=0
 case $- in
@@ -71,6 +103,9 @@ if [[ "${_autoracer_had_nounset}" == "1" ]]; then
   set -u
 fi
 _autoracer_filter_old_repo_paths
+if [[ "${AUTORACER_FILTER_CONDA:-true}" == "true" ]]; then
+  _autoracer_filter_conda_paths
+fi
 
 if [[ "${AUTORACER_SOURCE_LOCAL_SETUP:-true}" == "true" ]]; then
   if [[ -f "${ROOT_DIR}/install/local_setup.bash" ]]; then
@@ -81,6 +116,9 @@ if [[ "${AUTORACER_SOURCE_LOCAL_SETUP:-true}" == "true" ]]; then
       set -u
     fi
     _autoracer_filter_old_repo_paths
+    if [[ "${AUTORACER_FILTER_CONDA:-true}" == "true" ]]; then
+      _autoracer_filter_conda_paths
+    fi
   else
     echo "[autoracer-env] ${ROOT_DIR}/install/local_setup.bash not found; build first." >&2
     return 1

@@ -14,6 +14,7 @@ PACKAGES=(
   autoracer_sensing
   autoracer_planning
   autoracer_control
+  autoracer_carmaker_sim
   autoracer_safety
   autoracer_bringup
   autoware_adapi_v1_msgs
@@ -37,6 +38,20 @@ PACKAGES=(
   tier4_vehicle_msgs
   tier4_api_utils
   autoware_vehicle_info_utils
+  autoware_interpolation
+  autoware_kalman_filter
+  autoware_motion_utils
+  autoware_osqp_interface
+  autoware_point_types
+  autoware_ekf_localizer
+  managed_transform_buffer
+  autoware_pcl_extensions
+  autoware_pointcloud_preprocessor
+  autoware_trajectory_follower_base
+  autoware_mpc_lateral_controller
+  autoware_pid_longitudinal_controller
+  autoware_pure_pursuit
+  autoware_trajectory_follower_node
   autoware_map_projection_loader
   autoware_map_loader
   autoware_ndt_scan_matcher
@@ -58,4 +73,25 @@ PACKAGES=(
   hooke2_interface
 )
 
-colcon build --symlink-install --packages-up-to "${PACKAGES[@]}" --cmake-args -DBUILD_TESTING=OFF
+UNDERLAY_OVERRIDES=(
+  autoware_adapi_v1_msgs
+  autoware_internal_planning_msgs
+  autoware_lanelet2_extension
+  autoware_map_msgs
+  autoware_perception_msgs
+  autoware_planning_msgs
+  autoware_utils_geometry
+)
+
+# Keep vendored Autoware headers ahead of ROS apt underlay headers when both exist.
+CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
+CMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS:-} -I${ROOT_DIR}/install/autoware_lanelet2_extension/include"
+
+colcon build \
+  --symlink-install \
+  --allow-overriding "${UNDERLAY_OVERRIDES[@]}" \
+  --packages-up-to "${PACKAGES[@]}" \
+  --cmake-args \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE}" \
+    -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}"

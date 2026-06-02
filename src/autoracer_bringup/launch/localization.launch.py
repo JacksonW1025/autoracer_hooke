@@ -24,7 +24,6 @@ def generate_launch_description():
 
     map_projector_info = PathJoinSubstitution([map_path, "map_projector_info.yaml"])
     lanelet2_map = PathJoinSubstitution([map_path, "lanelet2_map.osm"])
-    pointcloud_map = PathJoinSubstitution([map_path, "pointcloud_map.pcd"])
     pointcloud_metadata = PathJoinSubstitution([map_path, "pointcloud_map_metadata.yaml"])
 
     return LaunchDescription(
@@ -32,6 +31,17 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "map_path",
                 default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
+            ),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    PathJoinSubstitution(
+                        [
+                            get_package_share_directory("autoracer_description"),
+                            "launch",
+                            "static_tf.launch.py",
+                        ]
+                    )
+                )
             ),
             Node(
                 package="autoware_map_projection_loader",
@@ -59,7 +69,7 @@ def generate_launch_description():
                         "enable_selected_load": False,
                         "leaf_size": 3.0,
                         "pcd_paths_or_directory": ParameterValue(
-                            [[pointcloud_map]], value_type=list[str]
+                            [[map_path]], value_type=list[str]
                         ),
                         "pcd_metadata_path": pointcloud_metadata,
                     }
@@ -125,7 +135,10 @@ def generate_launch_description():
                         "publish_rate_hz": 20.0,
                         "wheel_base_m": 1.9,
                         "vehicle_status_timeout_sec": 0.5,
-                        "ndt_lost_timeout_sec": 1.0,
+                        "ndt_lost_timeout_sec": 6.0,
+                        "enable_tracking_seed_fusion": True,
+                        "max_tracking_seed_stddev_m": 0.75,
+                        "max_tracking_seed_age_sec": 0.5,
                     }
                 ],
             ),
@@ -164,11 +177,11 @@ def generate_launch_description():
                         "wait_for_map_service": True,
                         "required_initial_messages": 3,
                         "fresh_initial_pose_sec": 0.5,
-                        "ndt_pose_timeout_sec": 2.0,
+                        "ndt_pose_timeout_sec": 6.0,
                         "retrigger_cooldown_sec": 5.0,
                         "min_nvtl_score": 2.3,
                         "max_iteration_num": 30,
-                        "max_exe_time_ms": 100.0,
+                        "max_exe_time_ms": 5000.0,
                     }
                 ],
             ),

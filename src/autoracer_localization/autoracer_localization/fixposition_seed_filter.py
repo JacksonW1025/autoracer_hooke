@@ -40,16 +40,20 @@ def _pose_is_finite(msg):
     return math.isfinite(q_norm) and q_norm > 0.1
 
 
-def _status_is_good(status):
+def _status_is_good(status, *, require_rtk=False, allow_non_rtk_initialized=True):
     consts = status.consts
     if status.init_status != consts.INIT_STATUS_GLOBAL_INIT:
         return False
 
-    good_gnss = {
+    rtk_gnss = {
         consts.GNSS_STATUS_RTK_FLOAT,
         consts.GNSS_STATUS_RTK_FIXED,
     }
-    return status.gnss1_status in good_gnss or status.gnss2_status in good_gnss
+    if status.gnss1_status in rtk_gnss or status.gnss2_status in rtk_gnss:
+        return True
+    if require_rtk or not allow_non_rtk_initialized:
+        return False
+    return status.gnss1_status == consts.GNSS_STATUS_SPP or status.gnss2_status == consts.GNSS_STATUS_SPP
 
 
 class FixpositionSeedFilter(Node):
@@ -66,6 +70,8 @@ class FixpositionSeedFilter(Node):
         self.declare_parameter("status_timeout_sec", 2.0)
         self.declare_parameter("require_status", False)
         self.declare_parameter("use_status_when_available", True)
+        self.declare_parameter("require_rtk", False)
+        self.declare_parameter("allow_non_rtk_initialized", True)
 
         input_pose_topic = self.get_parameter("input_pose_topic").value
         input_status_topic = self.get_parameter("input_status_topic").value
@@ -78,6 +84,10 @@ class FixpositionSeedFilter(Node):
         self._require_status = bool(self.get_parameter("require_status").value)
         self._use_status_when_available = bool(
             self.get_parameter("use_status_when_available").value
+        )
+        self._require_rtk = bool(self.get_parameter("require_rtk").value)
+        self._allow_non_rtk_initialized = bool(
+            self.get_parameter("allow_non_rtk_initialized").value
         )
 
         self._last_status = None
@@ -155,9 +165,14 @@ class FixpositionSeedFilter(Node):
                 return False, f"odomstatus age {age:.3f}s > {self._status_timeout:.3f}s"
             return True, ""
 
-        if not _status_is_good(self._last_status):
+        if not _status_is_good(
+            self._last_status,
+            require_rtk=self._require_rtk,
+            allow_non_rtk_initialized=self._allow_non_rtk_initialized,
+        ):
+            requirement = "RTK float/fixed" if self._require_rtk else "SPP/RTK with global init"
             return False, (
-                "odomstatus is not globally initialized with RTK float/fixed "
+                f"odomstatus is not {requirement} "
                 f"(init={self._last_status.init_status}, "
                 f"gnss1={self._last_status.gnss1_status}, "
                 f"gnss2={self._last_status.gnss2_status})"

@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>autoracer_control</exec_depend>
+  <exec_depend>autoracer_carmaker_sim</exec_depend>
   <exec_depend>autoracer_description</exec_depend>
   <exec_depend>autoracer_localization</exec_depend>
   <exec_depend>autoracer_planning</exec_depend>

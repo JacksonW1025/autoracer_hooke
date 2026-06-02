@@ -16,8 +16,8 @@
       max_iterations: 30
       num_threads: 4
       regularization:
-        enable: false
-        scale_factor: 0.01
+        enable: true
+        scale_factor: 0.05
 
     initial_pose_estimation:
       particles_num: 200
