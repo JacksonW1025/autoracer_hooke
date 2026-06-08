@@ -1,20 +1,21 @@
-# Autoracer Hooke
+# Ackermann Autoware
 
-Minimal ROS 2 workspace for closed-track autonomous driving on the Hooke2 chassis.
+Minimal ROS 2 workspace for closed-track autonomous driving on the RC Ackermann car.
 
 This workspace intentionally does not launch the full Autoware stack. It uses selected
 Autoware packages as libraries and keeps the vehicle task small:
 
 ```text
-Pandar LiDAR + Fixposition + Hooke2 vehicle feedback
+Pandar LiDAR + Fixposition + STM32 UART feedback
   -> PCD/Lanelet2 map
   -> LiDAR/GNSS localization
   -> Lanelet centerline route
   -> Pure pursuit + longitudinal PID
   -> safety command gate
   -> /control/command/control_cmd
-  -> hooke2_interface
-  -> CAN
+  -> rc_serial_interface
+  -> UART4 11-byte command frame
+  -> STM32 Ackermann PWM
 ```
 
 ## Repository Layout
@@ -32,6 +33,7 @@ src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
 src/autoracer_planning     Lanelet route and trajectory node.
 src/autoracer_control      Pure pursuit controller.
 src/autoracer_safety       Final command gate before the vehicle interface.
+src/autoracer_vehicle_interface RC UART vehicle interface and Autoware status bridge.
 src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
 src/hooke2_vehicle         Vendored Hooke2 interface, launch, and description.
 src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
@@ -99,7 +101,7 @@ MAP_PATH=/path/to/map ./scripts/run_track.sh
 Low-speed vehicle run after calibration and bench validation:
 
 ```bash
-MAP_PATH=/path/to/map ENABLE_DRIVE_COMMANDS=true MAX_SPEED_MPS=1.5 ./scripts/run_track.sh
+MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyUSB0 ENABLE_DRIVE_COMMANDS=true MAX_SPEED_MPS=1.5 ./scripts/run_track.sh
 ./scripts/request_autonomous_mode.sh
 ```
 
@@ -107,8 +109,33 @@ MAP_PATH=/path/to/map ENABLE_DRIVE_COMMANDS=true MAX_SPEED_MPS=1.5 ./scripts/run
 
 The default launch keeps `enable_drive_commands` false. The controller and planner
 will run, but the safety gate publishes stop commands to the real vehicle command topic.
-Switch it to true only after TF, steering, velocity, localization, and CAN direction are
-verified.
+Switch it to true only after TF, steering, velocity, localization, serial direction, and
+RC takeover behavior are verified.
 
 The helper scripts source `install/local_setup.bash` through `scripts/ros_env.sh` so this
 workspace does not accidentally run packages from `/home/corage/workspace/project/pilot-auto.x1`.
+
+## RC Serial Vehicle Interface
+
+The RC vehicle interface keeps the Autoware-facing topics unchanged and replaces only the
+Hooke2 CAN transport:
+
+```text
+/control/command/control_cmd
+  -> autoracer_vehicle_interface/rc_serial_interface
+  -> 0x7B cmd1 cmd2 vx vy wz bcc 0x7D
+  -> STM32 UART4
+```
+
+Default serial parameters:
+
+```text
+SERIAL_PORT=/dev/ttyUSB0
+SERIAL_BAUDRATE=115200
+WHEEL_BASE_M=0.54
+MAX_STEER_RAD=0.393
+```
+
+The STM32 firmware already accepts the 11-byte ROS UART command frame and publishes the
+24-byte telemetry frame, so firmware changes are not expected unless the physical UART,
+baudrate, or frame contract changes.

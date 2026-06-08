@@ -10,10 +10,9 @@ source "$ROOT_DIR/scripts/ros_env.sh"
 
 PACKAGES_UP_TO=(
   autoracer_sensing
+  autoracer_vehicle_interface
   nebula_hesai
   fixposition_driver_ros2
-  hooke2_interface
-  can_driver
 )
 
 PACKAGES_SELECT=(

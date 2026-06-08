@@ -22,8 +22,10 @@ ros2 launch autoracer_bringup track.launch.py \
   launch_rviz:="${LAUNCH_RVIZ}" \
   enable_drive_commands:="${ENABLE_DRIVE_COMMANDS}" \
   max_speed_mps:="${MAX_SPEED_MPS}" \
-  can_channel_id:="${CAN_CHANNEL_ID}" \
-  can_baudrate:="${CAN_BAUDRATE}" \
+  serial_port:="${SERIAL_PORT}" \
+  serial_baudrate:="${SERIAL_BAUDRATE}" \
+  wheel_base_m:="${WHEEL_BASE_M}" \
+  max_steer_rad:="${MAX_STEER_RAD}" \
   lidar_host_ip:="${LIDAR_HOST_IP}" \
   lidar_sensor_ip:="${LIDAR_SENSOR_IP}" \
   lidar_data_port:="${LIDAR_DATA_PORT}" \

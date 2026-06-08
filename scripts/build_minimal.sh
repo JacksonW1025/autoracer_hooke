@@ -15,6 +15,7 @@ PACKAGES=(
   autoracer_planning
   autoracer_control
   autoracer_safety
+  autoracer_vehicle_interface
   autoracer_bringup
   autoware_adapi_v1_msgs
   autoware_component_interface_specs
@@ -44,18 +45,12 @@ PACKAGES=(
   nebula_msgs
   nebula_hesai
   nebula_hesai_decoders
-  wd_byte
-  hooke2_msgs
-  can_driver
   fixposition_driver_msgs
   fixposition_driver_lib
   rtcm_msgs
   fpsdk_common
   fpsdk_ros2
   fixposition_driver_ros2
-  hooke2_description
-  hooke2_launch
-  hooke2_interface
 )
 
 colcon build --symlink-install --packages-up-to "${PACKAGES[@]}" --cmake-args -DBUILD_TESTING=OFF

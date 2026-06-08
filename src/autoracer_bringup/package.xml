@@ -15,14 +15,12 @@
   <exec_depend>autoracer_planning</exec_depend>
   <exec_depend>autoracer_sensing</exec_depend>
   <exec_depend>autoracer_safety</exec_depend>
+  <exec_depend>autoracer_vehicle_interface</exec_depend>
   <exec_depend>autoware_gnss_poser</exec_depend>
   <exec_depend>autoware_map_loader</exec_depend>
   <exec_depend>autoware_map_projection_loader</exec_depend>
   <exec_depend>autoware_ndt_scan_matcher</exec_depend>
-  <exec_depend>can_driver</exec_depend>
   <exec_depend>fixposition_driver_ros2</exec_depend>
-  <exec_depend>hooke2_interface</exec_depend>
-  <exec_depend>hooke2_description</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>nebula_hesai</exec_depend>

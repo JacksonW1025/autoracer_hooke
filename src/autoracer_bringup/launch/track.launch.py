@@ -23,8 +23,10 @@ def generate_launch_description():
     rviz_config = LaunchConfiguration("rviz_config")
     enable_drive_commands = LaunchConfiguration("enable_drive_commands")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
-    can_channel_id = LaunchConfiguration("can_channel_id")
-    can_baudrate = LaunchConfiguration("can_baudrate")
+    serial_port = LaunchConfiguration("serial_port")
+    serial_baudrate = LaunchConfiguration("serial_baudrate")
+    wheel_base_m = LaunchConfiguration("wheel_base_m")
+    max_steer_rad = LaunchConfiguration("max_steer_rad")
     lidar_host_ip = LaunchConfiguration("lidar_host_ip")
     lidar_sensor_ip = LaunchConfiguration("lidar_sensor_ip")
     lidar_data_port = LaunchConfiguration("lidar_data_port")
@@ -46,8 +48,10 @@ def generate_launch_description():
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             DeclareLaunchArgument("enable_drive_commands", default_value="false"),
             DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
-            DeclareLaunchArgument("can_channel_id", default_value="0"),
-            DeclareLaunchArgument("can_baudrate", default_value="500000"),
+            DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
+            DeclareLaunchArgument("serial_baudrate", default_value="115200"),
+            DeclareLaunchArgument("wheel_base_m", default_value="0.54"),
+            DeclareLaunchArgument("max_steer_rad", default_value="0.393"),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
@@ -109,8 +113,11 @@ def generate_launch_description():
                     _pkg_file("autoracer_bringup", "launch", "vehicle.launch.py")
                 ),
                 launch_arguments={
-                    "can_channel_id": can_channel_id,
-                    "can_baudrate": can_baudrate,
+                    "serial_port": serial_port,
+                    "serial_baudrate": serial_baudrate,
+                    "wheel_base_m": wheel_base_m,
+                    "max_speed_mps": max_speed_mps,
+                    "max_steer_rad": max_steer_rad,
                 }.items(),
                 condition=IfCondition(launch_vehicle),
             ),
