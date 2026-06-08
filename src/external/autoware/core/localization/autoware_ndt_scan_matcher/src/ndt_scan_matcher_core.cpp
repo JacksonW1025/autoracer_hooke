@@ -15,15 +15,20 @@
 #include <autoware/localization_util/matrix_type.hpp>
 #include <autoware/localization_util/tree_structured_parzen_estimator.hpp>
 #include <autoware/localization_util/util_func.hpp>
+#include <autoware/ndt_scan_matcher/initial_pose_offsets.hpp>
 #include <autoware/ndt_scan_matcher/ndt_omp/estimate_covariance.hpp>
 #include <autoware/ndt_scan_matcher/ndt_scan_matcher_core.hpp>
 #include <autoware/ndt_scan_matcher/particle.hpp>
+#include <autoware/ndt_scan_matcher/runtime_multistart.hpp>
+#include <autoware/ndt_scan_matcher/time_offset.hpp>
+#include <autoware/ndt_scan_matcher/validation.hpp>
 #include <autoware/qos_utils/qos_compatibility.hpp>
 #include <autoware_utils_geometry/geometry.hpp>
 #include <autoware_utils_pcl/transforms.hpp>
 
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -39,6 +44,7 @@
 #include <cmath>
 #include <functional>
 #include <iomanip>
+#include <limits>
 #include <thread>
 
 namespace autoware::ndt_scan_matcher
@@ -86,6 +92,111 @@ std::array<double, 36> rotate_covariance(
   }
 
   return ret_covariance;
+}
+
+double normalize_angle(const double angle)
+{
+  return std::atan2(std::sin(angle), std::cos(angle));
+}
+
+double yaw_from_pose(const geometry_msgs::msg::Pose & pose)
+{
+  return autoware::localization_util::get_rpy(pose).z;
+}
+
+geometry_msgs::msg::Pose offset_pose_in_body_frame(
+  const geometry_msgs::msg::Pose & pose, const double along_m, const double cross_m,
+  const double yaw_offset_rad)
+{
+  geometry_msgs::msg::Pose ret = pose;
+  const auto rpy = autoware::localization_util::get_rpy(pose);
+  const double yaw = rpy.z;
+  ret.position.x += std::cos(yaw) * along_m - std::sin(yaw) * cross_m;
+  ret.position.y += std::sin(yaw) * along_m + std::cos(yaw) * cross_m;
+
+  tf2::Quaternion quaternion;
+  quaternion.setRPY(rpy.x, rpy.y, normalize_angle(yaw + yaw_offset_rad));
+  ret.orientation = tf2::toMsg(quaternion);
+  return ret;
+}
+
+template <class TransformationArray>
+std::vector<geometry_msgs::msg::Pose> transformation_array_to_poses(
+  const TransformationArray & transformation_array)
+{
+  std::vector<geometry_msgs::msg::Pose> poses;
+  poses.reserve(transformation_array.size());
+  for (const auto & pose_matrix : transformation_array) {
+    poses.push_back(matrix4f_to_pose(pose_matrix));
+  }
+  return poses;
+}
+
+RuntimeCandidateScoringOptions make_runtime_scoring_options(const HyperParameters & param)
+{
+  RuntimeCandidateScoringOptions options;
+  if (param.score_estimation.converged_param_type == ConvergedParamType::TRANSFORM_PROBABILITY) {
+    options.min_transform_probability = param.runtime_multistart.min_transform_probability;
+    options.min_nearest_voxel_transformation_likelihood =
+      -std::numeric_limits<double>::infinity();
+  } else {
+    options.min_transform_probability = -std::numeric_limits<double>::infinity();
+    options.min_nearest_voxel_transformation_likelihood =
+      param.runtime_multistart.min_nearest_voxel_transformation_likelihood;
+  }
+  options.max_initial_to_result_distance_m =
+    param.runtime_multistart.max_initial_to_result_distance_m;
+  options.max_prior_innovation_m = param.runtime_multistart.max_prior_innovation_m;
+  options.max_prior_along_m = param.runtime_multistart.max_prior_along_m;
+  options.max_prior_cross_m = param.runtime_multistart.max_prior_cross_m;
+  options.max_prior_yaw_deg = param.runtime_multistart.max_prior_yaw_deg;
+  options.min_total_score = param.runtime_multistart.min_total_score;
+  options.max_iteration_num = param.ndt.max_iterations;
+  options.score_weight = param.runtime_multistart.score_weight;
+  options.transform_probability_weight = param.runtime_multistart.transform_probability_weight;
+  options.innovation_xy_penalty_weight = param.runtime_multistart.innovation_xy_penalty_weight;
+  options.innovation_along_penalty_weight =
+    param.runtime_multistart.innovation_along_penalty_weight;
+  options.innovation_cross_penalty_weight =
+    param.runtime_multistart.innovation_cross_penalty_weight;
+  options.innovation_yaw_penalty_weight = param.runtime_multistart.innovation_yaw_penalty_weight;
+  options.initial_to_result_penalty_weight =
+    param.runtime_multistart.initial_to_result_penalty_weight;
+  options.covariance_condition_penalty_weight =
+    param.runtime_multistart.covariance_condition_penalty_weight;
+  options.base_candidate_raw_score_margin = param.runtime_multistart.base_candidate_raw_score_margin;
+  options.raw_score_override_margin = param.runtime_multistart.raw_score_override_margin;
+  options.raw_score_override_max_total_score_drop =
+    param.runtime_multistart.raw_score_override_max_total_score_drop;
+  options.raw_score_override_max_abs_along_m =
+    param.runtime_multistart.raw_score_override_max_abs_along_m;
+  options.raw_score_override_max_abs_cross_m =
+    param.runtime_multistart.raw_score_override_max_abs_cross_m;
+  options.raw_score_override_max_abs_yaw_deg =
+    param.runtime_multistart.raw_score_override_max_abs_yaw_deg;
+  options.raw_score_override_max_initial_to_result_distance_m =
+    param.runtime_multistart.raw_score_override_max_initial_to_result_distance_m;
+  return options;
+}
+
+RuntimeCandidateTierOptions make_runtime_tier_options(const HyperParameters & param)
+{
+  RuntimeCandidateTierOptions options;
+  options.tier1_max_abs_along_m = param.runtime_multistart.tier1_max_abs_along_m;
+  options.tier1_max_abs_cross_m = param.runtime_multistart.tier1_max_abs_cross_m;
+  options.tier1_max_abs_yaw_deg = param.runtime_multistart.tier1_max_abs_yaw_deg;
+  options.tracking_along_health_period_sec =
+    param.runtime_multistart.tracking_along_health_period_sec;
+  options.tracking_far_tier_period_sec = param.runtime_multistart.tracking_far_tier_period_sec;
+  options.ambiguity_score_margin = param.runtime_multistart.ambiguity_score_margin;
+  options.ambiguity_along_spread_m = param.runtime_multistart.ambiguity_along_spread_m;
+  options.recovery_stable_max_innovation_m =
+    param.runtime_multistart.recovery_stable_max_innovation_m;
+  options.recovery_stable_max_yaw_deg = param.runtime_multistart.recovery_stable_max_yaw_deg;
+  options.recovery_far_tier_period_sec = param.runtime_multistart.recovery_far_tier_period_sec;
+  options.recovery_far_tier_min_scan_interval =
+    param.runtime_multistart.recovery_far_tier_min_scan_interval;
+  return options;
 }
 
 NDTScanMatcher::NDTScanMatcher(const rclcpp::NodeOptions & options)
@@ -190,6 +301,11 @@ NDTScanMatcher::NDTScanMatcher(const rclcpp::NodeOptions & options)
   ndt_monte_carlo_initial_pose_marker_pub_ =
     this->create_publisher<visualization_msgs::msg::MarkerArray>(
       "monte_carlo_initial_pose_marker", 10);
+  runtime_multistart_debug_pub_ =
+    param_.runtime_multistart.debug_topic.empty()
+      ? nullptr
+      : this->create_publisher<std_msgs::msg::String>(
+          param_.runtime_multistart.debug_topic, rclcpp::QoS{10});
 
   service_ =
     this->create_service<autoware_internal_localization_msgs::srv::PoseWithCovarianceStamped>(
@@ -413,6 +529,8 @@ bool NDTScanMatcher::callback_sensor_points_main(
 
   // set sensor points to ndt class
   ndt_ptr_->setInputSource(sensor_points_in_baselink_frame);
+  latest_sensor_points_stamp_ = sensor_ros_time;
+  has_latest_sensor_points_stamp_ = true;
 
   // check is_activated
   diagnostics_scan_points_->add_key_value("is_activated", static_cast<bool>(is_activated_));
@@ -475,18 +593,384 @@ bool NDTScanMatcher::callback_sensor_points_main(
     return false;
   }
 
-  // perform ndt scan matching
-  const Eigen::Matrix4f initial_pose_matrix =
-    pose_to_matrix4f(interpolation_result.interpolated_pose.pose.pose);
-  auto output_cloud = std::make_shared<pcl::PointCloud<PointSource>>();
-  ndt_ptr_->align(*output_cloud, initial_pose_matrix);
-  const pclomp::NdtResult ndt_result = ndt_ptr_->getResult();
+  struct RuntimeAlignment
+  {
+    std::size_t index{};
+    double offset_along_m{};
+    double offset_cross_m{};
+    double offset_yaw_deg{};
+    geometry_msgs::msg::Pose initial_pose{};
+    Eigen::Matrix4f initial_pose_matrix{};
+    pcl::shared_ptr<pcl::PointCloud<PointSource>> output_cloud{};
+    pclomp::NdtResult ndt_result{};
+    geometry_msgs::msg::Pose result_pose{};
+    std::vector<geometry_msgs::msg::Pose> transformation_msg_array{};
+    RuntimeCandidate candidate{};
+    double score{};
+    bool is_ok_score{};
+    bool is_ok_iteration_num{};
+    bool is_local_optimal_solution_oscillation{};
+  };
 
-  const geometry_msgs::msg::Pose result_pose_msg = matrix4f_to_pose(ndt_result.pose);
-  std::vector<geometry_msgs::msg::Pose> transformation_msg_array;
-  for (const auto & pose_matrix : ndt_result.transformation_array) {
-    geometry_msgs::msg::Pose pose_ros = matrix4f_to_pose(pose_matrix);
-    transformation_msg_array.push_back(pose_ros);
+  // perform NDT scan matching for one or more runtime candidates
+  const geometry_msgs::msg::Pose prior_pose = interpolation_result.interpolated_pose.pose.pose;
+  std::vector<double> offset_along_m =
+    param_.runtime_multistart.enable ? param_.runtime_multistart.offset_along_m
+                                     : std::vector<double>{0.0};
+  std::vector<double> offset_cross_m =
+    param_.runtime_multistart.enable ? param_.runtime_multistart.offset_cross_m
+                                     : std::vector<double>{0.0};
+  std::vector<double> offset_yaw_deg =
+    param_.runtime_multistart.enable ? param_.runtime_multistart.offset_yaw_deg
+                                     : std::vector<double>{0.0};
+  if (offset_along_m.empty()) {
+    offset_along_m = {0.0};
+    offset_cross_m = {0.0};
+    offset_yaw_deg = {0.0};
+  }
+
+  const double prior_yaw = yaw_from_pose(prior_pose);
+  const double prior_forward_x = std::cos(prior_yaw);
+  const double prior_forward_y = std::sin(prior_yaw);
+  const double prior_lateral_x = -std::sin(prior_yaw);
+  const double prior_lateral_y = std::cos(prior_yaw);
+
+  std::vector<RuntimeAlignment> runtime_alignments;
+  runtime_alignments.reserve(offset_along_m.size());
+  std::vector<RuntimeCandidate> runtime_candidates;
+  runtime_candidates.reserve(offset_along_m.size());
+  const RuntimeCandidateTierOptions runtime_tier_options = make_runtime_tier_options(param_);
+  std::vector<std::size_t> small_tier_indices;
+  std::vector<std::size_t> along_health_indices;
+  std::vector<std::size_t> far_tier_indices;
+  for (std::size_t i = 1; i < offset_along_m.size(); ++i) {
+    RuntimeCandidate offset_probe;
+    offset_probe.offset_along_m = offset_along_m[i];
+    offset_probe.offset_cross_m = offset_cross_m[i];
+    offset_probe.offset_yaw_deg = offset_yaw_deg[i];
+    if (is_far_runtime_candidate(offset_probe, runtime_tier_options)) {
+      far_tier_indices.push_back(i);
+    } else {
+      small_tier_indices.push_back(i);
+      if (is_along_health_runtime_candidate(offset_probe, runtime_tier_options)) {
+        along_health_indices.push_back(i);
+      }
+    }
+  }
+  bool tier2_evaluated = false;
+  bool along_health_evaluated = false;
+  std::string tier2_trigger_reason;
+  bool small_tier_ambiguous = false;
+
+  auto run_runtime_alignment = [&](const std::size_t i) -> bool {
+    RuntimeAlignment alignment;
+    alignment.index = i;
+    alignment.offset_along_m = offset_along_m[i];
+    alignment.offset_cross_m = offset_cross_m[i];
+    alignment.offset_yaw_deg = offset_yaw_deg[i];
+    alignment.initial_pose = offset_pose_in_body_frame(
+      prior_pose, alignment.offset_along_m, alignment.offset_cross_m,
+      alignment.offset_yaw_deg * M_PI / 180.0);
+    alignment.initial_pose_matrix = pose_to_matrix4f(alignment.initial_pose);
+    alignment.output_cloud = std::make_shared<pcl::PointCloud<PointSource>>();
+    ndt_ptr_->align(*alignment.output_cloud, alignment.initial_pose_matrix);
+    alignment.ndt_result = ndt_ptr_->getResult();
+    alignment.result_pose = matrix4f_to_pose(alignment.ndt_result.pose);
+    alignment.transformation_msg_array =
+      transformation_array_to_poses(alignment.ndt_result.transformation_array);
+
+    alignment.is_ok_iteration_num =
+      alignment.ndt_result.iteration_num < ndt_ptr_->getMaximumIterations();
+    constexpr int oscillation_num_threshold = 10;
+    alignment.is_local_optimal_solution_oscillation =
+      count_oscillation(alignment.transformation_msg_array) > oscillation_num_threshold;
+
+    if (
+      param_.score_estimation.converged_param_type ==
+      ConvergedParamType::TRANSFORM_PROBABILITY) {
+      alignment.score = alignment.ndt_result.transform_probability;
+      alignment.is_ok_score =
+        alignment.score > param_.score_estimation.converged_param_transform_probability;
+    } else if (
+      param_.score_estimation.converged_param_type ==
+      ConvergedParamType::NEAREST_VOXEL_TRANSFORMATION_LIKELIHOOD) {
+      alignment.score = alignment.ndt_result.nearest_voxel_transformation_likelihood;
+      alignment.is_ok_score =
+        alignment.score >
+        param_.score_estimation.converged_param_nearest_voxel_transformation_likelihood;
+    } else {
+      std::stringstream message;
+      message << "Unknown converged param type. Please check `score_estimation.converged_param_type`";
+      diagnostics_scan_points_->update_level_and_message(
+        diagnostic_msgs::msg::DiagnosticStatus::ERROR, message.str());
+      return false;
+    }
+
+    const auto initial_to_result = static_cast<double>(
+      autoware::localization_util::norm(alignment.initial_pose.position, alignment.result_pose.position));
+    const double prior_dx = alignment.result_pose.position.x - prior_pose.position.x;
+    const double prior_dy = alignment.result_pose.position.y - prior_pose.position.y;
+    RuntimeCandidate candidate;
+    candidate.index = alignment.index;
+    candidate.converged =
+      (alignment.is_ok_iteration_num || alignment.is_local_optimal_solution_oscillation) &&
+      alignment.is_ok_score;
+    candidate.iteration_num = alignment.ndt_result.iteration_num;
+    candidate.max_iterations = ndt_ptr_->getMaximumIterations();
+    candidate.transform_probability = alignment.ndt_result.transform_probability;
+    candidate.nearest_voxel_transformation_likelihood =
+      alignment.ndt_result.nearest_voxel_transformation_likelihood;
+    candidate.initial_to_result_distance_m = initial_to_result;
+    candidate.innovation_along_m = prior_dx * prior_forward_x + prior_dy * prior_forward_y;
+    candidate.innovation_cross_m = prior_dx * prior_lateral_x + prior_dy * prior_lateral_y;
+    candidate.innovation_yaw_rad = normalize_angle(yaw_from_pose(alignment.result_pose) - prior_yaw);
+    candidate.offset_along_m = alignment.offset_along_m;
+    candidate.offset_cross_m = alignment.offset_cross_m;
+    candidate.offset_yaw_deg = alignment.offset_yaw_deg;
+    candidate.covariance_condition_number = 1.0;
+    alignment.candidate = candidate;
+    runtime_candidates.push_back(candidate);
+    runtime_alignments.push_back(alignment);
+    return true;
+  };
+
+  if (!run_runtime_alignment(0)) {
+    return false;
+  }
+  ++runtime_scans_since_last_far_tier_;
+
+  const RuntimeCandidate & base_candidate = runtime_candidates.front();
+  double base_score_threshold = 0.0;
+  if (param_.score_estimation.converged_param_type == ConvergedParamType::TRANSFORM_PROBABILITY) {
+    base_score_threshold = param_.score_estimation.converged_param_transform_probability;
+  } else {
+    base_score_threshold =
+      param_.score_estimation.converged_param_nearest_voxel_transformation_likelihood;
+  }
+  const bool runtime_stamp_enabled =
+    sensor_ros_time.seconds() >= param_.runtime_multistart.min_stamp_sec;
+  const bool base_score_has_margin =
+    runtime_alignments.front().score >=
+    base_score_threshold + param_.runtime_multistart.trigger_score_margin;
+  const bool base_large_translation =
+    base_candidate.initial_to_result_distance_m >
+    param_.runtime_multistart.trigger_initial_to_result_distance_m;
+  const bool base_large_yaw =
+    std::abs(base_candidate.innovation_yaw_rad) * 180.0 / M_PI >
+    param_.runtime_multistart.trigger_yaw_delta_deg;
+  const bool periodic_tier1_refresh =
+    param_.runtime_multistart.enable && runtime_stamp_enabled &&
+    should_refresh_tracking_tier1(
+      sensor_ros_time.seconds(), runtime_last_tier1_stamp_sec_,
+      param_.runtime_multistart.tracking_tier1_period_sec);
+  const bool periodic_along_health_refresh =
+    param_.runtime_multistart.enable && runtime_stamp_enabled &&
+    should_refresh_tracking_tier1(
+      sensor_ros_time.seconds(), runtime_last_along_health_stamp_sec_,
+      param_.runtime_multistart.tracking_along_health_period_sec);
+  const bool should_expand_candidates =
+    param_.runtime_multistart.enable && runtime_stamp_enabled &&
+    (!base_candidate.converged || base_large_translation || base_large_yaw ||
+     !base_score_has_margin || periodic_tier1_refresh || runtime_recovery_active_);
+
+  if (should_expand_candidates || periodic_along_health_refresh) {
+    const auto & tracking_indices = should_expand_candidates ? small_tier_indices : along_health_indices;
+    for (const auto index : tracking_indices) {
+      if (!run_runtime_alignment(index)) {
+        return false;
+      }
+    }
+    if (should_expand_candidates && !small_tier_indices.empty()) {
+      runtime_last_tier1_stamp_sec_ = sensor_ros_time.seconds();
+    }
+    if (!should_expand_candidates && !along_health_indices.empty()) {
+      along_health_evaluated = true;
+      runtime_last_along_health_stamp_sec_ = sensor_ros_time.seconds();
+    }
+    RuntimeCandidateScoringOptions tier1_scoring_options = make_runtime_scoring_options(param_);
+    RuntimeCandidateSelection tier1_selection =
+      select_runtime_candidate(runtime_candidates, tier1_scoring_options);
+    small_tier_ambiguous =
+      runtime_small_tier_is_ambiguous(runtime_candidates, tier1_selection, runtime_tier_options);
+    const double seconds_since_last_far_tier =
+      runtime_last_far_tier_stamp_sec_ < 0.0
+        ? std::numeric_limits<double>::infinity()
+        : sensor_ros_time.seconds() - runtime_last_far_tier_stamp_sec_;
+    const bool should_run_far_tier =
+      !far_tier_indices.empty() &&
+      should_evaluate_far_runtime_tier(
+        runtime_candidates, tier1_selection, runtime_tier_options, runtime_rejected_scan_streak_,
+        runtime_recovery_active_, seconds_since_last_far_tier, small_tier_ambiguous,
+        runtime_scans_since_last_far_tier_);
+    if (should_run_far_tier) {
+      tier2_evaluated = true;
+      runtime_last_far_tier_stamp_sec_ = sensor_ros_time.seconds();
+      runtime_scans_since_last_far_tier_ = 0;
+      if (runtime_recovery_active_) {
+        tier2_trigger_reason = "recovery_active";
+      } else if (runtime_rejected_scan_streak_ > 0) {
+        tier2_trigger_reason = "rejected_scan_streak";
+      } else if (!tier1_selection.has_selected_candidate) {
+        tier2_trigger_reason = "small_tier_rejected";
+      } else if (small_tier_ambiguous) {
+        tier2_trigger_reason = "small_tier_ambiguous";
+      } else if (
+        param_.runtime_multistart.tracking_far_tier_period_sec > 0.0 &&
+        seconds_since_last_far_tier >= param_.runtime_multistart.tracking_far_tier_period_sec) {
+        tier2_trigger_reason = "tracking_far_tier_periodic";
+      } else {
+        tier2_trigger_reason = "small_tier_selection_missing";
+      }
+      for (const auto index : far_tier_indices) {
+        if (!run_runtime_alignment(index)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  RuntimeCandidateScoringOptions runtime_scoring_options = make_runtime_scoring_options(param_);
+  if (runtime_alignments.size() == 1) {
+    // Single-start frames keep the original NDT acceptance semantics.  Runtime prior gates are
+    // only for choosing between multiple basins; applying them to the only candidate creates
+    // avoidable coverage holes and can prevent the predictor from recovering after startup.
+    disable_runtime_selection_gates_for_single_start(runtime_scoring_options);
+  }
+  RuntimeCandidateSelection runtime_selection =
+    select_runtime_candidate(runtime_candidates, runtime_scoring_options);
+  const RuntimeCandidateSpreadCovariance runtime_spread_covariance =
+    estimate_runtime_candidate_spread_covariance(
+      runtime_candidates, runtime_selection, runtime_scoring_options,
+      param_.runtime_multistart.ambiguity_score_margin);
+  auto selected_alignment_iter = std::find_if(
+    runtime_alignments.begin(), runtime_alignments.end(),
+    [&runtime_selection](const RuntimeAlignment & item) {
+      return runtime_selection.has_selected_candidate &&
+             item.index == runtime_selection.selected_candidate_index;
+    });
+  const RuntimeCandidate * selected_runtime_candidate =
+    runtime_selection.has_selected_candidate
+      ? find_runtime_candidate_by_index(runtime_candidates, runtime_selection.selected_candidate_index)
+      : nullptr;
+  const bool recovery_attempt =
+    tier2_evaluated || runtime_recovery_active_ || runtime_rejected_scan_streak_ > 0 ||
+    !runtime_selection.has_selected_candidate;
+  const bool selected_stable =
+    selected_runtime_candidate != nullptr &&
+    runtime_candidate_is_stable_for_recovery(*selected_runtime_candidate, runtime_tier_options);
+  const RuntimeRecoveryState recovery_state = update_runtime_recovery_state(
+    runtime_selection.has_selected_candidate, selected_stable, recovery_attempt,
+    runtime_recovery_active_, runtime_recovery_stable_frames_, runtime_rejected_scan_streak_,
+    std::max(1, param_.runtime_multistart.recovery_stable_required_frames));
+  runtime_rejected_scan_streak_ = recovery_state.rejected_scan_streak;
+  runtime_recovery_active_ = recovery_state.recovery_active;
+  runtime_recovery_stable_frames_ = recovery_state.recovery_stable_frames;
+  const bool recovery_verified = recovery_state.recovery_verified;
+
+  if (param_.runtime_multistart.enable && runtime_multistart_debug_pub_ != nullptr) {
+    std_msgs::msg::String debug_msg;
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(6);
+    payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
+            << ",\"reason\":\"runtime_scored_multistart\""
+            << ",\"uses_gnss_or_gt\":false"
+            << ",\"candidate_count\":" << runtime_alignments.size()
+            << ",\"along_health_evaluated\":" << (along_health_evaluated ? "true" : "false")
+            << ",\"tier2_evaluated\":" << (tier2_evaluated ? "true" : "false")
+            << ",\"tier2_trigger_reason\":\"" << tier2_trigger_reason << "\""
+            << ",\"small_tier_ambiguous\":" << (small_tier_ambiguous ? "true" : "false")
+            << ",\"spread_covariance_ambiguous\":"
+            << (runtime_spread_covariance.ambiguous ? "true" : "false")
+            << ",\"spread_covariance_contender_count\":"
+            << runtime_spread_covariance.contender_count
+            << ",\"spread_covariance_along_m2\":"
+            << runtime_spread_covariance.along_variance_m2
+            << ",\"spread_covariance_cross_m2\":"
+            << runtime_spread_covariance.cross_variance_m2
+            << ",\"scans_since_last_far_tier\":" << runtime_scans_since_last_far_tier_
+            << ",\"rejected_scan_streak\":" << runtime_rejected_scan_streak_
+            << ",\"recovery_active\":" << (runtime_recovery_active_ ? "true" : "false")
+            << ",\"recovery_verified\":" << (recovery_verified ? "true" : "false")
+            << ",\"recovery_verified_stable_frames\":" << runtime_recovery_stable_frames_
+            << ",\"has_selected_candidate\":"
+            << (runtime_selection.has_selected_candidate ? "true" : "false")
+            << ",\"selected_candidate_index\":";
+    if (runtime_selection.has_selected_candidate) {
+      payload << runtime_selection.selected_candidate_index;
+    } else {
+      payload << "null";
+    }
+    payload << ",\"candidates\":[";
+    for (std::size_t i = 0; i < runtime_alignments.size(); ++i) {
+      const auto & alignment = runtime_alignments[i];
+      const auto & candidate_score = runtime_selection.candidate_scores[i];
+      if (i > 0) {
+        payload << ",";
+      }
+      payload << "{\"index\":" << alignment.index << ",\"offset_along_m\":"
+              << alignment.offset_along_m << ",\"offset_cross_m\":" << alignment.offset_cross_m
+              << ",\"offset_yaw_deg\":" << alignment.offset_yaw_deg
+              << ",\"tier\":\""
+              << (is_far_runtime_candidate(alignment.candidate, runtime_tier_options) ? "far"
+                                                                                     : "small")
+              << "\""
+              << ",\"transform_probability\":" << alignment.ndt_result.transform_probability
+              << ",\"nearest_voxel_transformation_likelihood\":"
+              << alignment.ndt_result.nearest_voxel_transformation_likelihood
+              << ",\"iteration_num\":" << alignment.ndt_result.iteration_num
+              << ",\"converged\":" << (alignment.candidate.converged ? "true" : "false")
+              << ",\"initial_to_result_distance_m\":"
+              << alignment.candidate.initial_to_result_distance_m
+              << ",\"result_x\":" << alignment.result_pose.position.x
+              << ",\"result_y\":" << alignment.result_pose.position.y
+              << ",\"result_z\":" << alignment.result_pose.position.z
+              << ",\"result_yaw_deg\":" << yaw_from_pose(alignment.result_pose) * 180.0 / M_PI
+              << ",\"innovation_along_m\":" << alignment.candidate.innovation_along_m
+              << ",\"innovation_cross_m\":" << alignment.candidate.innovation_cross_m
+              << ",\"innovation_yaw_deg\":"
+              << alignment.candidate.innovation_yaw_rad * 180.0 / M_PI
+              << ",\"total_score\":";
+      if (std::isfinite(candidate_score.total_score)) {
+        payload << candidate_score.total_score;
+      } else {
+        payload << "null";
+      }
+      payload << ",\"reject_reason\":\"" << candidate_score.reject_reason << "\"}";
+    }
+    payload << "]}";
+    debug_msg.data = payload.str();
+    runtime_multistart_debug_pub_->publish(debug_msg);
+  }
+
+  if (!runtime_selection.has_selected_candidate || selected_alignment_iter == runtime_alignments.end()) {
+    std::stringstream message;
+    message << "Runtime multi-start rejected all " << runtime_alignments.size() << " candidates.";
+    diagnostics_scan_points_->update_level_and_message(
+      diagnostic_msgs::msg::DiagnosticStatus::WARN, message.str());
+    RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, message.str());
+    return false;
+  }
+
+  const RuntimeAlignment & selected_alignment = *selected_alignment_iter;
+  const Eigen::Matrix4f initial_pose_matrix = selected_alignment.initial_pose_matrix;
+  const auto output_cloud = selected_alignment.output_cloud;
+  const pclomp::NdtResult ndt_result = selected_alignment.ndt_result;
+  const geometry_msgs::msg::Pose result_pose_msg = selected_alignment.result_pose;
+  const std::vector<geometry_msgs::msg::Pose> transformation_msg_array =
+    selected_alignment.transformation_msg_array;
+
+  geometry_msgs::msg::PoseArray runtime_multi_initial_pose_msg;
+  geometry_msgs::msg::PoseArray runtime_multi_ndt_pose_msg;
+  runtime_multi_initial_pose_msg.header.stamp = sensor_ros_time;
+  runtime_multi_initial_pose_msg.header.frame_id = param_.frame.map_frame;
+  runtime_multi_ndt_pose_msg.header = runtime_multi_initial_pose_msg.header;
+  for (const auto & alignment : runtime_alignments) {
+    runtime_multi_initial_pose_msg.poses.push_back(alignment.initial_pose);
+    runtime_multi_ndt_pose_msg.poses.push_back(alignment.result_pose);
+  }
+  if (param_.runtime_multistart.enable && runtime_alignments.size() > 1) {
+    multi_initial_pose_pub_->publish(runtime_multi_initial_pose_msg);
+    multi_ndt_pose_pub_->publish(runtime_multi_ndt_pose_msg);
   }
 
   // check iteration_num
@@ -607,17 +1091,35 @@ bool NDTScanMatcher::callback_sensor_points_main(
     ndt_covariance[1 + 6 * 0] = estimated_covariance_2d_adj(1, 0);
     ndt_covariance[0 + 6 * 1] = estimated_covariance_2d_adj(0, 1);
   }
-
+  if (runtime_spread_covariance.ambiguous) {
+    Eigen::Matrix2d body_to_map;
+    body_to_map << prior_forward_x, prior_lateral_x, prior_forward_y, prior_lateral_y;
+    Eigen::Matrix2d spread_covariance_body = Eigen::Matrix2d::Zero();
+    spread_covariance_body(0, 0) = runtime_spread_covariance.along_variance_m2;
+    spread_covariance_body(1, 1) = runtime_spread_covariance.cross_variance_m2;
+    const Eigen::Matrix2d spread_covariance_map =
+      body_to_map * spread_covariance_body * body_to_map.transpose();
+    ndt_covariance[0 + 6 * 0] += spread_covariance_map(0, 0);
+    ndt_covariance[1 + 6 * 1] += spread_covariance_map(1, 1);
+    ndt_covariance[1 + 6 * 0] += spread_covariance_map(1, 0);
+    ndt_covariance[0 + 6 * 1] += spread_covariance_map(0, 1);
+    diagnostics_scan_points_->add_key_value(
+      "runtime_spread_covariance_along_m2", runtime_spread_covariance.along_variance_m2);
+    diagnostics_scan_points_->add_key_value(
+      "runtime_spread_covariance_cross_m2", runtime_spread_covariance.cross_variance_m2);
+  }
   // check distance_initial_to_result
   const auto distance_initial_to_result = static_cast<double>(autoware::localization_util::norm(
-    interpolation_result.interpolated_pose.pose.pose.position, result_pose_msg.position));
+    selected_alignment.initial_pose.position, result_pose_msg.position));
   diagnostics_scan_points_->add_key_value("distance_initial_to_result", distance_initial_to_result);
-  if (distance_initial_to_result > param_.validation.initial_to_result_distance_tolerance_m) {
+  if (!is_initial_to_result_distance_valid(
+        distance_initial_to_result, param_.validation.initial_to_result_distance_tolerance_m)) {
     std::stringstream message;
     message << "distance_initial_to_result is too large (" << distance_initial_to_result
             << " [m]).";
     diagnostics_scan_points_->update_level_and_message(
       diagnostic_msgs::msg::DiagnosticStatus::WARN, message.str());
+    is_converged = false;
   }
 
   // check execution_time
@@ -634,18 +1136,27 @@ bool NDTScanMatcher::callback_sensor_points_main(
   }
 
   // publish
-  initial_pose_with_covariance_pub_->publish(interpolation_result.interpolated_pose);
-  exe_time_pub_->publish(make_float32_stamped(sensor_ros_time, exe_time));
+  const rclcpp::Time output_pose_ros_time =
+    apply_output_pose_time_offset(sensor_ros_time, param_.output_pose_time_offset_sec);
+  diagnostics_scan_points_->add_key_value(
+    "output_pose_time_offset_sec", param_.output_pose_time_offset_sec);
+  diagnostics_scan_points_->add_key_value(
+    "output_pose_time_stamp", output_pose_ros_time.nanoseconds());
+  geometry_msgs::msg::PoseWithCovarianceStamped selected_initial_pose_with_covariance =
+    interpolation_result.interpolated_pose;
+  selected_initial_pose_with_covariance.pose.pose = selected_alignment.initial_pose;
+  initial_pose_with_covariance_pub_->publish(selected_initial_pose_with_covariance);
+  exe_time_pub_->publish(make_float32_stamped(output_pose_ros_time, exe_time));
   transform_probability_pub_->publish(
-    make_float32_stamped(sensor_ros_time, ndt_result.transform_probability));
+    make_float32_stamped(output_pose_ros_time, ndt_result.transform_probability));
   nearest_voxel_transformation_likelihood_pub_->publish(
-    make_float32_stamped(sensor_ros_time, ndt_result.nearest_voxel_transformation_likelihood));
-  iteration_num_pub_->publish(make_int32_stamped(sensor_ros_time, ndt_result.iteration_num));
-  publish_tf(sensor_ros_time, result_pose_msg);
-  publish_pose(sensor_ros_time, result_pose_msg, ndt_covariance, is_converged);
-  publish_marker(sensor_ros_time, transformation_msg_array);
+    make_float32_stamped(output_pose_ros_time, ndt_result.nearest_voxel_transformation_likelihood));
+  iteration_num_pub_->publish(make_int32_stamped(output_pose_ros_time, ndt_result.iteration_num));
+  publish_tf(output_pose_ros_time, result_pose_msg);
+  publish_pose(output_pose_ros_time, result_pose_msg, ndt_covariance, is_converged);
+  publish_marker(output_pose_ros_time, transformation_msg_array);
   publish_initial_to_result(
-    sensor_ros_time, result_pose_msg, interpolation_result.interpolated_pose,
+    output_pose_ros_time, result_pose_msg, selected_initial_pose_with_covariance,
     interpolation_result.old_pose, interpolation_result.new_pose);
 
   pcl::shared_ptr<pcl::PointCloud<PointSource>> sensor_points_in_map_ptr(
@@ -1001,6 +1512,38 @@ void NDTScanMatcher::service_ndt_align_main(
   const autoware_internal_localization_msgs::srv::PoseWithCovarianceStamped::Request::SharedPtr req,
   autoware_internal_localization_msgs::srv::PoseWithCovarianceStamped::Response::SharedPtr res)
 {
+  const rclcpp::Time requested_pose_stamp(req->pose_with_covariance.header.stamp);
+  const auto wait_timeout = std::chrono::duration<double>(
+    std::max(0.0, param_.initial_pose_estimation.sensor_points_stamp_wait_timeout_sec));
+  const auto wait_deadline = std::chrono::steady_clock::now() +
+                             std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                               wait_timeout);
+  auto latest_sensor_stamp_is_fresh = [&]() {
+    std::lock_guard<std::mutex> lock(ndt_ptr_mtx_);
+    return has_latest_sensor_points_stamp_ &&
+           is_alignment_sensor_stamp_fresh(
+             requested_pose_stamp, latest_sensor_points_stamp_,
+             param_.initial_pose_estimation.sensor_points_stamp_tolerance_sec);
+  };
+  while (
+    rclcpp::ok() && !latest_sensor_stamp_is_fresh() &&
+    std::chrono::steady_clock::now() < wait_deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  {
+    std::lock_guard<std::mutex> lock(ndt_ptr_mtx_);
+    diagnostics_ndt_align_->add_key_value(
+      "requested_pose_stamp", requested_pose_stamp.nanoseconds());
+    diagnostics_ndt_align_->add_key_value(
+      "latest_sensor_points_stamp", latest_sensor_points_stamp_.nanoseconds());
+    diagnostics_ndt_align_->add_key_value(
+      "is_latest_sensor_points_stamp_fresh",
+      has_latest_sensor_points_stamp_ &&
+        is_alignment_sensor_stamp_fresh(
+          requested_pose_stamp, latest_sensor_points_stamp_,
+          param_.initial_pose_estimation.sensor_points_stamp_tolerance_sec));
+  }
+
   // get TF from pose_frame to map_frame
   const std::string & target_frame = param_.frame.map_frame;
   const std::string & source_frame = req->pose_with_covariance.header.frame_id;
@@ -1112,22 +1655,46 @@ std::tuple<geometry_msgs::msg::PoseWithCovarianceStamped, double> NDTScanMatcher
   // publish the estimated poses in 20 times to see the progress and to avoid dropping data
   visualization_msgs::msg::MarkerArray marker_array;
   constexpr int64_t publish_num = 20;
-  const int64_t publish_interval = param_.initial_pose_estimation.particles_num / publish_num;
+  const int64_t publish_interval =
+    std::max<int64_t>(1, param_.initial_pose_estimation.particles_num / publish_num);
+  const std::size_t deterministic_offset_count =
+    param_.initial_pose_estimation.deterministic_offsets_enable
+      ? count_complete_initial_pose_offsets(
+          param_.initial_pose_estimation.deterministic_offset_along_m,
+          param_.initial_pose_estimation.deterministic_offset_cross_m,
+          param_.initial_pose_estimation.deterministic_offset_yaw_deg)
+      : 0U;
 
   for (int64_t i = 0; i < param_.initial_pose_estimation.particles_num; i++) {
-    const TreeStructuredParzenEstimator::Input input = tpe.get_next_input();
-
     geometry_msgs::msg::Pose initial_pose;
-    initial_pose.position.x = input[0];
-    initial_pose.position.y = input[1];
-    initial_pose.position.z = input[2];
-    geometry_msgs::msg::Vector3 init_rpy;
-    init_rpy.x = input[3];
-    init_rpy.y = input[4];
-    init_rpy.z = input[5];
-    tf2::Quaternion tf_quaternion;
-    tf_quaternion.setRPY(init_rpy.x, init_rpy.y, init_rpy.z);
-    initial_pose.orientation = tf2::toMsg(tf_quaternion);
+    if (static_cast<std::size_t>(i) < deterministic_offset_count) {
+      initial_pose = apply_initial_pose_offset(
+        initial_pose_with_cov.pose.pose,
+        param_.initial_pose_estimation.deterministic_offset_along_m[static_cast<std::size_t>(i)],
+        param_.initial_pose_estimation.deterministic_offset_cross_m[static_cast<std::size_t>(i)],
+        param_.initial_pose_estimation.deterministic_offset_yaw_deg[static_cast<std::size_t>(i)]);
+    } else {
+      TreeStructuredParzenEstimator::Input input =
+        i == 0 && param_.initial_pose_estimation.include_initial_pose
+          ? TreeStructuredParzenEstimator::Input{
+              sample_mean[0], sample_mean[1], sample_mean[2], sample_mean[3], sample_mean[4],
+              base_rpy.z}
+          : tpe.get_next_input();
+      if (param_.initial_pose_estimation.force_initial_yaw) {
+        input[5] = base_rpy.z;
+      }
+
+      initial_pose.position.x = input[0];
+      initial_pose.position.y = input[1];
+      initial_pose.position.z = input[2];
+      geometry_msgs::msg::Vector3 init_rpy;
+      init_rpy.x = input[3];
+      init_rpy.y = input[4];
+      init_rpy.z = input[5];
+      tf2::Quaternion tf_quaternion;
+      tf_quaternion.setRPY(init_rpy.x, init_rpy.y, init_rpy.z);
+      initial_pose.orientation = tf2::toMsg(tf_quaternion);
+    }
 
     const Eigen::Matrix4f initial_pose_matrix = pose_to_matrix4f(initial_pose);
     ndt_ptr_->align(*output_cloud, initial_pose_matrix);
@@ -1168,9 +1735,20 @@ std::tuple<geometry_msgs::msg::PoseWithCovarianceStamped, double> NDTScanMatcher
     [](const Particle & lhs, const Particle & rhs) { return lhs.score < rhs.score; });
 
   geometry_msgs::msg::PoseWithCovarianceStamped result_pose_with_cov_msg;
-  result_pose_with_cov_msg.header.stamp = initial_pose_with_cov.header.stamp;
+  const rclcpp::Time request_stamp(initial_pose_with_cov.header.stamp);
+  const rclcpp::Time sensor_points_stamp =
+    has_latest_sensor_points_stamp_ ? latest_sensor_points_stamp_ : request_stamp;
+  result_pose_with_cov_msg.header.stamp = select_alignment_output_stamp(
+    request_stamp, sensor_points_stamp, param_.initial_pose_estimation.use_sensor_points_stamp);
   result_pose_with_cov_msg.header.frame_id = param_.frame.map_frame;
   result_pose_with_cov_msg.pose.pose = best_particle_ptr->result_pose;
+  if (param_.initial_pose_estimation.output_initial_yaw) {
+    const auto output_rpy =
+      autoware::localization_util::get_rpy(result_pose_with_cov_msg.pose.pose);
+    tf2::Quaternion output_quaternion;
+    output_quaternion.setRPY(output_rpy.x, output_rpy.y, base_rpy.z);
+    result_pose_with_cov_msg.pose.pose.orientation = tf2::toMsg(output_quaternion);
+  }
 
   autoware::localization_util::output_pose_with_cov_to_log(
     get_logger(), "align_pose_output", result_pose_with_cov_msg);

@@ -25,12 +25,15 @@ AutoRacer control
   -> CarMaker VehicleControl / vehicle behavior
 ```
 
-验收关注的是行为闭环：
+验收关注的是组件级行为响应：
 
 - 给定速度目标，CarMaker 车辆速度应朝该目标变化并稳定在合理误差内。
 - 给定停止或降速目标，CarMaker 车辆应减速或停车。
 - 给定转向目标，CarMaker 车辆应产生方向正确、量级合理的转向响应。
 - AutoRacer 不应为了 CarMaker 做额外适配。
+
+本任务不验证完整 Stage A/Stage B 自动驾驶闭环。完整闭环会在后续联调流程中覆盖；
+当前只验证 `control_cmd` 到 CarMaker 车辆行为的转换是否正常。
 
 ## 2. 不可破坏边界
 
@@ -57,14 +60,26 @@ AutoRacer control
 
 - `ROS2Bridge.cpp` 接收并缓存 `/control/command/control_cmd`。
 - `User.cpp` 中的 `User_VehicleControl_Calc()` 把 command 转换为 CarMaker 的车辆控制量。
-- 当前实现是低速 Stage A 可用的硬编码转换。
+- 当前实现是低速场景可用的硬编码转换。
 
 当前主要问题不是 ROS2 数据链路，而是 command 到车辆行为的转换太粗糙：
 
 - 速度上限硬编码偏低，不能覆盖任务所需的常规速度区间。
 - 油门/刹车映射是简单低速闭环，未按底盘手册给出合理默认边界。
 - 转向映射应明确使用常规转向/阿克曼转向，不引入四轮转向或楔形转向。
-- 测试标准需要能覆盖连续速度区间，而不是只看某一个示例速度。
+- 验证方式应保持组件级：给少量代表性 `control_cmd`，观察 CarMaker 车速和转向行为。
+
+当前项目中，控制验证相关 TestRun 默认使用 `Small.car`：
+
+```text
+Data/TestRun/ExternalControl        -> Vehicle = Small.car
+Data/TestRun/ExternalControl_10km   -> Vehicle = Small.car
+Data/TestRun/AutoracerStageA_10km   -> Vehicle = Small.car
+Data/TestRun/AutoracerStageB_UrbanRoute271 -> Vehicle = Small.car
+```
+
+`AutoracerCollection_UrbanRoad*` 使用 `AutoracerCollection_UrbanSensorCar`，更偏采集/传感器场景，
+不是当前 adapter 组件验证的默认车辆。
 
 ## 4. `command_gate` 相关输入输出边界
 
@@ -94,6 +109,15 @@ AutoRacer control
 如果 CarMaker 内部为了让车辆能动必须设置档位，应在 CarMaker adapter 内部固定为可行驶状态，
 例如 `GearNo = 1`、`Clutch = 0`、`BrakePark = 0`。这属于 CarMaker 内部执行条件，
 不是要求 AutoRacer 输出档位命令。
+
+即使当前代码里仍存在 `/control/command/gear_cmd` 订阅，当前 MVP 的验收目标仍然是：
+
+```text
+只发布 /control/command/control_cmd，CarMaker 车辆也能进入可行驶状态并响应速度/转向命令。
+```
+
+如果实现需要档位、离合、驻车条件，应在 CarMaker adapter 内部根据当前 control command 和
+测试目标设置，不允许把“额外发布 gear_cmd”作为组件测试通过条件。
 
 ## 5. 底盘手册信息的使用方式
 
@@ -131,6 +155,20 @@ AutoRacer control
 - `lateral.steering_tire_angle`
 
 只使用这些字段即可完成当前 MVP。
+
+输入防御要求：
+
+- 如果 `cmd.velocity`、`cmd.acceleration` 或 `cmd.steering_tire_angle` 不是有限值，adapter 必须进入安全降级。
+- 安全降级行为：
+
+```text
+target_speed = 0
+Gas = 0
+Brake = stop_hold_brake
+steering_wheel_angle = 0
+```
+
+- 不允许把 NaN/inf 继续传入 CarMaker 控制量。
 
 ### 6.2 速度控制
 
@@ -192,7 +230,7 @@ steering_wheel_angle = clamp(
 
 ## 7. 推荐初始参数
 
-这些参数是 MVP 初值，不是高保真车辆标定结果。允许在验证失败时按本文闭环规则调整。
+这些参数是 MVP 初值，不是高保真车辆标定结果。允许在验证失败时按本文调试规则调整。
 
 ```text
 max_target_speed_mps = 15.3
@@ -223,97 +261,137 @@ command_timeout_sec = 1.0
 - 若当前 CarMaker 场景、道路或任务配置有更低速度限制，测试上限应取更低值。
 - 不要把任意一个速度值写成唯一验收点。
 
-## 8. 测试速度生成规则
+## 8. 组件级验证方式
 
-为了避免只验证单点速度，测试点应从测试上限自动生成。
+本任务只验证 CarMaker adapter 本身，不要求跑完整 AutoRacer 闭环。
 
-定义：
-
-```text
-V_manual_normal = 11.1 m/s
-V_manual_max = 15.3 m/s
-V_config_max = 当前 CarMaker adapter 配置的 max_target_speed_mps
-V_scenario_max = 当前场景或任务允许的最高目标速度；如果没有显式配置，取 V_manual_normal
-
-V_test_max = min(V_config_max, V_scenario_max)
-```
-
-基础速度测试点：
+验证时允许使用测试 publisher 直接发布：
 
 ```text
-0
-0.25 * V_test_max
-0.50 * V_test_max
-0.75 * V_test_max
-1.00 * V_test_max
+/control/command/control_cmd
 ```
 
-转换测试：
+这只用于验证：
 
 ```text
-0 -> 0.25 * V_test_max
-0.25 * V_test_max -> 0.75 * V_test_max
-0.75 * V_test_max -> 0.50 * V_test_max
-0.50 * V_test_max -> 0
+control_cmd -> CarMaker adapter -> Gas / Brake / Steering -> Vehicle behavior
 ```
 
-如果需要专门验证 adapter 的配置上限，可把 `V_scenario_max` 显式设置为 `V_manual_max`。
-否则默认以 `V_manual_normal` 覆盖常规速度区间。
+不代表生产链路。后续联调再接真实 AutoRacer + `command_gate` 输出。
+
+### 8.1 组件测试执行约束
+
+默认测试场景：
+
+```text
+首选：Data/TestRun/ExternalControl_10km
+备选：Data/TestRun/ExternalControl
+车辆：Small.car
+```
+
+约束：
+
+- 组件测试时，`/control/command/control_cmd` 应只有测试 publisher 一个来源。
+- 不要同时运行会发布同一话题的 AutoRacer/controller/command_gate 节点，避免命令混杂。
+- 测试 publisher 必须持续发布命令，建议 `10 Hz`，不允许只 publish 一次。
+- 每个命令必须保持指定时间，让 adapter 避免被 `command_timeout_sec` 误判为超时。
+- 测试 publisher 只发布 `/control/command/control_cmd`，不额外发布 `gear_cmd`。
+- 如果 AI 无法启动 CarMaker、无法观察 `Vehicle.v/Gas/Brake/Steering` 或无法读取相关日志，
+  只能声明“代码修改完成，等待 CarMaker 组件验证”，不能声明任务通过。
+
+### 8.2 最小速度验证
+
+在简单直线路段或当前可用 CarMaker 场景中，依次发布少量代表命令即可。
+
+建议最小命令集：
+
+```text
+Command A: hold 2 s,  velocity = 0.0 m/s, acceleration = 0.0 m/s2, steering_tire_angle = 0.0 rad
+Command B: hold 6 s,  velocity = 2.0 m/s, acceleration = 0.0 m/s2, steering_tire_angle = 0.0 rad
+Command C: hold 12 s, velocity = 8.0 m/s, acceleration = 0.0 m/s2, steering_tire_angle = 0.0 rad
+Command D: hold 10 s, velocity = 0.0 m/s, acceleration = 0.0 m/s2, steering_tire_angle = 0.0 rad
+```
+
+说明：
+
+- `2.0 m/s` 用于确认低速起步转换正常。
+- `8.0 m/s` 低于手册常规速度上限 `11.1 m/s`，但高于当前旧实现的 `5.0 m/s` 限幅，
+  用于确认不再被旧的低速硬编码明显卡住。
+- 本任务不要求覆盖完整连续速度区间。
+- 如果当前场景或车辆模型确实不允许 `8.0 m/s`，可以换成场景允许的代表速度，但必须记录原因。
+
+### 8.3 最小转向验证
+
+在低速下发布：
+
+```text
+Command E: hold 5 s, velocity = 2.0 m/s, acceleration = 0.0 m/s2, steering_tire_angle = +0.05 rad
+Command F: hold 5 s, velocity = 2.0 m/s, acceleration = 0.0 m/s2, steering_tire_angle = -0.05 rad
+```
+
+只验证方向和量级是否合理，不要求做轨迹跟踪精度评估。
 
 ## 9. 通过/失败判据
 
-### 9.1 速度响应 PASS
+### 9.1 command 接收 PASS
 
-对每个非零目标速度：
+满足：
 
-```text
-abs(measured_vehicle_speed - target_speed)
-    <= max(0.5 m/s, 0.15 * target_speed)
-```
+- CarMaker adapter 能收到 `/control/command/control_cmd`。
+- 日志中能看到目标速度、目标加速度、目标转向角。
+- command 未被错误 timeout 清零。
+- 日志或 `ros2 topic info` 能确认组件测试期间没有其他 publisher 干扰 `/control/command/control_cmd`。
 
-并且满足：
+### 9.2 速度转换 PASS
 
-- 目标速度升高后，车辆速度应整体上升。
-- 目标速度降低后，车辆速度应整体下降。
-- 稳态前允许短暂过渡，但不能持续发散。
-- 不应被旧的低速硬编码上限卡住。
+发布 `Command B` 后：
 
-### 9.2 停车 PASS
+- `Gas > 0`。
+- `Brake = 0` 或接近 0。
+- `Vehicle.v` 随时间上升。
+- `5 s` 内 `Vehicle.v > 1.0 m/s`。
 
-目标速度为 0 后：
+发布 `Command C` 后：
 
-```text
-measured_vehicle_speed < 0.2 m/s
-```
+- `Gas > 0`，直到车辆接近目标速度前不应长期为 0。
+- `Brake = 0` 或接近 0。
+- `Vehicle.v` 继续上升。
+- `12 s` 内 `Vehicle.v > 5.5 m/s`，用于排除旧的 `5.0 m/s` 硬编码限幅。
 
-并且：
+发布 `Command D` 后：
 
-- `Gas = 0`
-- `Brake > 0` 或车辆可稳定保持停止
+- `Gas = 0`。
+- `Brake > 0`，或车辆能稳定减速并停住。
+- `Vehicle.v` 随时间下降。
+- `10 s` 内 `Vehicle.v < 0.3 m/s`。
 
-### 9.3 转向 PASS
+这里不要求精确标定加速曲线，也不要求达到真实底盘的动力学响应。
 
-给定正/负转向目标后：
+### 9.3 转向转换 PASS
 
-- 方向盘角或前轮角方向正确。
-- 车辆横摆方向与命令一致。
-- 响应量级不应明显过小或被异常限幅。
-- 不出现单位错误导致的过大转向。
+发布正/负小转角命令后：
+
+- CarMaker 方向盘角或前轮角方向正确。
+- `Command E` 和 `Command F` 必须产生相反符号的方向盘角/前轮角响应。
+- `Command E` 和 `Command F` 必须产生相反方向的横摆响应。
+- 响应量级合理，不出现单位错误导致的异常大角度或几乎无响应。
+- 如果项目已有明确左右转符号约定，按该约定判断正负号；如果没有，至少必须证明正负命令
+  对应的车辆响应方向相反，并在实现记录中写明实际采用的符号映射。
 
 ### 9.4 FAIL 条件
 
 任一情况视为失败：
 
+- command 已发布，但 CarMaker adapter 收不到。
 - command 已收到，但车辆长期不动。
-- 目标速度变化后，`Vehicle.v` 没有对应趋势。
-- 速度被固定卡在旧上限附近。
-- 加速时 Brake 长期非零，或减速时 Gas 长期非零。
-- Gas/Brake 长期同时明显非零。
+- 正速度命令下 `Gas` 不上升，或 Brake 长期生效。
+- 停止命令下 `Gas` 仍长期非零。
+- `Vehicle.v` 与目标速度变化方向相反或无趋势。
 - 转向符号反了。
 - 车辆速度、控制量出现 NaN/inf。
 - 通过直接写车辆速度或位姿绕过车辆执行。
 
-## 10. AI 自检与修正闭环
+## 10. AI 自检与修正流程
 
 实现 AI 必须按以下顺序工作，不能只改一次就结束。
 
@@ -325,7 +403,7 @@ measured_vehicle_speed < 0.2 m/s
 - `max_target_speed_mps` 或等价速度限幅。
 - Gas/Brake 映射参数。
 - Steering 映射参数。
-- Stage A 低速测试是否仍可运行。
+- 当前 CarMaker 测试场景和车辆文件。
 
 ### 10.2 一次只改一类问题
 
@@ -336,7 +414,7 @@ measured_vehicle_speed < 0.2 m/s
 3. 确认 CarMaker 车辆处于可行驶状态。
 4. 调整纵向速度 adapter。
 5. 调整转向 adapter。
-6. 做 Stage A 回归。
+6. 重新运行组件级速度/转向验证。
 
 不要同时大改桥接、车辆模型、控制器和场景配置。
 
@@ -356,6 +434,8 @@ steering_tire_angle
 steering_wheel_angle
 command_age
 ```
+
+日志采样频率建议 `10 Hz`。高频 debug 日志必须可开关，默认关闭，避免刷爆 CarMaker 日志。
 
 如果失败，必须根据日志归类后再改。
 
@@ -454,16 +534,21 @@ command_age
 - 只在真实 command 中断时清零控制。
 - 测试时确保 command 发布频率高于 timeout 要求。
 
-## 12. Stage A 回归要求
+## 12. 非本任务验收项
 
-修改后必须确认 Stage A 低速行为没有退化：
+以下内容不作为当前 adapter 组件任务的完成条件：
 
-- 低速起步仍能正常运动。
-- 低速停车仍能停住。
-- 小角度转向仍正确。
-- 原有低速场景不因新速度上限或参数化改动失效。
+- 完整 Stage A / Stage B 闭环跑通。
+- planner、controller、localization、sensing feedback 是否正常。
+- `command_gate` 的安全策略是否正确。
+- 真实底盘 CAN 接口是否正确。
+- 车辆动力学是否高保真匹配 HOOKE 真车。
 
-如果 Stage A 回归失败，优先恢复低速稳定性，再继续扩展速度范围。
+这些会在后续集成流程中验证。当前任务只要求：
+
+```text
+给定 control_cmd，CarMaker 车辆在速度和转向行为上做出对应响应。
+```
 
 ## 13. 成功定义
 
@@ -471,10 +556,12 @@ command_age
 
 1. CarMaker adapter 从 `/control/command/control_cmd` 读取速度、加速度、转向字段。
 2. 不修改 AutoRacer 和 `command_gate`。
-3. 车辆对生成的速度测试点都有正确加速、稳态、减速、停车响应。
-4. 转向方向和量级合理。
-5. 失败时可通过日志定位到 adapter、车辆可行驶状态、timeout、限幅或转向映射问题。
-6. Stage A 低速回归通过。
+3. 使用测试 publisher 直接发布代表性 `control_cmd` 时，CarMaker adapter 能收到并转换。
+4. 不发布 `gear_cmd` 时，CarMaker adapter 仍能在内部保证车辆处于可行驶状态。
+5. 速度命令满足第 9.2 节最小数值阈值，停止命令满足停车阈值。
+6. 正/负转向命令会产生方向相反、量级合理的转向行为。
+7. 如果无法运行 CarMaker 组件验证，不能声明当前 MVP 已通过。
+8. 失败时可通过日志定位到 adapter、车辆可行驶状态、timeout、限幅或转向映射问题。
 
 ## 14. 后续非 MVP 工作
 
@@ -496,10 +583,12 @@ command_age
 3. 移除旧低速硬编码限幅，改为本文参数化限幅。
 4. 保持输入只依赖 `control_cmd`。
 5. 在 CarMaker 内部保证车辆处于可行驶状态，不要求 AutoRacer 输出档位。
-6. 按 `V_test_max` 规则生成测试点。
-7. 记录第 10.3 节日志字段。
-8. 按第 11 节分类修正失败。
-9. 最后做 Stage A 低速回归。
+6. 优先不改 CarMaker Vehicle Data / Powertrain 参数文件。
+7. 只有确认 adapter 输出正确但车辆模型物理限制导致无法响应时，才讨论车辆模型参数。
+8. 使用测试 publisher 以 `10 Hz` 直接发布少量代表性 `control_cmd`，每个命令保持指定时间。
+9. 记录第 10.3 节日志字段。
+10. 按第 11 节分类修正失败。
+11. 不把完整 Stage A/Stage B 闭环作为当前任务完成条件。
 
 一句话目标：
 

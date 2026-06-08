@@ -1,6 +1,16 @@
 from setuptools import setup
 
 package_name = "autoracer_control"
+launch_files = [
+    "launch/control.launch.py",
+    "launch/race_control.launch.py",
+    "launch/race_control_bench.launch.py",
+    "launch/control_closed_loop_bench.launch.py",
+]
+config_files = [
+    "config/race_controller.param.yaml",
+    "config/race_controller.closed_loop_candidate.param.yaml",
+]
 
 setup(
     name=package_name,
@@ -9,7 +19,8 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", [f"resource/{package_name}"]),
         (f"share/{package_name}", ["package.xml"]),
-        (f"share/{package_name}/launch", ["launch/control.launch.py"]),
+        (f"share/{package_name}/launch", launch_files),
+        (f"share/{package_name}/config", config_files),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -20,7 +31,11 @@ setup(
     entry_points={
         "console_scripts": [
             "pure_pursuit_controller = autoracer_control.pure_pursuit_controller:main",
+            "race_bench_fixture_publisher = autoracer_control.race_bench_fixture_publisher:main",
+            "race_bench_monitor = autoracer_control.race_bench_monitor:main",
+            "control_closed_loop_fixture_publisher = autoracer_control.control_closed_loop_fixture_publisher:main",
+            "virtual_chassis_node = autoracer_control.virtual_chassis_node:main",
+            "control_closed_loop_monitor = autoracer_control.control_closed_loop_monitor:main",
         ],
     },
 )
-

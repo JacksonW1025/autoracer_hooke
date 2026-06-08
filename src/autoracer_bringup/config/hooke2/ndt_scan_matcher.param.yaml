@@ -12,16 +12,19 @@
     ndt:
       trans_epsilon: 0.01
       step_size: 0.1
-      resolution: 2.0
+      resolution: 1.0
       max_iterations: 30
       num_threads: 4
       regularization:
-        enable: true
+        enable: false
         scale_factor: 0.05
 
     initial_pose_estimation:
       particles_num: 200
       n_startup_trials: 100
+      include_initial_pose: true
+      force_initial_yaw: true
+      output_initial_yaw: true
 
     validation:
       initial_pose_timeout_sec: 1.0
@@ -33,7 +36,7 @@
     score_estimation:
       converged_param_type: 1
       converged_param_transform_probability: 3.0
-      converged_param_nearest_voxel_transformation_likelihood: 2.3
+      converged_param_nearest_voxel_transformation_likelihood: 1.0
       no_ground_points:
         enable: false
         z_margin_for_ground_removal: 0.8
@@ -49,13 +52,60 @@
           0.0, 0.0, 0.0, 0.0, 0.0, 0.000625,
         ]
       covariance_estimation:
-        covariance_estimation_type: 0
-        initial_pose_offset_model_x: [0.0, 0.0, 0.5, -0.5, 1.0, -1.0]
-        initial_pose_offset_model_y: [0.5, -0.5, 0.0, 0.0, 0.0, 0.0]
-        temperature: 0.05
-        scale_factor: 1.0
+        covariance_estimation_type: 3
+        initial_pose_offset_model_x: [0.0, 0.0, 0.5, -0.5, 1.0, -1.0, 2.0, -2.0]
+        initial_pose_offset_model_y: [0.5, -0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        temperature: 0.10
+        scale_factor: 4.0
 
     dynamic_map_loading:
       update_distance: 20.0
       map_radius: 150.0
-      lidar_radius: 100.0
+      lidar_radius: 70.0
+
+    runtime_multistart:
+      enable: true
+      debug_topic: "/localization/ndt/runtime_multistart/decision"
+      min_stamp_sec: 0.0
+      trigger_initial_to_result_distance_m: 0.7
+      trigger_yaw_delta_deg: 2.0
+      trigger_score_margin: 0.2
+      offset_along_m: [0.0]
+      offset_cross_m: [0.0]
+      offset_yaw_deg: [0.0]
+      min_transform_probability: 0.0
+      min_nearest_voxel_transformation_likelihood: 1.0
+      max_initial_to_result_distance_m: 5.0
+      max_prior_innovation_m: 0.0
+      max_prior_along_m: 0.0
+      max_prior_cross_m: 0.0
+      max_prior_yaw_deg: 0.0
+      min_total_score: -1000000000.0
+      score_weight: 1.0
+      transform_probability_weight: 0.05
+      innovation_xy_penalty_weight: 0.55
+      innovation_along_penalty_weight: 0.05
+      innovation_cross_penalty_weight: 0.15
+      innovation_yaw_penalty_weight: 0.05
+      initial_to_result_penalty_weight: 0.1
+      covariance_condition_penalty_weight: 0.01
+      base_candidate_raw_score_margin: 0.0
+      raw_score_override_margin: 0.02
+      raw_score_override_max_total_score_drop: 0.75
+      raw_score_override_max_abs_along_m: 2.5
+      raw_score_override_max_abs_cross_m: 0.85
+      raw_score_override_max_abs_yaw_deg: 3.0
+      raw_score_override_max_initial_to_result_distance_m: 2.5
+      tier1_max_abs_along_m: 2.0
+      tier1_max_abs_cross_m: 0.75
+      tier1_max_abs_yaw_deg: 2.0
+      tracking_tier1_period_sec: 1.0
+      tracking_along_health_period_sec: 0.0
+      tracking_far_tier_period_sec: 0.0
+      ambiguity_score_margin: 0.05
+      ambiguity_along_spread_m: 1.5
+      recovery_stable_required_frames: 3
+      recovery_stable_max_innovation_m: 1.0
+      recovery_stable_max_yaw_deg: 5.0
+      recovery_far_tier_period_sec: 1.0
+      recovery_far_tier_min_scan_interval: 10

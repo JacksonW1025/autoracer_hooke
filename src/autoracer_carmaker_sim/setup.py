@@ -19,6 +19,7 @@ setup(
     entry_points={
         "console_scripts": [
             "carmaker_trajectory_provider = autoracer_carmaker_sim.trajectory_provider:main",
+            "ground_truth_localization_relay = autoracer_carmaker_sim.ground_truth_localization_relay:main",
         ],
     },
 )

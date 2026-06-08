@@ -50,6 +50,7 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -196,6 +197,7 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ndt_marker_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     ndt_monte_carlo_initial_pose_marker_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr runtime_multistart_debug_pub_;
 
   rclcpp::Service<autoware_internal_localization_msgs::srv::PoseWithCovarianceStamped>::SharedPtr
     service_;
@@ -213,6 +215,8 @@ private:
 
   std::mutex ndt_ptr_mtx_;
   std::unique_ptr<autoware::localization_util::SmartPoseBuffer> initial_pose_buffer_;
+  rclcpp::Time latest_sensor_points_stamp_{0, 0, RCL_ROS_TIME};
+  bool has_latest_sensor_points_stamp_{false};
 
   // Keep latest position for dynamic map loading
   std::mutex latest_ekf_position_mtx_;
@@ -229,6 +233,13 @@ private:
   std::unique_ptr<DiagnosticsInterface> diagnostics_trigger_node_;
   std::unique_ptr<MapUpdateModule> map_update_module_;
   std::unique_ptr<autoware_utils_logging::LoggerLevelConfigure> logger_configure_;
+  int runtime_rejected_scan_streak_{0};
+  int runtime_recovery_stable_frames_{0};
+  int runtime_scans_since_last_far_tier_{1000000};
+  bool runtime_recovery_active_{false};
+  double runtime_last_tier1_stamp_sec_{-1.0};
+  double runtime_last_along_health_stamp_sec_{-1.0};
+  double runtime_last_far_tier_stamp_sec_{-1.0};
 
   HyperParameters param_;
 };

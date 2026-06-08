@@ -364,9 +364,10 @@ bool GNSSPoser::get_static_transform(
   }
 
   try {
-    *transform_stamped_ptr = tf2_buffer_.lookupTransform(
-      target_frame, source_frame,
-      tf2::TimePoint(std::chrono::seconds(stamp.sec) + std::chrono::nanoseconds(stamp.nanosec)));
+    // CarMaker publishes /fixposition/fix at the current sim stamp while static TF can lag by
+    // one bridge tick under /clock. Use the latest transform for this static extrinsic lookup.
+    *transform_stamped_ptr =
+      tf2_buffer_.lookupTransform(target_frame, source_frame, tf2::TimePointZero);
   } catch (tf2::TransformException & ex) {
     RCLCPP_WARN_STREAM_THROTTLE(
       this->get_logger(), *this->get_clock(), std::chrono::milliseconds(1000).count(), ex.what());

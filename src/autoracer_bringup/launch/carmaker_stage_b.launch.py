@@ -22,6 +22,19 @@ def generate_launch_description():
                 )
             ),
             Node(
+                package="autoracer_carmaker_sim",
+                executable="ground_truth_localization_relay",
+                name="ground_truth_localization_relay",
+                output="screen",
+                parameters=[
+                    {
+                        "input_topic": "/carmaker/ground_truth/pose",
+                        "output_topic": "/localization/pose_with_covariance",
+                        "frame_id": "map",
+                    }
+                ],
+            ),
+            Node(
                 package="autoracer_planning",
                 executable="route_goal_publisher",
                 name="route_goal_publisher",

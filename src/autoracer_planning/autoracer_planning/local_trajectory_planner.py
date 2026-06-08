@@ -24,6 +24,8 @@ class LocalPlannerConfig:
     max_accel_mps2: float = 0.8
     max_decel_mps2: float = -1.5
     goal_tolerance_m: float = 1.0
+    nearest_search_backward_distance_m: float = 5.0
+    nearest_search_forward_distance_m: float = 120.0
 
 
 def sanitize_points(points, min_point_distance_m: float):
@@ -43,14 +45,36 @@ def slice_points_around_ego(
     backward_distance_m: float,
     lookahead_distance_m: float,
 ):
-    if len(points) < 2:
-        return [], False
-
-    nearest_index = min(
-        range(len(points)),
-        key=lambda index: _pose_distance(points[index].pose, ego_pose),
+    sliced, includes_goal, _ = slice_points_around_ego_with_nearest(
+        points,
+        ego_pose,
+        backward_distance_m,
+        lookahead_distance_m,
     )
+    return sliced, includes_goal
+
+
+def slice_points_around_ego_with_nearest(
+    points,
+    ego_pose: Pose,
+    backward_distance_m: float,
+    lookahead_distance_m: float,
+    previous_nearest_index=None,
+    max_backward_distance_m: float = 5.0,
+    max_forward_distance_m: float = 120.0,
+):
+    if len(points) < 2:
+        return [], False, None
+
     distances = _cumulative_distances(points)
+    nearest_index = select_monotonic_nearest_index(
+        points,
+        ego_pose,
+        previous_nearest_index,
+        max_backward_distance_m,
+        max_forward_distance_m,
+        distances,
+    )
     ego_s = distances[nearest_index]
     start_s = max(0.0, ego_s - max(backward_distance_m, 0.0))
     end_s = min(distances[-1], ego_s + max(lookahead_distance_m, 0.0))
@@ -64,7 +88,41 @@ def slice_points_around_ego(
         end_index += 1
 
     sliced = [copy.deepcopy(point) for point in points[start_index : end_index + 1]]
-    return sliced, end_index == len(points) - 1
+    return sliced, end_index == len(points) - 1, nearest_index
+
+
+def select_monotonic_nearest_index(
+    points,
+    ego_pose: Pose,
+    previous_nearest_index=None,
+    max_backward_distance_m: float = 5.0,
+    max_forward_distance_m: float = 120.0,
+    distances=None,
+):
+    if not points:
+        return None
+
+    if distances is None:
+        distances = _cumulative_distances(points)
+
+    if previous_nearest_index is None or not (0 <= previous_nearest_index < len(points)):
+        candidates = range(len(points))
+    else:
+        previous_s = distances[previous_nearest_index]
+        min_s = previous_s - max(max_backward_distance_m, 0.0)
+        max_s = previous_s + max(max_forward_distance_m, 0.0)
+        candidates = [
+            index
+            for index, distance in enumerate(distances)
+            if min_s <= distance <= max_s
+        ]
+        if not candidates:
+            candidates = range(len(points))
+
+    return min(
+        candidates,
+        key=lambda index: _pose_distance(points[index].pose, ego_pose),
+    )
 
 
 def resample_points(points, interval_m: float):
@@ -93,24 +151,43 @@ def build_local_trajectory(
     current_speed_mps: float,
     config: LocalPlannerConfig,
 ) -> Trajectory:
+    trajectory, _ = build_local_trajectory_with_nearest(
+        global_trajectory,
+        ego_pose,
+        current_speed_mps,
+        config,
+    )
+    return trajectory
+
+
+def build_local_trajectory_with_nearest(
+    global_trajectory: Trajectory,
+    ego_pose: Pose,
+    current_speed_mps: float,
+    config: LocalPlannerConfig,
+    previous_nearest_index=None,
+):
     output = Trajectory()
     output.header = copy.deepcopy(global_trajectory.header)
 
     points = sanitize_points(global_trajectory.points, config.min_point_distance_m)
-    points, includes_goal = slice_points_around_ego(
+    points, includes_goal, nearest_index = slice_points_around_ego_with_nearest(
         points,
         ego_pose,
         config.backward_distance_m,
         config.lookahead_distance_m,
+        previous_nearest_index,
+        config.nearest_search_backward_distance_m,
+        config.nearest_search_forward_distance_m,
     )
     points = resample_points(points, config.resample_interval_m)
     if len(points) < 2:
-        return output
+        return output, nearest_index
 
     _apply_velocity_profile(points, current_speed_mps, config, includes_goal)
     _update_time_from_start(points)
     output.points = points
-    return output
+    return output, nearest_index
 
 
 class LocalTrajectoryPlanner(Node):
@@ -131,10 +208,15 @@ class LocalTrajectoryPlanner(Node):
         self.declare_parameter("max_accel_mps2", 0.8)
         self.declare_parameter("max_decel_mps2", -1.5)
         self.declare_parameter("goal_tolerance_m", 1.0)
+        self.declare_parameter("nearest_search_backward_distance_m", 5.0)
+        self.declare_parameter("nearest_search_forward_distance_m", 120.0)
+        self.declare_parameter("diagnostic_log_period_sec", 1.0)
 
         self._global_trajectory = None
         self._pose = None
         self._speed = 0.0
+        self._nearest_index = None
+        self._last_diagnostic_time = None
 
         self._trajectory_pub = self.create_publisher(
             Trajectory, self.get_parameter("trajectory_topic").value, 1
@@ -167,6 +249,7 @@ class LocalTrajectoryPlanner(Node):
 
     def _on_global_trajectory(self, msg):
         self._global_trajectory = msg
+        self._nearest_index = None
 
     def _on_pose(self, msg):
         self._pose = msg.pose.pose
@@ -178,13 +261,17 @@ class LocalTrajectoryPlanner(Node):
         if self._global_trajectory is None or self._pose is None:
             return
 
-        trajectory = build_local_trajectory(
+        trajectory, nearest_index = build_local_trajectory_with_nearest(
             self._global_trajectory,
             self._pose,
             self._speed,
             self._config(),
+            self._nearest_index,
         )
+        if nearest_index is not None:
+            self._nearest_index = nearest_index
         trajectory.header.stamp = self.get_clock().now().to_msg()
+        self._maybe_log_diagnostics(trajectory, nearest_index)
         self._trajectory_pub.publish(trajectory)
         self._publish_marker(trajectory)
 
@@ -199,6 +286,37 @@ class LocalTrajectoryPlanner(Node):
             max_accel_mps2=float(self.get_parameter("max_accel_mps2").value),
             max_decel_mps2=float(self.get_parameter("max_decel_mps2").value),
             goal_tolerance_m=float(self.get_parameter("goal_tolerance_m").value),
+            nearest_search_backward_distance_m=float(
+                self.get_parameter("nearest_search_backward_distance_m").value
+            ),
+            nearest_search_forward_distance_m=float(
+                self.get_parameter("nearest_search_forward_distance_m").value
+            ),
+        )
+
+    def _maybe_log_diagnostics(self, trajectory, nearest_index):
+        now = self.get_clock().now()
+        period = float(self.get_parameter("diagnostic_log_period_sec").value)
+        if period <= 0.0:
+            return
+        if self._last_diagnostic_time is not None:
+            elapsed = (now - self._last_diagnostic_time).nanoseconds * 1e-9
+            if elapsed < period:
+                return
+
+        self._last_diagnostic_time = now
+        speeds = [point.longitudinal_velocity_mps for point in trajectory.points]
+        if speeds:
+            speed_range = (min(speeds), max(speeds))
+        else:
+            speed_range = (0.0, 0.0)
+
+        self.get_logger().info(
+            "Stage B local planner diagnostics: "
+            f"nearest_index={nearest_index} "
+            f"trajectory_points={len(trajectory.points)} "
+            f"speed_range_mps=({speed_range[0]:.2f},{speed_range[1]:.2f}) "
+            f"ego_speed_mps={self._speed:.2f}"
         )
 
     def _publish_marker(self, trajectory):
@@ -387,6 +505,7 @@ def _is_shutdown_rcl_error(exc: RCLError) -> bool:
     return (
         "rcl_shutdown already called" in text
         or "context is not valid" in text
+        or "publisher's context is invalid" in text
         or "rcl_init() was not called or rcl_shutdown() was called" in text
     )
 

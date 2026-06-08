@@ -73,6 +73,14 @@ if(BUILD_TESTING)
     test/test_cases/once_initialize_at_out_of_map_then_initialize_correctly.cpp
     TIMEOUT "300"
   )
+  ament_auto_add_gtest(runtime_multistart_selection
+    test/test_cases/runtime_multistart_selection.cpp
+    TIMEOUT "30"
+  )
+  ament_auto_add_gtest(ndt_validation
+    test/test_cases/ndt_validation.cpp
+    TIMEOUT "30"
+  )
 endif()
 
 autoware_ament_auto_package(

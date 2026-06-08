@@ -37,6 +37,7 @@ class PurePursuitController(Node):
         self.declare_parameter("max_accel_mps2", 0.8)
         self.declare_parameter("max_decel_mps2", -1.5)
         self.declare_parameter("control_rate_hz", 30.0)
+        self.declare_parameter("diagnostic_log_period_sec", 1.0)
 
         self._wheel_base = float(self.get_parameter("wheel_base_m").value)
         self._max_speed = float(self.get_parameter("max_speed_mps").value)
@@ -51,6 +52,7 @@ class PurePursuitController(Node):
         self._trajectory = []
         self._pose = None
         self._speed = 0.0
+        self._last_diagnostic_time = None
 
         self._control_pub = self.create_publisher(
             Control, self.get_parameter("output_topic").value, 10
@@ -124,6 +126,7 @@ class PurePursuitController(Node):
         command.longitudinal.jerk = 0.0
         command.longitudinal.is_defined_acceleration = True
         command.longitudinal.is_defined_jerk = False
+        self._maybe_log_diagnostics(target_index, target_speed, steer, accel)
         self._control_pub.publish(command)
 
     def _find_target_index(self):
@@ -161,6 +164,26 @@ class PurePursuitController(Node):
         command.longitudinal.is_defined_acceleration = True
         command.lateral.steering_tire_angle = 0.0
         self._control_pub.publish(command)
+
+    def _maybe_log_diagnostics(self, target_index, target_speed, steer, accel):
+        now = self.get_clock().now()
+        period = float(self.get_parameter("diagnostic_log_period_sec").value)
+        if period <= 0.0:
+            return
+        if self._last_diagnostic_time is not None:
+            elapsed = (now - self._last_diagnostic_time).nanoseconds * 1e-9
+            if elapsed < period:
+                return
+
+        self._last_diagnostic_time = now
+        self.get_logger().info(
+            "Stage B pure pursuit diagnostics: "
+            f"target_index={target_index} "
+            f"target_speed_mps={target_speed:.2f} "
+            f"actual_speed_mps={self._speed:.2f} "
+            f"steer_rad={steer:.3f} "
+            f"accel_mps2={accel:.2f}"
+        )
 
 
 def _shutdown_if_context_ok():

@@ -6,8 +6,10 @@ from geometry_msgs.msg import Pose
 from autoracer_planning.local_trajectory_planner import (
     LocalPlannerConfig,
     build_local_trajectory,
+    _is_shutdown_rcl_error,
     resample_points,
     sanitize_points,
+    select_monotonic_nearest_index,
     slice_points_around_ego,
 )
 
@@ -69,6 +71,28 @@ def test_slice_points_around_ego_keeps_backward_and_forward_window():
     assert includes_goal is False
 
 
+def test_select_monotonic_nearest_index_ignores_far_duplicate_crossing():
+    points = [
+        _point(91.4, -9.0),
+        _point(91.4, -6.6),
+        _point(101.7, 4.4),
+        _point(120.0, 4.4),
+        _point(104.1, 184.4),
+        _point(101.4, 4.4),
+        _point(91.5, 194.5),
+    ]
+
+    nearest = select_monotonic_nearest_index(
+        points,
+        ego_pose=_pose(98.0, 0.4),
+        previous_nearest_index=1,
+        max_backward_distance_m=2.0,
+        max_forward_distance_m=80.0,
+    )
+
+    assert nearest == 2
+
+
 def test_resample_points_uses_fixed_distance_interval():
     points = [_point(0.0, 0.0), _point(3.0, 0.0)]
 
@@ -126,3 +150,9 @@ def test_build_local_trajectory_reduces_speed_on_curves():
 
     speeds = [p.longitudinal_velocity_mps for p in local.points]
     assert min(speeds[1:-1]) < config.max_speed_mps
+
+
+def test_shutdown_rcl_error_matches_invalid_publisher_context():
+    exc = RuntimeError("Failed to publish: publisher's context is invalid")
+
+    assert _is_shutdown_rcl_error(exc)
