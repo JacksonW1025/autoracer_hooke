@@ -18,6 +18,10 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/route_manager.cpp
 )
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(${PROJECT_NAME} PRIVATE -Wno-error=deprecated-declarations)
+endif()
+
 if(BUILD_TESTING)
   find_package(ament_cmake_ros REQUIRED)
   find_package(autoware_test_utils REQUIRED)

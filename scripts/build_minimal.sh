@@ -53,4 +53,17 @@ PACKAGES=(
   fixposition_driver_ros2
 )
 
-colcon build --symlink-install --packages-up-to "${PACKAGES[@]}" --cmake-args -DBUILD_TESTING=OFF
+OVERRIDE_PACKAGES=(
+  autoware_adapi_v1_msgs
+  autoware_internal_planning_msgs
+  autoware_lanelet2_extension
+  autoware_map_msgs
+  autoware_perception_msgs
+  autoware_planning_msgs
+  autoware_utils_geometry
+)
+
+colcon build --symlink-install \
+  --packages-up-to "${PACKAGES[@]}" \
+  --allow-overriding "${OVERRIDE_PACKAGES[@]}" \
+  --cmake-args -DBUILD_TESTING=OFF
