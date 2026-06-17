@@ -30,6 +30,20 @@ def generate_launch_description():
     map_projector_info_path = LaunchConfiguration("map_projector_info_path")
     lanelet2_map_path = LaunchConfiguration("lanelet2_map_path")
     scan_voxel_size = LaunchConfiguration("scan_voxel_size")
+    enable_scan_accumulator = LaunchConfiguration("enable_scan_accumulator")
+    ndt_points_raw_topic = LaunchConfiguration("ndt_points_raw_topic")
+    scan_accumulator_max_frames = LaunchConfiguration("scan_accumulator_max_frames")
+    scan_accumulator_max_age_sec = LaunchConfiguration("scan_accumulator_max_age_sec")
+    scan_accumulator_voxel_size = LaunchConfiguration("scan_accumulator_voxel_size")
+    scan_accumulator_adaptive_min_input_points = LaunchConfiguration(
+        "scan_accumulator_adaptive_min_input_points"
+    )
+    scan_accumulator_adaptive_max_frames = LaunchConfiguration(
+        "scan_accumulator_adaptive_max_frames"
+    )
+    scan_accumulator_adaptive_max_age_sec = LaunchConfiguration(
+        "scan_accumulator_adaptive_max_age_sec"
+    )
     crop_min_x = LaunchConfiguration("crop_min_x")
     crop_max_x = LaunchConfiguration("crop_max_x")
     crop_min_y = LaunchConfiguration("crop_min_y")
@@ -75,6 +89,7 @@ def generate_launch_description():
         "ndt_initial_pose_deterministic_offsets_enable"
     )
     ndt_output_pose_time_offset_sec = LaunchConfiguration("ndt_output_pose_time_offset_sec")
+    ndt_output_yaw_covariance = LaunchConfiguration("ndt_output_yaw_covariance")
     ekf_enable_yaw_bias_estimation = LaunchConfiguration("ekf_enable_yaw_bias_estimation")
     ekf_pose_additional_delay_sec = LaunchConfiguration("ekf_pose_additional_delay_sec")
     ekf_twist_additional_delay_sec = LaunchConfiguration("ekf_twist_additional_delay_sec")
@@ -148,6 +163,17 @@ def generate_launch_description():
                 default_value=PathJoinSubstitution([localization_map_path, "lanelet2_map.osm"]),
             ),
             DeclareLaunchArgument("scan_voxel_size", default_value="0.2"),
+            DeclareLaunchArgument("enable_scan_accumulator", default_value="false"),
+            DeclareLaunchArgument(
+                "ndt_points_raw_topic",
+                default_value="/sensing/lidar/concatenated/pointcloud_downsampled",
+            ),
+            DeclareLaunchArgument("scan_accumulator_max_frames", default_value="8"),
+            DeclareLaunchArgument("scan_accumulator_max_age_sec", default_value="0.8"),
+            DeclareLaunchArgument("scan_accumulator_voxel_size", default_value="0.2"),
+            DeclareLaunchArgument("scan_accumulator_adaptive_min_input_points", default_value="0"),
+            DeclareLaunchArgument("scan_accumulator_adaptive_max_frames", default_value="8"),
+            DeclareLaunchArgument("scan_accumulator_adaptive_max_age_sec", default_value="0.8"),
             DeclareLaunchArgument("crop_min_x", default_value="-5.0"),
             DeclareLaunchArgument("crop_max_x", default_value="5.0"),
             DeclareLaunchArgument("crop_min_y", default_value="-5.0"),
@@ -173,7 +199,7 @@ def generate_launch_description():
                 "ndt_validation_initial_to_result_distance_tolerance_m",
                 default_value="3.0",
             ),
-            DeclareLaunchArgument("ndt_num_threads", default_value="32"),
+            DeclareLaunchArgument("ndt_num_threads", default_value="16"),
             DeclareLaunchArgument("ndt_max_iterations", default_value="40"),
             DeclareLaunchArgument("ndt_initial_pose_particles_num", default_value="200"),
             DeclareLaunchArgument("ndt_initial_pose_startup_trials", default_value="100"),
@@ -183,12 +209,13 @@ def generate_launch_description():
             DeclareLaunchArgument("ndt_initial_pose_use_sensor_points_stamp", default_value="false"),
             DeclareLaunchArgument("ndt_initial_pose_deterministic_offsets_enable", default_value="false"),
             DeclareLaunchArgument("ndt_output_pose_time_offset_sec", default_value="-0.0075"),
+            DeclareLaunchArgument("ndt_output_yaw_covariance", default_value="0.000625"),
             DeclareLaunchArgument("ekf_enable_yaw_bias_estimation", default_value="false"),
             DeclareLaunchArgument("ekf_pose_additional_delay_sec", default_value="0.0"),
             DeclareLaunchArgument("ekf_twist_additional_delay_sec", default_value="0.0"),
             DeclareLaunchArgument("ekf_proc_stddev_yaw_c", default_value="0.005"),
             DeclareLaunchArgument("ekf_proc_stddev_wz_c", default_value="5.0"),
-            DeclareLaunchArgument("ekf_pose_smoothing_steps", default_value="5"),
+            DeclareLaunchArgument("ekf_pose_smoothing_steps", default_value="10"),
             DeclareLaunchArgument("ekf_max_twist_queue_size", default_value="2"),
             LogInfo(
                 msg=(
@@ -296,6 +323,36 @@ def generate_launch_description():
                 remappings=[
                     ("input", "/sensing/lidar/concatenated/pointcloud_self_cropped"),
                     ("output", "/sensing/lidar/concatenated/pointcloud_downsampled"),
+                ],
+            ),
+            Node(
+                package="autoracer_localization",
+                executable="scan_accumulator",
+                name="scan_accumulator",
+                output="screen",
+                condition=IfCondition(enable_scan_accumulator),
+                parameters=[
+                    {
+                        "use_sim_time": use_sim_time,
+                        "input_pointcloud_topic": "/sensing/lidar/concatenated/pointcloud_downsampled",
+                        "output_pointcloud_topic": "/sensing/lidar/concatenated/pointcloud_accumulated",
+                        "twist_topic": "/sensing/gyro_odometer/twist_with_covariance",
+                        "max_frames": ParameterValue(scan_accumulator_max_frames, value_type=int),
+                        "max_age_sec": ParameterValue(scan_accumulator_max_age_sec, value_type=float),
+                        "voxel_size_m": ParameterValue(scan_accumulator_voxel_size, value_type=float),
+                        "adaptive_min_input_points": ParameterValue(
+                            scan_accumulator_adaptive_min_input_points,
+                            value_type=int,
+                        ),
+                        "adaptive_max_frames": ParameterValue(
+                            scan_accumulator_adaptive_max_frames,
+                            value_type=int,
+                        ),
+                        "adaptive_max_age_sec": ParameterValue(
+                            scan_accumulator_adaptive_max_age_sec,
+                            value_type=float,
+                        ),
+                    }
                 ],
             ),
             Node(
@@ -498,6 +555,44 @@ def generate_launch_description():
                             ndt_validation_initial_to_result_distance_tolerance_m,
                             value_type=float,
                         ),
+                        "covariance.output_pose_covariance": [
+                            0.0225,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0225,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0225,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.000625,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.000625,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            0.0,
+                            ndt_output_yaw_covariance,
+                        ],
                         "covariance.covariance_estimation.covariance_estimation_type": 0,
                         "runtime_multistart.enable": ParameterValue(
                             ndt_runtime_multistart_enable, value_type=bool
@@ -636,7 +731,7 @@ def generate_launch_description():
                     },
                 ],
                 remappings=[
-                    ("points_raw", "/sensing/lidar/concatenated/pointcloud_downsampled"),
+                    ("points_raw", ndt_points_raw_topic),
                     (
                         "ekf_pose_with_covariance",
                         "/localization/pose_twist_fusion_filter/pose_with_covariance",

@@ -86,7 +86,7 @@ def test_autoware_localization_launch_uses_migrated_autoware_stack():
     assert 'DeclareLaunchArgument("ndt_dynamic_lidar_radius", default_value="70.0")' in text
     assert 'DeclareLaunchArgument("ndt_score_no_ground_points_enable", default_value="false")' in text
     assert 'DeclareLaunchArgument("ndt_score_no_ground_z_margin", default_value="0.8")' in text
-    assert 'DeclareLaunchArgument("ndt_num_threads", default_value="32")' in text
+    assert 'DeclareLaunchArgument("ndt_num_threads", default_value="16")' in text
     assert 'DeclareLaunchArgument("ndt_max_iterations", default_value="40")' in text
     assert '"ndt.num_threads": ParameterValue(' in text
     assert "ndt_num_threads, value_type=int" in text
@@ -132,7 +132,7 @@ def test_autoware_localization_launch_exposes_curve_yaw_ekf_controls():
     assert 'DeclareLaunchArgument("ekf_twist_additional_delay_sec", default_value="0.0")' in text
     assert 'DeclareLaunchArgument("ekf_proc_stddev_yaw_c", default_value="0.005")' in text
     assert 'DeclareLaunchArgument("ekf_proc_stddev_wz_c", default_value="5.0")' in text
-    assert 'DeclareLaunchArgument("ekf_pose_smoothing_steps", default_value="5")' in text
+    assert 'DeclareLaunchArgument("ekf_pose_smoothing_steps", default_value="10")' in text
     assert "ekf_enable_yaw_bias_estimation = LaunchConfiguration(" in text
     assert "ekf_pose_smoothing_steps = LaunchConfiguration(" in text
     assert "ekf_twist_additional_delay_sec = LaunchConfiguration(" in text

@@ -240,6 +240,8 @@ private:
   double runtime_last_tier1_stamp_sec_{-1.0};
   double runtime_last_along_health_stamp_sec_{-1.0};
   double runtime_last_far_tier_stamp_sec_{-1.0};
+  int64_t consecutive_scan_matching_failure_count_{0};
+  int64_t scan_matching_failure_count_at_frame_start_{0};
 
   HyperParameters param_;
 };

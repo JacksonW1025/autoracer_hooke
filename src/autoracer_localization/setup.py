@@ -35,6 +35,7 @@ setup(
             "autoracer_localization.startup_pose_initializer_once:main",
             "ndt_axis_seed_fuser = autoracer_localization.ndt_axis_seed_fuser:main",
             "ndt_initial_pose_predictor = autoracer_localization.ndt_initial_pose_predictor:main",
+            "scan_accumulator = autoracer_localization.scan_accumulator:main",
             "ndt_startup_helper = autoracer_localization.ndt_startup_helper:main",
             "pose_tf_broadcaster = autoracer_localization.pose_tf_broadcaster:main",
             "pointcloud_clock_publisher = "

@@ -72,6 +72,12 @@ autoware_internal_debug_msgs::msg::Int32Stamped make_int32_stamped(
   return autoware_internal_debug_msgs::build<T>().stamp(stamp).data(data);
 }
 
+double planar_distance(
+  const geometry_msgs::msg::Point & lhs, const geometry_msgs::msg::Point & rhs)
+{
+  return std::hypot(lhs.x - rhs.x, lhs.y - rhs.y);
+}
+
 std::array<double, 36> rotate_covariance(
   const std::array<double, 36> & src_covariance, const Eigen::Matrix3d & rotation)
 {
@@ -102,6 +108,22 @@ double normalize_angle(const double angle)
 double yaw_from_pose(const geometry_msgs::msg::Pose & pose)
 {
   return autoware::localization_util::get_rpy(pose).z;
+}
+
+bool is_acceptable_ndt_solution(
+  const bool is_ok_iteration_num, const bool is_local_optimal_solution_oscillation,
+  const bool is_ok_score, const double initial_to_result_distance_m,
+  const double initial_to_result_yaw_rad, const std::size_t sensor_points_size)
+{
+  constexpr std::size_t max_iteration_maintenance_min_sensor_points = 8000;
+  constexpr double max_iteration_maintenance_distance_m = 0.35;
+  constexpr double max_iteration_maintenance_yaw_rad = 1.0 * M_PI / 180.0;
+  const bool is_max_iteration_maintenance =
+    !is_ok_iteration_num && !is_local_optimal_solution_oscillation &&
+    sensor_points_size >= max_iteration_maintenance_min_sensor_points &&
+    initial_to_result_distance_m <= max_iteration_maintenance_distance_m &&
+    std::abs(initial_to_result_yaw_rad) <= max_iteration_maintenance_yaw_rad;
+  return (is_ok_iteration_num || is_max_iteration_maintenance) && is_ok_score;
 }
 
 geometry_msgs::msg::Pose offset_pose_in_body_frame(
@@ -422,17 +444,20 @@ void NDTScanMatcher::callback_sensor_points(
   diagnostics_scan_points_->clear();
 
   // scan matching
+  scan_matching_failure_count_at_frame_start_ = consecutive_scan_matching_failure_count_;
   const bool is_succeed_scan_matching =
     callback_sensor_points_main(sensor_points_msg_in_sensor_frame);
 
   // check skipping_publish_num
-  static int64_t skipping_publish_num = 0;
-  skipping_publish_num =
-    ((is_succeed_scan_matching || !is_activated_) ? 0 : (skipping_publish_num + 1));
-  diagnostics_scan_points_->add_key_value("skipping_publish_num", skipping_publish_num);
-  if (skipping_publish_num >= param_.validation.skipping_publish_num) {
+  consecutive_scan_matching_failure_count_ =
+    ((is_succeed_scan_matching || !is_activated_) ? 0
+                                                  : (consecutive_scan_matching_failure_count_ + 1));
+  diagnostics_scan_points_->add_key_value(
+    "skipping_publish_num", consecutive_scan_matching_failure_count_);
+  if (consecutive_scan_matching_failure_count_ >= param_.validation.skipping_publish_num) {
     std::stringstream message;
-    message << "skipping_publish_num exceed limit (" << skipping_publish_num << " times).";
+    message << "skipping_publish_num exceed limit (" << consecutive_scan_matching_failure_count_
+            << " times).";
     diagnostics_scan_points_->update_level_and_message(
       diagnostic_msgs::msg::DiagnosticStatus::WARN, message.str());
   }
@@ -706,15 +731,18 @@ bool NDTScanMatcher::callback_sensor_points_main(
       return false;
     }
 
-    const auto initial_to_result = static_cast<double>(
-      autoware::localization_util::norm(alignment.initial_pose.position, alignment.result_pose.position));
+    const auto initial_to_result =
+      planar_distance(alignment.initial_pose.position, alignment.result_pose.position);
     const double prior_dx = alignment.result_pose.position.x - prior_pose.position.x;
     const double prior_dy = alignment.result_pose.position.y - prior_pose.position.y;
     RuntimeCandidate candidate;
     candidate.index = alignment.index;
-    candidate.converged =
-      (alignment.is_ok_iteration_num || alignment.is_local_optimal_solution_oscillation) &&
-      alignment.is_ok_score;
+    const double initial_to_result_yaw_rad =
+      normalize_angle(yaw_from_pose(alignment.result_pose) - yaw_from_pose(alignment.initial_pose));
+    candidate.converged = is_acceptable_ndt_solution(
+      alignment.is_ok_iteration_num, alignment.is_local_optimal_solution_oscillation,
+      alignment.is_ok_score, initial_to_result, initial_to_result_yaw_rad,
+      sensor_points_in_baselink_frame->points.size());
     candidate.iteration_num = alignment.ndt_result.iteration_num;
     candidate.max_iterations = ndt_ptr_->getMaximumIterations();
     candidate.transform_probability = alignment.ndt_result.transform_probability;
@@ -945,6 +973,17 @@ bool NDTScanMatcher::callback_sensor_points_main(
   if (!runtime_selection.has_selected_candidate || selected_alignment_iter == runtime_alignments.end()) {
     std::stringstream message;
     message << "Runtime multi-start rejected all " << runtime_alignments.size() << " candidates.";
+    if (!runtime_alignments.empty() && !runtime_selection.candidate_scores.empty()) {
+      const auto & alignment = runtime_alignments.front();
+      const auto & candidate = alignment.candidate;
+      const auto & candidate_score = runtime_selection.candidate_scores.front();
+      message << " first_reason=" << candidate_score.reject_reason
+              << " iter=" << candidate.iteration_num
+              << " score=" << candidate.nearest_voxel_transformation_likelihood
+              << " i2r=" << candidate.initial_to_result_distance_m
+              << " yaw_delta_deg=" << candidate.innovation_yaw_rad * 180.0 / M_PI
+              << " converged=" << (candidate.converged ? "true" : "false");
+    }
     diagnostics_scan_points_->update_level_and_message(
       diagnostic_msgs::msg::DiagnosticStatus::WARN, message.str());
     RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, message.str());
@@ -1063,8 +1102,16 @@ bool NDTScanMatcher::callback_sensor_points_main(
     RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, message.str());
   }
 
+  const auto distance_initial_to_result =
+    planar_distance(selected_alignment.initial_pose.position, result_pose_msg.position);
+  const double initial_to_result_yaw_rad = normalize_angle(
+    yaw_from_pose(result_pose_msg) - yaw_from_pose(selected_alignment.initial_pose));
+
   // check is_converged
-  bool is_converged = (is_ok_iteration_num || is_local_optimal_solution_oscillation) && is_ok_score;
+  bool is_converged = is_acceptable_ndt_solution(
+    is_ok_iteration_num, is_local_optimal_solution_oscillation, is_ok_score,
+    distance_initial_to_result, initial_to_result_yaw_rad,
+    sensor_points_in_baselink_frame->points.size());
 
   // covariance estimation
   const Eigen::Quaterniond map_to_base_link_quat = Eigen::Quaterniond(
@@ -1109,11 +1156,46 @@ bool NDTScanMatcher::callback_sensor_points_main(
       "runtime_spread_covariance_cross_m2", runtime_spread_covariance.cross_variance_m2);
   }
   // check distance_initial_to_result
-  const auto distance_initial_to_result = static_cast<double>(autoware::localization_util::norm(
-    selected_alignment.initial_pose.position, result_pose_msg.position));
+  const double z_initial_to_result =
+    result_pose_msg.position.z - selected_alignment.initial_pose.position.z;
   diagnostics_scan_points_->add_key_value("distance_initial_to_result", distance_initial_to_result);
+  diagnostics_scan_points_->add_key_value("z_initial_to_result", z_initial_to_result);
+  diagnostics_scan_points_->add_key_value(
+    "skipping_publish_num_at_frame_start", scan_matching_failure_count_at_frame_start_);
+  constexpr int64_t relock_oscillation_gate_skip_threshold = 5;
+  constexpr double relock_oscillation_initial_to_result_distance_tolerance_m = 1.0;
+  constexpr std::size_t sparse_sensor_points_threshold = 2000;
+  constexpr double sparse_sensor_points_initial_to_result_distance_tolerance_m = 0.9;
+  const bool is_relock_oscillation =
+    scan_matching_failure_count_at_frame_start_ >= relock_oscillation_gate_skip_threshold &&
+    is_local_optimal_solution_oscillation;
+  double effective_initial_to_result_distance_tolerance_m =
+    is_relock_oscillation
+      ? std::min(
+          param_.validation.initial_to_result_distance_tolerance_m,
+          relock_oscillation_initial_to_result_distance_tolerance_m)
+      : param_.validation.initial_to_result_distance_tolerance_m;
+  const bool is_sparse_sensor_points =
+    sensor_points_in_baselink_frame->points.size() < sparse_sensor_points_threshold;
+  const bool is_max_iteration_maintenance =
+    !is_ok_iteration_num && !is_local_optimal_solution_oscillation &&
+    sensor_points_in_baselink_frame->points.size() >= 8000 &&
+    distance_initial_to_result <= 0.35 && std::abs(initial_to_result_yaw_rad) <= 1.0 * M_PI / 180.0;
+  if (is_sparse_sensor_points) {
+    effective_initial_to_result_distance_tolerance_m =
+      std::min(
+        effective_initial_to_result_distance_tolerance_m,
+        sparse_sensor_points_initial_to_result_distance_tolerance_m);
+  }
+  diagnostics_scan_points_->add_key_value("is_relock_oscillation", is_relock_oscillation);
+  diagnostics_scan_points_->add_key_value("is_sparse_sensor_points", is_sparse_sensor_points);
+  diagnostics_scan_points_->add_key_value(
+    "is_max_iteration_maintenance", is_max_iteration_maintenance);
+  diagnostics_scan_points_->add_key_value(
+    "effective_initial_to_result_distance_tolerance_m",
+    effective_initial_to_result_distance_tolerance_m);
   if (!is_initial_to_result_distance_valid(
-        distance_initial_to_result, param_.validation.initial_to_result_distance_tolerance_m)) {
+        distance_initial_to_result, effective_initial_to_result_distance_tolerance_m)) {
     std::stringstream message;
     message << "distance_initial_to_result is too large (" << distance_initial_to_result
             << " [m]).";
