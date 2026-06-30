@@ -22,6 +22,10 @@ def generate_launch_description():
     rviz_config = LaunchConfiguration("rviz_config")
     enable_drive_commands = LaunchConfiguration("enable_drive_commands")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
+    control_min_lookahead_m = LaunchConfiguration("control_min_lookahead_m")
+    control_lookahead_gain = LaunchConfiguration("control_lookahead_gain")
+    control_goal_tolerance_m = LaunchConfiguration("control_goal_tolerance_m")
+    control_max_steer_rate_radps = LaunchConfiguration("control_max_steer_rate_radps")
     serial_port = LaunchConfiguration("serial_port")
     serial_baudrate = LaunchConfiguration("serial_baudrate")
     lidar_host_ip = LaunchConfiguration("lidar_host_ip")
@@ -52,7 +56,11 @@ def generate_launch_description():
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             DeclareLaunchArgument("enable_drive_commands", default_value="false"),
             DeclareLaunchArgument("max_speed_mps", default_value="3.0"),
-            DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
+            DeclareLaunchArgument("control_min_lookahead_m", default_value="1.0"),
+            DeclareLaunchArgument("control_lookahead_gain", default_value="1.0"),
+            DeclareLaunchArgument("control_goal_tolerance_m", default_value="0.35"),
+            DeclareLaunchArgument("control_max_steer_rate_radps", default_value="1.5"),
+            DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0"),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument(
                 "lidar_host_ip",
@@ -83,6 +91,10 @@ def generate_launch_description():
                     "extrinsics_file": rc_extrinsics_file,
                     "enable_drive_commands": enable_drive_commands,
                     "max_speed_mps": max_speed_mps,
+                    "control_min_lookahead_m": control_min_lookahead_m,
+                    "control_lookahead_gain": control_lookahead_gain,
+                    "control_goal_tolerance_m": control_goal_tolerance_m,
+                    "control_max_steer_rate_radps": control_max_steer_rate_radps,
                     "serial_port": serial_port,
                     "serial_baudrate": serial_baudrate,
                     "wheel_base_m": "0.6",

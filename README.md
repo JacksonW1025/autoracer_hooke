@@ -83,6 +83,12 @@ sudo -E ./scripts/configure_rc_lidar_link.sh
 ./scripts/verify_sensing_feedback.sh
 ```
 
+RC run readiness checklist:
+
+```text
+docs/rc_run_readiness_checklist_zh.md
+```
+
 Lightweight LiDAR visualization:
 
 ```bash

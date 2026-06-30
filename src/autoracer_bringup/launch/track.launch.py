@@ -24,6 +24,10 @@ def generate_launch_description():
     extrinsics_file = LaunchConfiguration("extrinsics_file")
     enable_drive_commands = LaunchConfiguration("enable_drive_commands")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
+    control_min_lookahead_m = LaunchConfiguration("control_min_lookahead_m")
+    control_lookahead_gain = LaunchConfiguration("control_lookahead_gain")
+    control_goal_tolerance_m = LaunchConfiguration("control_goal_tolerance_m")
+    control_max_steer_rate_radps = LaunchConfiguration("control_max_steer_rate_radps")
     serial_port = LaunchConfiguration("serial_port")
     serial_baudrate = LaunchConfiguration("serial_baudrate")
     wheel_base_m = LaunchConfiguration("wheel_base_m")
@@ -67,6 +71,10 @@ def generate_launch_description():
             DeclareLaunchArgument("extrinsics_file", default_value=default_extrinsics_file),
             DeclareLaunchArgument("enable_drive_commands", default_value="false"),
             DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
+            DeclareLaunchArgument("control_min_lookahead_m", default_value="4.0"),
+            DeclareLaunchArgument("control_lookahead_gain", default_value="1.5"),
+            DeclareLaunchArgument("control_goal_tolerance_m", default_value="1.0"),
+            DeclareLaunchArgument("control_max_steer_rate_radps", default_value="0.5"),
             DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
@@ -157,6 +165,9 @@ def generate_launch_description():
                     "max_speed_mps": max_speed_mps,
                     "wheel_base_m": wheel_base_m,
                     "max_steer_rad": max_steer_rad,
+                    "min_lookahead_m": control_min_lookahead_m,
+                    "lookahead_gain": control_lookahead_gain,
+                    "goal_tolerance_m": control_goal_tolerance_m,
                 }.items(),
             ),
             IncludeLaunchDescription(
@@ -167,6 +178,7 @@ def generate_launch_description():
                     "enable_drive_commands": enable_drive_commands,
                     "max_speed_mps": max_speed_mps,
                     "max_steer_rad": max_steer_rad,
+                    "max_steer_rate_radps": control_max_steer_rate_radps,
                 }.items(),
             ),
             IncludeLaunchDescription(
