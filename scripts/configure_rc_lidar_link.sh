@@ -2,8 +2,9 @@
 set -euo pipefail
 
 IFACE="${LIDAR_IFACE:-eth0}"
-HOST_IP="${LIDAR_HOST_IP:-192.168.1.120}"
+HOST_IP="${LIDAR_HOST_IP:-192.168.1.102}"
 SENSOR_IP="${LIDAR_SENSOR_IP:-192.168.1.200}"
+STALE_HOST_IPS="${LIDAR_STALE_HOST_IPS:-192.168.1.120}"
 
 usage() {
   cat <<EOF
@@ -12,11 +13,11 @@ Usage:
 
 Environment:
   LIDAR_IFACE      network interface connected to the C32 LiDAR, default: eth0
-  LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.120
+  LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.102
   LIDAR_SENSOR_IP  C32 LiDAR address, default: 192.168.1.200
 
 This script uses a /32 host address plus a /32 route to the LiDAR. Do not use
-192.168.1.120/24 on the Raspberry Pi when WiFi is also on 192.168.1.0/24; that
+192.168.1.102/24 on the Raspberry Pi when WiFi is also on 192.168.1.0/24; that
 can steal SSH return traffic from wlan0.
 EOF
 }
@@ -37,8 +38,9 @@ if ! command -v ip >/dev/null 2>&1; then
   exit 1
 fi
 
-existing_host_addrs() {
-  ip -4 -o addr show dev "$IFACE" | awk -v ip="$HOST_IP" '
+matching_addrs() {
+  local target_ip="$1"
+  ip -4 -o addr show dev "$IFACE" | awk -v ip="$target_ip" '
     $3 == "inet" {
       split($4, parts, "/")
       if (parts[1] == ip) {
@@ -53,7 +55,14 @@ clear_lidar_link() {
   while IFS= read -r addr; do
     [[ -n "$addr" ]] || continue
     ip addr del "$addr" dev "$IFACE" 2>/dev/null || true
-  done < <(existing_host_addrs)
+  done < <(matching_addrs "$HOST_IP")
+  for stale_ip in $STALE_HOST_IPS; do
+    [[ "$stale_ip" != "$HOST_IP" ]] || continue
+    while IFS= read -r addr; do
+      [[ -n "$addr" ]] || continue
+      ip addr del "$addr" dev "$IFACE" 2>/dev/null || true
+    done < <(matching_addrs "$stale_ip")
+  done
 }
 
 if [[ "${1:-}" == "--clear" ]]; then
