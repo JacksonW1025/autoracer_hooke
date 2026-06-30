@@ -19,6 +19,18 @@ network settings: `device_ip=192.168.1.200`, `msop_port=2368`,
 `difop_port=2369`. It publishes directly to
 `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
 
+On the Raspberry Pi, configure the C32 Ethernet link with:
+
+```bash
+sudo -E ./scripts/configure_rc_lidar_link.sh
+```
+
+The helper uses `192.168.1.120/32` on `eth0` and a host route to
+`192.168.1.200/32`. Do not configure `eth0` as `192.168.1.120/24` while WiFi is
+also on `192.168.1.0/24`; that connected route can steal SSH return traffic. If
+that temporary `/24` address was added by mistake, reboot the Raspberry Pi or
+run `sudo ip addr del 192.168.1.120/24 dev eth0` locally on the Pi.
+
 Do not use Nav2 `/scan` localization as an RC replacement for this point cloud
 contract.
 

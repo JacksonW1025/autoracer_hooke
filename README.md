@@ -79,12 +79,14 @@ Bench validation for the current hardware stage:
 ```bash
 IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
 ./scripts/build_bench.sh
+sudo -E ./scripts/configure_rc_lidar_link.sh
 ./scripts/verify_sensing_feedback.sh
 ```
 
 Lightweight LiDAR visualization:
 
 ```bash
+sudo -E ./scripts/configure_rc_lidar_link.sh
 ./scripts/run_lidar_rviz.sh
 ```
 
@@ -156,8 +158,17 @@ WHEEL_BASE_M=0.6
 MAX_STEER_RAD=0.262
 MAX_SPEED_MPS=3.0
 LIDAR_DRIVER=lslidar_c32
+LIDAR_HOST_IP=192.168.1.120
 LIDAR_SENSOR_IP=192.168.1.200
 ```
+
+On the Raspberry Pi, configure the C32 Ethernet link with
+`sudo -E ./scripts/configure_rc_lidar_link.sh`. It intentionally uses
+`192.168.1.120/32` plus a host route to `192.168.1.200`; do not configure
+`eth0` as `192.168.1.120/24` when WiFi is also on `192.168.1.0/24`, because
+that can break SSH return traffic. If that temporary `/24` address was added by
+mistake, reboot the Raspberry Pi or run
+`sudo ip addr del 192.168.1.120/24 dev eth0` locally on the Pi.
 
 The STM32 firmware already accepts the 11-byte ROS UART command frame and publishes the
 24-byte telemetry frame. Current RC constants use `0.600 m` wheelbase, `0.230 m`
