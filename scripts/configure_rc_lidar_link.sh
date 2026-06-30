@@ -2,9 +2,9 @@
 set -euo pipefail
 
 IFACE="${LIDAR_IFACE:-eth0}"
-HOST_IP="${LIDAR_HOST_IP:-192.168.1.102}"
+HOST_IP="${LIDAR_HOST_IP:-192.168.1.120}"
 SENSOR_IP="${LIDAR_SENSOR_IP:-192.168.1.200}"
-STALE_HOST_IPS="${LIDAR_STALE_HOST_IPS:-192.168.1.120}"
+STALE_HOST_IPS="${LIDAR_STALE_HOST_IPS:-192.168.1.102 192.168.1.120}"
 
 usage() {
   cat <<EOF
@@ -13,12 +13,11 @@ Usage:
 
 Environment:
   LIDAR_IFACE      network interface connected to the C32 LiDAR, default: eth0
-  LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.102
+  LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.120
   LIDAR_SENSOR_IP  C32 LiDAR address, default: 192.168.1.200
 
-This script uses a /32 host address plus a /32 route to the LiDAR. Do not use
-192.168.1.102/24 on the Raspberry Pi when WiFi is also on 192.168.1.0/24; that
-can steal SSH return traffic from wlan0.
+This script uses a /32 host address plus a /32 route to the LiDAR so WiFi keeps
+the normal 192.168.1.0/24 route.
 EOF
 }
 

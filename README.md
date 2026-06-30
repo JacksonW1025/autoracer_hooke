@@ -158,24 +158,20 @@ Hooke2 CAN transport:
 Default serial parameters:
 
 ```text
-SERIAL_PORT=/dev/ttyUSB0
+SERIAL_PORT=/dev/ttyACM0
 SERIAL_BAUDRATE=115200
 WHEEL_BASE_M=0.6
 MAX_STEER_RAD=0.262
 MAX_SPEED_MPS=3.0
 LIDAR_DRIVER=lslidar_c32
-LIDAR_HOST_IP=192.168.1.102
+LIDAR_HOST_IP=192.168.1.120
 LIDAR_SENSOR_IP=192.168.1.200
 ```
 
 On the Raspberry Pi, configure the C32 Ethernet link with
-`sudo -E ./scripts/configure_rc_lidar_link.sh`. It intentionally uses
-`192.168.1.102/32` plus a host route to `192.168.1.200`; do not configure
-`eth0` as `192.168.1.102/24` when WiFi is also on `192.168.1.0/24`, because
-that can break SSH return traffic. If that temporary `/24` address was added by
-mistake, reboot the Raspberry Pi or run
-`sudo ip addr del 192.168.1.102/24 dev eth0` locally on the Pi. The helper also
-clears the earlier incorrect `192.168.1.120` test address if it is still present.
+`sudo -E ./scripts/configure_rc_lidar_link.sh`. It assigns
+`192.168.1.120/32` on `eth0` plus a host route to `192.168.1.200/32`, keeping
+WiFi as the normal `192.168.1.0/24` route.
 
 The STM32 firmware already accepts the 11-byte ROS UART command frame and publishes the
 24-byte telemetry frame. Current RC constants use `0.600 m` wheelbase, `0.230 m`
