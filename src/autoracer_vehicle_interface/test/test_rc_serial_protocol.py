@@ -10,6 +10,30 @@ from autoracer_vehicle_interface.rc_serial_protocol import (
 )
 
 
+def test_apply_gear_to_velocity_rejects_mismatched_drive_direction():
+    from autoware_vehicle_msgs.msg import GearReport
+
+    from autoracer_vehicle_interface.rc_serial_interface import apply_gear_to_velocity
+
+    assert apply_gear_to_velocity(1.0, GearReport.DRIVE, 3.0) == (1.0, False, None)
+    assert apply_gear_to_velocity(-1.0, GearReport.REVERSE, 3.0) == (-1.0, False, None)
+    assert apply_gear_to_velocity(1.0, GearReport.NEUTRAL, 3.0) == (
+        0.0,
+        True,
+        "gear_neutral",
+    )
+    assert apply_gear_to_velocity(-1.0, GearReport.DRIVE, 3.0) == (
+        0.0,
+        True,
+        "gear_velocity_mismatch",
+    )
+    assert apply_gear_to_velocity(1.0, GearReport.REVERSE, 3.0) == (
+        0.0,
+        True,
+        "gear_velocity_mismatch",
+    )
+
+
 def test_encode_control_frame_scales_signed_motion_values():
     frame = encode_control_frame(1.234, 0.0, -0.456)
 

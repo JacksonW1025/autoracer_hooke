@@ -3,6 +3,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource, PythonLaunchDescriptionSource
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -12,6 +13,21 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
     map_path = LaunchConfiguration("map_path")
+    wheel_base_m = LaunchConfiguration("wheel_base_m")
+    launch_fixposition_seed = LaunchConfiguration("launch_fixposition_seed")
+    launch_manual_seed = LaunchConfiguration("launch_manual_seed")
+    manual_seed_input_topic = LaunchConfiguration("manual_seed_input_topic")
+    manual_seed_require_input_pose = LaunchConfiguration("manual_seed_require_input_pose")
+    manual_seed_x = LaunchConfiguration("manual_seed_x")
+    manual_seed_y = LaunchConfiguration("manual_seed_y")
+    manual_seed_z = LaunchConfiguration("manual_seed_z")
+    manual_seed_yaw = LaunchConfiguration("manual_seed_yaw")
+    manual_seed_xy_variance = LaunchConfiguration("manual_seed_xy_variance")
+    manual_seed_z_variance = LaunchConfiguration("manual_seed_z_variance")
+    manual_seed_yaw_variance = LaunchConfiguration("manual_seed_yaw_variance")
+    launch_kinematic_state_publisher = LaunchConfiguration(
+        "launch_kinematic_state_publisher"
+    )
 
     ndt_param_file = PathJoinSubstitution(
         [
@@ -33,6 +49,19 @@ def generate_launch_description():
                 "map_path",
                 default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
             ),
+            DeclareLaunchArgument("wheel_base_m", default_value="1.9"),
+            DeclareLaunchArgument("launch_fixposition_seed", default_value="true"),
+            DeclareLaunchArgument("launch_manual_seed", default_value="false"),
+            DeclareLaunchArgument("manual_seed_input_topic", default_value="/initialpose"),
+            DeclareLaunchArgument("manual_seed_require_input_pose", default_value="false"),
+            DeclareLaunchArgument("manual_seed_x", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_y", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_z", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_yaw", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_xy_variance", default_value="1.0"),
+            DeclareLaunchArgument("manual_seed_z_variance", default_value="0.25"),
+            DeclareLaunchArgument("manual_seed_yaw_variance", default_value="0.03"),
+            DeclareLaunchArgument("launch_kinematic_state_publisher", default_value="true"),
             Node(
                 package="autoware_map_projection_loader",
                 executable="autoware_map_projection_loader_node",
@@ -88,6 +117,7 @@ def generate_launch_description():
                     "output_topic_gnss_pose_cov": "/sensing/gnss/pose_with_covariance",
                     "output_topic_gnss_fixed": "/sensing/gnss/fixed",
                 }.items(),
+                condition=IfCondition(launch_fixposition_seed),
             ),
             Node(
                 package="autoracer_localization",
@@ -108,6 +138,37 @@ def generate_launch_description():
                         "use_status_when_available": True,
                     }
                 ],
+                condition=IfCondition(launch_fixposition_seed),
+            ),
+            Node(
+                package="autoracer_localization",
+                executable="manual_seed_pose_publisher",
+                name="manual_seed_pose_publisher",
+                output="screen",
+                parameters=[
+                    {
+                        "output_topic": "/localization/fixposition/seed_pose",
+                        "input_topic": ParameterValue(manual_seed_input_topic, value_type=str),
+                        "frame_id": "map",
+                        "publish_rate_hz": 20.0,
+                        "publish_once": False,
+                        "require_input_pose": ParameterValue(
+                            manual_seed_require_input_pose, value_type=bool
+                        ),
+                        "x": ParameterValue(manual_seed_x, value_type=float),
+                        "y": ParameterValue(manual_seed_y, value_type=float),
+                        "z": ParameterValue(manual_seed_z, value_type=float),
+                        "yaw": ParameterValue(manual_seed_yaw, value_type=float),
+                        "xy_variance": ParameterValue(
+                            manual_seed_xy_variance, value_type=float
+                        ),
+                        "z_variance": ParameterValue(manual_seed_z_variance, value_type=float),
+                        "yaw_variance": ParameterValue(
+                            manual_seed_yaw_variance, value_type=float
+                        ),
+                    }
+                ],
+                condition=IfCondition(launch_manual_seed),
             ),
             Node(
                 package="autoracer_localization",
@@ -123,7 +184,7 @@ def generate_launch_description():
                         "output_topic": "/localization/ndt_initial_pose",
                         "map_frame": "map",
                         "publish_rate_hz": 20.0,
-                        "wheel_base_m": 1.9,
+                        "wheel_base_m": ParameterValue(wheel_base_m, value_type=float),
                         "vehicle_status_timeout_sec": 0.5,
                         "ndt_lost_timeout_sec": 1.0,
                     }
@@ -171,6 +232,28 @@ def generate_launch_description():
                         "max_exe_time_ms": 100.0,
                     }
                 ],
+            ),
+            Node(
+                package="autoracer_localization",
+                executable="kinematic_state_publisher",
+                name="kinematic_state_publisher",
+                output="screen",
+                parameters=[
+                    {
+                        "ndt_pose_topic": "/localization/pose_with_covariance",
+                        "velocity_topic": "/vehicle/status/velocity_status",
+                        "steering_topic": "/vehicle/status/steering_status",
+                        "output_topic": "/localization/kinematic_state",
+                        "map_frame": "map",
+                        "base_frame": "base_link",
+                        "wheel_base_m": ParameterValue(wheel_base_m, value_type=float),
+                        "publish_rate_hz": 50.0,
+                        "vehicle_status_timeout_sec": 0.5,
+                        "ndt_lost_timeout_sec": 1.0,
+                        "max_prediction_step_sec": 0.1,
+                    }
+                ],
+                condition=IfCondition(launch_kinematic_state_publisher),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

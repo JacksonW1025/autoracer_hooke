@@ -2,15 +2,32 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 
 
+def _driver_condition(launch_lidar, lidar_driver, expected_driver):
+    return IfCondition(
+        PythonExpression(
+            [
+                "'",
+                launch_lidar,
+                "'.lower() in ['1', 'true', 'yes', 'on'] and '",
+                lidar_driver,
+                "' == '",
+                expected_driver,
+                "'",
+            ]
+        )
+    )
+
+
 def generate_launch_description():
     launch_lidar = LaunchConfiguration("launch_lidar")
     launch_fixposition = LaunchConfiguration("launch_fixposition")
+    lidar_driver = LaunchConfiguration("lidar_driver")
     lidar_param_file = LaunchConfiguration("lidar_param_file")
     lidar_host_ip = LaunchConfiguration("lidar_host_ip")
     lidar_sensor_ip = LaunchConfiguration("lidar_sensor_ip")
@@ -77,7 +94,17 @@ def generate_launch_description():
             )
         ],
         output="screen",
-        condition=IfCondition(launch_lidar),
+        condition=_driver_condition(launch_lidar, lidar_driver, "hesai"),
+    )
+
+    lslidar_c32_node = Node(
+        package="lslidar_driver",
+        executable="lslidar_driver_node",
+        namespace="cx",
+        name="lslidar_driver_node",
+        output="screen",
+        parameters=[ParameterFile(lidar_param_file, allow_substs=True)],
+        condition=_driver_condition(launch_lidar, lidar_driver, "lslidar_c32"),
     )
 
     default_lidar_param_file = PathJoinSubstitution(
@@ -101,6 +128,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument("launch_lidar", default_value="true"),
             DeclareLaunchArgument("launch_fixposition", default_value="true"),
+            DeclareLaunchArgument("lidar_driver", default_value="hesai"),
             DeclareLaunchArgument("lidar_param_file", default_value=default_lidar_param_file),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
@@ -116,5 +144,6 @@ def generate_launch_description():
             fixposition_node,
             fixposition_speed_bridge,
             lidar_container,
+            lslidar_c32_node,
         ]
     )

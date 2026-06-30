@@ -8,6 +8,11 @@ AUTORACER_SOURCE_LOCAL_SETUP=false
 # shellcheck source=scripts/ros_env.sh
 source "$ROOT_DIR/scripts/ros_env.sh"
 
+COLCON_WORKER_ARGS=()
+if [[ -n "${COLCON_PARALLEL_WORKERS:-}" ]]; then
+  COLCON_WORKER_ARGS+=(--parallel-workers "$COLCON_PARALLEL_WORKERS")
+fi
+
 PACKAGES=(
   autoracer_description
   autoracer_localization
@@ -16,6 +21,8 @@ PACKAGES=(
   autoracer_control
   autoracer_safety
   autoracer_vehicle_interface
+  lslidar_msgs
+  lslidar_driver
   autoracer_bringup
   autoware_adapi_v1_msgs
   autoware_component_interface_specs
@@ -64,6 +71,7 @@ OVERRIDE_PACKAGES=(
 )
 
 colcon build --symlink-install \
+  "${COLCON_WORKER_ARGS[@]}" \
   --packages-up-to "${PACKAGES[@]}" \
   --allow-overriding "${OVERRIDE_PACKAGES[@]}" \
   --cmake-args -DBUILD_TESTING=OFF

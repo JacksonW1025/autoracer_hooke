@@ -6,9 +6,9 @@ This workspace intentionally does not launch the full Autoware stack. It uses se
 Autoware packages as libraries and keeps the vehicle task small:
 
 ```text
-Pandar LiDAR + Fixposition + STM32 UART feedback
+Leishen C32 LiDAR + RViz/manual NDT seed + STM32 UART feedback
   -> PCD/Lanelet2 map
-  -> LiDAR/GNSS localization
+  -> LiDAR/NDT localization
   -> Lanelet centerline route
   -> Pure pursuit + longitudinal PID
   -> safety command gate
@@ -17,6 +17,17 @@ Pandar LiDAR + Fixposition + STM32 UART feedback
   -> UART4 11-byte command frame
   -> STM32 Ackermann PWM
 ```
+
+## Runtime Boundary
+
+This checkout may be edited and statically tested on a development computer, but
+hardware bringup must be validated on the current onboard compute. Target
+deployments should stay compatible with the AGX Orin vehicle-compute path; any
+temporary RC host is only a bringup host, not a new architecture boundary.
+
+Do not commit temporary host IPs, SSH credentials, or machine-local serial device
+names. Pass those at launch time through environment variables such as
+`SERIAL_PORT`, `MAP_PATH`, and the `LIDAR_*` settings.
 
 ## Repository Layout
 
@@ -27,7 +38,7 @@ docs/                      Bringup and calibration notes.
 maps/                      Local map directory placeholder.
 scripts/                   Import, build, run, and smoke-test helpers.
 src/autoracer_bringup      Top-level launches and Hooke2 configuration.
-src/autoracer_description  Minimal Hooke2 frames and static TF launch.
+src/autoracer_description  Hooke2/RC frames, URDFs, and static TF launch.
 src/autoracer_localization Localization helper nodes.
 src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
 src/autoracer_planning     Lanelet route and trajectory node.
@@ -47,6 +58,13 @@ cd /home/corage/workspace/project/autoracer-hooke
 ./scripts/install_rosdeps.sh
 ./scripts/build_minimal.sh
 source ./scripts/ros_env.sh
+```
+
+On a resource-constrained onboard host, lower build parallelism without changing
+the workspace:
+
+```bash
+COLCON_PARALLEL_WORKERS=1 MAKEFLAGS="-j2 -l2" ./scripts/build_minimal.sh
 ```
 
 When developing beside the old repository, dependencies can be copied locally instead
@@ -92,7 +110,9 @@ pointcloud_map_metadata.yaml
 map_projector_info.yaml
 ```
 
-Dry run, without sending effective drive commands:
+Dry run, without sending effective drive commands. The RC profile waits for a
+map-frame `/initialpose` from RViz/ROS before publishing the NDT seed, so it will
+not inject a fake `0,0,0` initial pose by default:
 
 ```bash
 MAP_PATH=/path/to/map ./scripts/run_track.sh
@@ -101,7 +121,7 @@ MAP_PATH=/path/to/map ./scripts/run_track.sh
 Low-speed vehicle run after calibration and bench validation:
 
 ```bash
-MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyUSB0 ENABLE_DRIVE_COMMANDS=true MAX_SPEED_MPS=1.5 ./scripts/run_track.sh
+MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyUSB0 ENABLE_DRIVE_COMMANDS=true ./scripts/run_track.sh
 ./scripts/request_autonomous_mode.sh
 ```
 
@@ -132,10 +152,14 @@ Default serial parameters:
 ```text
 SERIAL_PORT=/dev/ttyUSB0
 SERIAL_BAUDRATE=115200
-WHEEL_BASE_M=0.54
-MAX_STEER_RAD=0.393
+WHEEL_BASE_M=0.6
+MAX_STEER_RAD=0.262
+MAX_SPEED_MPS=3.0
+LIDAR_DRIVER=lslidar_c32
+LIDAR_SENSOR_IP=192.168.1.200
 ```
 
 The STM32 firmware already accepts the 11-byte ROS UART command frame and publishes the
-24-byte telemetry frame, so firmware changes are not expected unless the physical UART,
-baudrate, or frame contract changes.
+24-byte telemetry frame. Current RC constants use `0.600 m` wheelbase, `0.230 m`
+wheel diameter, `0.262 rad` max steering, `3.0 m/s` forward/reverse caps, and a
+`0.05 m/s` low-speed deadband.

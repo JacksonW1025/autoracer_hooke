@@ -11,6 +11,9 @@ def _pkg_file(package, *parts):
 
 
 def generate_launch_description():
+    extrinsics_file = LaunchConfiguration("extrinsics_file")
+    lidar_driver = LaunchConfiguration("lidar_driver")
+    lidar_param_file = LaunchConfiguration("lidar_param_file")
     lidar_host_ip = LaunchConfiguration("lidar_host_ip")
     lidar_sensor_ip = LaunchConfiguration("lidar_sensor_ip")
     lidar_data_port = LaunchConfiguration("lidar_data_port")
@@ -18,9 +21,18 @@ def generate_launch_description():
     rviz_config = LaunchConfiguration("rviz_config")
 
     default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "lidar_pointcloud.rviz")
+    default_extrinsics_file = _pkg_file(
+        "autoracer_description", "config", "hooke2_sensor_extrinsics.yaml"
+    )
+    default_lidar_param_file = _pkg_file(
+        "autoracer_bringup", "config", "hooke2", "lidar_top.param.yaml"
+    )
 
     return LaunchDescription(
         [
+            DeclareLaunchArgument("extrinsics_file", default_value=default_extrinsics_file),
+            DeclareLaunchArgument("lidar_driver", default_value="hesai"),
+            DeclareLaunchArgument("lidar_param_file", default_value=default_lidar_param_file),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
@@ -29,7 +41,8 @@ def generate_launch_description():
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
-                )
+                ),
+                launch_arguments={"extrinsics_file": extrinsics_file}.items(),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -38,6 +51,8 @@ def generate_launch_description():
                 launch_arguments={
                     "launch_lidar": "true",
                     "launch_fixposition": "false",
+                    "lidar_driver": lidar_driver,
+                    "lidar_param_file": lidar_param_file,
                     "lidar_host_ip": lidar_host_ip,
                     "lidar_sensor_ip": lidar_sensor_ip,
                     "lidar_data_port": lidar_data_port,

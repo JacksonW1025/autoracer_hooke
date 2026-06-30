@@ -2,14 +2,15 @@
 
 ## Runtime Order
 
-1. Vehicle interface and CAN status.
-2. Static TF for `base_link`, `lidar_top`, `gnss_base_link`, and IMU frames.
-3. LiDAR and Fixposition drivers, plus the vehicle-speed bridge for Fixposition.
+1. Vehicle interface and Autoware `/vehicle/status/*` feedback.
+2. Static TF for `base_link` and the active sensor frames.
+3. LiDAR driver, plus Fixposition only when that seed source is enabled.
 4. PCD and Lanelet2 map loading.
-5. Localization, using Fixposition as initial/regularization pose and NDT as map pose.
-6. Lanelet route planner and trajectory generator.
-7. Pure pursuit controller.
-8. Safety command gate.
+5. Localization, using manual seed or Fixposition seed as NDT startup input.
+6. Kinematic state publisher for Autoware controller state input.
+7. Lanelet route planner and trajectory generator.
+8. Pure pursuit controller.
+9. Safety command gate.
 
 ## Topics
 
@@ -17,9 +18,7 @@ Input:
 
 ```text
 /sensing/lidar/concatenated/pointcloud
-/fixposition/fix
-/fixposition/autoware_orientation
-/sensing/gnss/pose_with_covariance
+/localization/fixposition/seed_pose
 /vehicle/status/velocity_status
 /vehicle/status/steering_status
 /goal_pose
@@ -28,12 +27,27 @@ Input:
 Internal:
 
 ```text
-/fixposition/speed
 /localization/pose_with_covariance
+/localization/kinematic_state
 /planning/mission_path
 /planning/trajectory
 /autoracer/control/raw_control_cmd
 ```
+
+Fixposition topics such as `/fixposition/fix`, `/fixposition/autoware_orientation`,
+`/sensing/gnss/pose_with_covariance`, and `/fixposition/speed` are only present
+when the Fixposition seed source is enabled. The RC profile disables that path and
+uses RViz/ROS `/initialpose` as the semantic seed source for
+`/localization/fixposition/seed_pose`.
+
+The RC profile uses the Leishen C32 driver and publishes the point cloud directly
+as `/sensing/lidar/concatenated/pointcloud`. Nav2 AMCL, slam_toolbox, and the old
+Nav2 EKF are not part of this stack.
+
+`/localization/kinematic_state` is `nav_msgs/Odometry` for the Autoware control
+interface. It is a NDT-corrected kinematic state output: pose is corrected by
+`/localization/pose_with_covariance`, while vehicle velocity and steering feedback
+fill the twist and short-term prediction between NDT updates. It is not a full EKF.
 
 Vehicle output:
 

@@ -13,6 +13,7 @@ from autoware_vehicle_msgs.msg import (
 )
 from autoware_vehicle_msgs.srv import ControlModeCommand
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from std_msgs.msg import String
 
@@ -39,6 +40,19 @@ def _as_bool(value):
     if isinstance(value, bool):
         return value
     return str(value).lower() in ("1", "true", "yes", "on")
+
+
+def apply_gear_to_velocity(velocity, gear_report, max_speed, deadband_mps=0.05):
+    limited = _clamp(float(velocity), -abs(float(max_speed)), abs(float(max_speed)))
+    deadband = abs(float(deadband_mps))
+
+    if gear_report == GearReport.NEUTRAL:
+        return 0.0, True, "gear_neutral"
+    if gear_report == GearReport.REVERSE and limited > deadband:
+        return 0.0, True, "gear_velocity_mismatch"
+    if gear_report == GearReport.DRIVE and limited < -deadband:
+        return 0.0, True, "gear_velocity_mismatch"
+    return limited, False, None
 
 
 class PosixSerial:
@@ -101,12 +115,13 @@ class RcSerialInterface(Node):
         self.declare_parameter("port", "/dev/ttyUSB0")
         self.declare_parameter("baudrate", 115200)
         self.declare_parameter("base_frame_id", "base_link")
-        self.declare_parameter("wheel_base_m", 0.54)
-        self.declare_parameter("max_speed_mps", 1.5)
-        self.declare_parameter("max_steer_rad", 0.393)
+        self.declare_parameter("wheel_base_m", 0.6)
+        self.declare_parameter("max_speed_mps", 3.0)
+        self.declare_parameter("max_steer_rad", 0.262)
         self.declare_parameter("command_timeout_sec", 0.5)
         self.declare_parameter("command_rate_hz", 30.0)
         self.declare_parameter("feedback_rate_hz", 50.0)
+        self.declare_parameter("gear_deadband_mps", 0.05)
         self.declare_parameter("reconnect_interval_sec", 2.0)
         self.declare_parameter("start_in_autonomous", True)
         self.declare_parameter("control_topic", "/control/command/control_cmd")
@@ -120,6 +135,7 @@ class RcSerialInterface(Node):
         self._max_speed = float(self.get_parameter("max_speed_mps").value)
         self._max_steer = float(self.get_parameter("max_steer_rad").value)
         self._command_timeout = float(self.get_parameter("command_timeout_sec").value)
+        self._gear_deadband = float(self.get_parameter("gear_deadband_mps").value)
         self._reconnect_interval = float(self.get_parameter("reconnect_interval_sec").value)
         self._autonomous_requested = _as_bool(self.get_parameter("start_in_autonomous").value)
 
@@ -202,6 +218,8 @@ class RcSerialInterface(Node):
         self._publish_state(f"serial_error:{reason}")
 
     def _publish_state(self, state):
+        if not rclpy.ok(context=self.context):
+            return
         if state == self._last_state:
             return
         self._last_state = state
@@ -247,16 +265,22 @@ class RcSerialInterface(Node):
         if age is None or age > self._command_timeout:
             return 0.0, 0.0, 0.0, True
 
-        velocity = _clamp(
-            float(self._last_command.longitudinal.velocity), -self._max_speed, self._max_speed
+        velocity, forced_stop, reason = apply_gear_to_velocity(
+            self._last_command.longitudinal.velocity,
+            self._last_gear,
+            self._max_speed,
+            self._gear_deadband,
         )
+        if reason is not None:
+            self._publish_state(reason)
+
         steer = _clamp(
             float(self._last_command.lateral.steering_tire_angle),
             -self._max_steer,
             self._max_steer,
         )
         wz = velocity * math.tan(steer) / max(self._wheel_base, 1e-3)
-        return velocity, 0.0, wz, abs(velocity) < 1e-4 and abs(wz) < 1e-4
+        return velocity, 0.0, wz, forced_stop or (abs(velocity) < 1e-4 and abs(wz) < 1e-4)
 
     def _on_command_timer(self):
         self._publish_control_mode()
@@ -292,6 +316,8 @@ class RcSerialInterface(Node):
             self._publish_telemetry(telemetry)
 
     def _publish_telemetry(self, telemetry):
+        if not rclpy.ok(context=self.context):
+            return
         now = self._now().to_msg()
 
         velocity = VelocityReport()
@@ -325,6 +351,8 @@ class RcSerialInterface(Node):
         self._gear_pub.publish(gear)
 
     def _publish_control_mode(self):
+        if not rclpy.ok(context=self.context):
+            return
         msg = ControlModeReport()
         msg.stamp = self._now().to_msg()
         if not self._serial.is_open:
@@ -341,9 +369,12 @@ def main():
     node = RcSerialInterface()
     try:
         rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

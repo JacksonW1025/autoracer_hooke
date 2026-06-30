@@ -19,6 +19,15 @@ LAUNCH_LIDAR="${LAUNCH_LIDAR:-true}"
 LAUNCH_FIXPOSITION="${LAUNCH_FIXPOSITION:-true}"
 LAUNCH_VEHICLE="${LAUNCH_VEHICLE:-true}"
 LAUNCH_RVIZ="${LAUNCH_RVIZ:-false}"
+LIDAR_DRIVER="${LIDAR_DRIVER:-hesai}"
+VEHICLE_INTERFACE="${VEHICLE_INTERFACE:-rc_serial}"
+CHECK_HOOKE2_RAW="${CHECK_HOOKE2_RAW:-false}"
+DEFAULT_LIDAR_SENSOR_IP="192.168.1.130"
+DEFAULT_LIDAR_HOST_IP="192.168.1.120"
+if [[ "$LIDAR_DRIVER" == "lslidar_c32" ]]; then
+  DEFAULT_LIDAR_HOST_IP=""
+  DEFAULT_LIDAR_SENSOR_IP="192.168.1.200"
+fi
 WARMUP_SEC="${WARMUP_SEC:-12}"
 SAMPLE_TIMEOUT_SEC="${SAMPLE_TIMEOUT_SEC:-8}"
 HZ_TIMEOUT_SEC="${HZ_TIMEOUT_SEC:-8}"
@@ -205,12 +214,14 @@ log "run dir: ${RUN_DIR}"
 log "old underlay guard: ${AUTORACER_OLD_REPO:-/home/corage/workspace/project/pilot-auto.x1}"
 log ""
 log "Preflight"
-probe_ping "LiDAR" "${LIDAR_SENSOR_IP:-192.168.1.130}"
+if is_true "$LAUNCH_LIDAR"; then
+  probe_ping "LiDAR" "${LIDAR_SENSOR_IP:-$DEFAULT_LIDAR_SENSOR_IP}"
+fi
 if is_true "$LAUNCH_FIXPOSITION"; then
   probe_ping "Fixposition" "${FIXPOSITION_IP:-192.168.1.200}"
   probe_tcp_stream "${FIXPOSITION_STREAM:-tcpcli://192.168.1.200:21000}"
 fi
-if is_true "$LAUNCH_VEHICLE"; then
+if is_true "$LAUNCH_VEHICLE" && [[ "$VEHICLE_INTERFACE" == "hooke2" ]]; then
   probe_can
 fi
 
@@ -225,15 +236,18 @@ log "Package resolution"
 require_pkg autoracer_bringup || true
 require_pkg autoracer_description || true
 if is_true "$LAUNCH_LIDAR"; then
-  require_pkg nebula_hesai || true
+  if [[ "$LIDAR_DRIVER" == "lslidar_c32" ]]; then
+    require_pkg lslidar_driver || true
+  else
+    require_pkg nebula_hesai || true
+  fi
 fi
 if is_true "$LAUNCH_FIXPOSITION"; then
   require_pkg fixposition_driver_ros2 || true
   require_pkg autoracer_sensing || true
 fi
 if is_true "$LAUNCH_VEHICLE"; then
-  require_pkg can_driver || true
-  require_pkg hooke2_interface || true
+  require_pkg autoracer_vehicle_interface || true
 fi
 
 if (( FAIL_COUNT > 0 )); then
@@ -244,18 +258,32 @@ fi
 
 log ""
 log "Starting ROS bench launch"
+LAUNCH_ARGS=(
+  launch_lidar:="$LAUNCH_LIDAR"
+  launch_fixposition:="$LAUNCH_FIXPOSITION"
+  launch_vehicle:="$LAUNCH_VEHICLE"
+  launch_rviz:="$LAUNCH_RVIZ"
+  extrinsics_file:="${EXTRINSICS_FILE:-$ROOT_DIR/install/autoracer_description/share/autoracer_description/config/rc_sensor_extrinsics.yaml}"
+  serial_port:="${SERIAL_PORT:-/dev/ttyUSB0}"
+  serial_baudrate:="${SERIAL_BAUDRATE:-115200}"
+  wheel_base_m:="${WHEEL_BASE_M:-0.6}"
+  max_speed_mps:="${MAX_SPEED_MPS:-3.0}"
+  max_steer_rad:="${MAX_STEER_RAD:-0.262}"
+  lidar_driver:="$LIDAR_DRIVER"
+  lidar_param_file:="${LIDAR_PARAM_FILE:-$ROOT_DIR/install/autoracer_bringup/share/autoracer_bringup/config/rc/lslidar_cx.yaml}"
+  lidar_sensor_ip:="${LIDAR_SENSOR_IP:-$DEFAULT_LIDAR_SENSOR_IP}"
+  lidar_data_port:="${LIDAR_DATA_PORT:-2368}"
+  lidar_sensor_model:="${LIDAR_SENSOR_MODEL:-C32}"
+  fixposition_stream:="${FIXPOSITION_STREAM:-tcpcli://192.168.1.200:21000}"
+  can_channel_id:="${CAN_CHANNEL_ID:-0}"
+  can_baudrate:="${CAN_BAUDRATE:-500000}"
+)
+if [[ -n "${LIDAR_HOST_IP:-$DEFAULT_LIDAR_HOST_IP}" ]]; then
+  LAUNCH_ARGS+=(lidar_host_ip:="${LIDAR_HOST_IP:-$DEFAULT_LIDAR_HOST_IP}")
+fi
+
 setsid ros2 launch autoracer_bringup bench_verification.launch.py \
-  launch_lidar:="$LAUNCH_LIDAR" \
-  launch_fixposition:="$LAUNCH_FIXPOSITION" \
-  launch_vehicle:="$LAUNCH_VEHICLE" \
-  launch_rviz:="$LAUNCH_RVIZ" \
-  lidar_host_ip:="${LIDAR_HOST_IP:-192.168.1.120}" \
-  lidar_sensor_ip:="${LIDAR_SENSOR_IP:-192.168.1.130}" \
-  lidar_data_port:="${LIDAR_DATA_PORT:-2368}" \
-  lidar_sensor_model:="${LIDAR_SENSOR_MODEL:-Pandar40P}" \
-  fixposition_stream:="${FIXPOSITION_STREAM:-tcpcli://192.168.1.200:21000}" \
-  can_channel_id:="${CAN_CHANNEL_ID:-0}" \
-  can_baudrate:="${CAN_BAUDRATE:-500000}" \
+  "${LAUNCH_ARGS[@]}" \
   >"$RUN_DIR/launch.log" 2>&1 &
 LAUNCH_PID="$!"
 
@@ -291,9 +319,11 @@ if is_true "$LAUNCH_VEHICLE"; then
   check_topic_sample /vehicle/status/steering_status steering_status
   check_topic_sample /vehicle/status/gear_status gear_status
   check_topic_sample /vehicle/status/control_mode control_mode
-  check_topic_sample /hooke2/wheel_speed_rpt hooke2_wheel_speed
-  check_topic_sample /hooke2/steering_rpt hooke2_steering
-  check_topic_sample /hooke2/global_rpt hooke2_global
+  if is_true "$CHECK_HOOKE2_RAW"; then
+    check_topic_sample /hooke2/wheel_speed_rpt hooke2_wheel_speed
+    check_topic_sample /hooke2/steering_rpt hooke2_steering
+    check_topic_sample /hooke2/global_rpt hooke2_global
+  fi
 fi
 
 log ""

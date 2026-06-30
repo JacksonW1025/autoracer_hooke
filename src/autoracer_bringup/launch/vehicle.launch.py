@@ -15,9 +15,9 @@ def generate_launch_description():
         [
             DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
-            DeclareLaunchArgument("wheel_base_m", default_value="0.54"),
-            DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
-            DeclareLaunchArgument("max_steer_rad", default_value="0.393"),
+            DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
+            DeclareLaunchArgument("max_speed_mps", default_value="3.0"),
+            DeclareLaunchArgument("max_steer_rad", default_value="0.262"),
             Node(
                 package="autoracer_vehicle_interface",
                 executable="rc_serial_interface",

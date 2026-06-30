@@ -4,17 +4,23 @@ This repository keeps the closed-track input surface small.
 
 ## LiDAR
 
-Hesai Pandar is launched through `nebula_hesai` and normalized to one Autoware
-point cloud topic:
+The Autoware-facing contract is one point cloud topic:
 
 ```text
 /sensing/lidar/concatenated/pointcloud  sensor_msgs/msg/PointCloud2
 ```
 
-The default parameter file is `src/autoracer_bringup/config/hooke2/lidar_top.param.yaml`.
-The current Pandar 60 unit is decoded with Nebula's `Pandar40P` model and `lidar_top`
-frame; this was the live configuration that produced point clouds. Override with
-`LIDAR_SENSOR_MODEL` when the unit reports a different Nebula-supported model.
+Hooke uses Hesai Pandar through `nebula_hesai`. The default parameter file is
+`src/autoracer_bringup/config/hooke2/lidar_top.param.yaml`; the historical live
+configuration used Nebula's `Pandar40P` model and `lidar_top` frame.
+
+The RC profile uses Leishen C32 through `lslidar_driver` with the legacy C32
+network settings: `device_ip=192.168.1.200`, `msop_port=2368`,
+`difop_port=2369`. It publishes directly to
+`/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
+
+Do not use Nav2 `/scan` localization as an RC replacement for this point cloud
+contract.
 
 ## Fixposition
 
@@ -36,6 +42,10 @@ initialization and regularization.
 The driver may also advertise diagnostic FPA topics such as
 `/fixposition/fpa/odomstatus`. They are useful for status inspection, but are not
 required for the first localization contract above.
+
+The RC profile disables Fixposition. RViz/ROS `/initialpose` is republished as
+`/localization/fixposition/seed_pose`, preserving the NDT startup contract without
+pretending the RC has a Fixposition device.
 
 ## Hooke2 Feedback
 
@@ -63,8 +73,10 @@ Use the standalone bench launch when the goal is only to prove the live data sou
 ```
 
 It starts `autoracer_bringup bench_verification.launch.py`, checks LiDAR point cloud
-rate, Fixposition samples, Hooke2 Autoware status topics, and raw CAN frames, then
-writes artifacts under `log/bench_verify_*`.
+rate and Autoware vehicle status topics, then writes artifacts under
+`log/bench_verify_*`. Fixposition checks run only when the Fixposition path is
+enabled. Raw Hooke2 CAN checks run only when the Hooke2 vehicle interface is the
+active profile.
 
 For the lightest visual check, use:
 
@@ -72,5 +84,5 @@ For the lightest visual check, use:
 ./scripts/run_lidar_rviz.sh
 ```
 
-This launches only static TF, the Hesai driver, and RViz with
+This launches only static TF, the active LiDAR driver, and RViz with
 `src/autoracer_bringup/rviz/lidar_pointcloud.rviz`.

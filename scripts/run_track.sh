@@ -14,20 +14,41 @@ if [[ -f "$ROOT_DIR/defaults.env" ]]; then
   set +a
 fi
 
-ros2 launch autoracer_bringup track.launch.py \
-  map_path:="${MAP_PATH}" \
-  launch_sensing:="${LAUNCH_SENSING}" \
-  launch_localization:="${LAUNCH_LOCALIZATION}" \
-  launch_vehicle:="${LAUNCH_VEHICLE}" \
-  launch_rviz:="${LAUNCH_RVIZ}" \
-  enable_drive_commands:="${ENABLE_DRIVE_COMMANDS}" \
-  max_speed_mps:="${MAX_SPEED_MPS}" \
-  serial_port:="${SERIAL_PORT}" \
-  serial_baudrate:="${SERIAL_BAUDRATE}" \
-  wheel_base_m:="${WHEEL_BASE_M}" \
-  max_steer_rad:="${MAX_STEER_RAD}" \
-  lidar_host_ip:="${LIDAR_HOST_IP}" \
-  lidar_sensor_ip:="${LIDAR_SENSOR_IP}" \
-  lidar_data_port:="${LIDAR_DATA_PORT}" \
-  lidar_sensor_model:="${LIDAR_SENSOR_MODEL}" \
+LAUNCH_ARGS=(
+  map_path:="${MAP_PATH}"
+  launch_sensing:="${LAUNCH_SENSING}"
+  launch_localization:="${LAUNCH_LOCALIZATION}"
+  launch_vehicle:="${LAUNCH_VEHICLE}"
+  launch_rviz:="${LAUNCH_RVIZ}"
+  extrinsics_file:="${EXTRINSICS_FILE}"
+  enable_drive_commands:="${ENABLE_DRIVE_COMMANDS}"
+  max_speed_mps:="${MAX_SPEED_MPS}"
+  serial_port:="${SERIAL_PORT}"
+  serial_baudrate:="${SERIAL_BAUDRATE}"
+  wheel_base_m:="${WHEEL_BASE_M}"
+  max_steer_rad:="${MAX_STEER_RAD}"
+  lidar_driver:="${LIDAR_DRIVER}"
+  lidar_param_file:="${LIDAR_PARAM_FILE}"
+  lidar_sensor_ip:="${LIDAR_SENSOR_IP}"
+  lidar_data_port:="${LIDAR_DATA_PORT}"
+  lidar_sensor_model:="${LIDAR_SENSOR_MODEL}"
+  launch_fixposition:="${LAUNCH_FIXPOSITION}"
+  launch_fixposition_seed:="${LAUNCH_FIXPOSITION_SEED}"
+  launch_manual_seed:="${LAUNCH_MANUAL_SEED}"
+  manual_seed_input_topic:="${MANUAL_SEED_INPUT_TOPIC}"
+  manual_seed_require_input_pose:="${MANUAL_SEED_REQUIRE_INPUT_POSE}"
+  manual_seed_x:="${MANUAL_SEED_X}"
+  manual_seed_y:="${MANUAL_SEED_Y}"
+  manual_seed_z:="${MANUAL_SEED_Z}"
+  manual_seed_yaw:="${MANUAL_SEED_YAW}"
+  manual_seed_xy_variance:="${MANUAL_SEED_XY_VARIANCE}"
+  manual_seed_z_variance:="${MANUAL_SEED_Z_VARIANCE}"
+  manual_seed_yaw_variance:="${MANUAL_SEED_YAW_VARIANCE}"
   fixposition_stream:="${FIXPOSITION_STREAM}"
+)
+if [[ -n "${LIDAR_HOST_IP:-}" ]]; then
+  LAUNCH_ARGS+=(lidar_host_ip:="${LIDAR_HOST_IP}")
+fi
+
+ros2 launch autoracer_bringup track.launch.py \
+  "${LAUNCH_ARGS[@]}"

@@ -21,6 +21,7 @@ def generate_launch_description():
     launch_vehicle = LaunchConfiguration("launch_vehicle")
     launch_rviz = LaunchConfiguration("launch_rviz")
     rviz_config = LaunchConfiguration("rviz_config")
+    extrinsics_file = LaunchConfiguration("extrinsics_file")
     enable_drive_commands = LaunchConfiguration("enable_drive_commands")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
     serial_port = LaunchConfiguration("serial_port")
@@ -30,10 +31,27 @@ def generate_launch_description():
     lidar_host_ip = LaunchConfiguration("lidar_host_ip")
     lidar_sensor_ip = LaunchConfiguration("lidar_sensor_ip")
     lidar_data_port = LaunchConfiguration("lidar_data_port")
+    lidar_driver = LaunchConfiguration("lidar_driver")
+    lidar_param_file = LaunchConfiguration("lidar_param_file")
     lidar_sensor_model = LaunchConfiguration("lidar_sensor_model")
+    launch_fixposition = LaunchConfiguration("launch_fixposition")
+    launch_fixposition_seed = LaunchConfiguration("launch_fixposition_seed")
+    launch_manual_seed = LaunchConfiguration("launch_manual_seed")
+    manual_seed_input_topic = LaunchConfiguration("manual_seed_input_topic")
+    manual_seed_require_input_pose = LaunchConfiguration("manual_seed_require_input_pose")
+    manual_seed_x = LaunchConfiguration("manual_seed_x")
+    manual_seed_y = LaunchConfiguration("manual_seed_y")
+    manual_seed_z = LaunchConfiguration("manual_seed_z")
+    manual_seed_yaw = LaunchConfiguration("manual_seed_yaw")
+    manual_seed_xy_variance = LaunchConfiguration("manual_seed_xy_variance")
+    manual_seed_z_variance = LaunchConfiguration("manual_seed_z_variance")
+    manual_seed_yaw_variance = LaunchConfiguration("manual_seed_yaw_variance")
     fixposition_stream = LaunchConfiguration("fixposition_stream")
 
     default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "lidar_pointcloud.rviz")
+    default_extrinsics_file = _pkg_file(
+        "autoracer_description", "config", "hooke2_sensor_extrinsics.yaml"
+    )
 
     return LaunchDescription(
         [
@@ -46,33 +64,57 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_vehicle", default_value="true"),
             DeclareLaunchArgument("launch_rviz", default_value="false"),
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
+            DeclareLaunchArgument("extrinsics_file", default_value=default_extrinsics_file),
             DeclareLaunchArgument("enable_drive_commands", default_value="false"),
             DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
             DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
-            DeclareLaunchArgument("wheel_base_m", default_value="0.54"),
-            DeclareLaunchArgument("max_steer_rad", default_value="0.393"),
+            DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
+            DeclareLaunchArgument("max_steer_rad", default_value="0.262"),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
+            DeclareLaunchArgument("lidar_driver", default_value="hesai"),
+            DeclareLaunchArgument(
+                "lidar_param_file",
+                default_value=_pkg_file(
+                    "autoracer_bringup", "config", "hooke2", "lidar_top.param.yaml"
+                ),
+            ),
             DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar40P"),
+            DeclareLaunchArgument("launch_fixposition", default_value="true"),
+            DeclareLaunchArgument("launch_fixposition_seed", default_value="true"),
+            DeclareLaunchArgument("launch_manual_seed", default_value="false"),
+            DeclareLaunchArgument("manual_seed_input_topic", default_value="/initialpose"),
+            DeclareLaunchArgument("manual_seed_require_input_pose", default_value="false"),
+            DeclareLaunchArgument("manual_seed_x", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_y", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_z", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_yaw", default_value="0.0"),
+            DeclareLaunchArgument("manual_seed_xy_variance", default_value="1.0"),
+            DeclareLaunchArgument("manual_seed_z_variance", default_value="0.25"),
+            DeclareLaunchArgument("manual_seed_yaw_variance", default_value="0.03"),
             DeclareLaunchArgument(
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
-                )
+                ),
+                launch_arguments={"extrinsics_file": extrinsics_file}.items(),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_bringup", "launch", "sensing.launch.py")
                 ),
                 launch_arguments={
+                    "lidar_driver": lidar_driver,
+                    "lidar_param_file": lidar_param_file,
                     "lidar_host_ip": lidar_host_ip,
                     "lidar_sensor_ip": lidar_sensor_ip,
                     "lidar_data_port": lidar_data_port,
                     "sensor_model": lidar_sensor_model,
+                    "launch_fixposition": launch_fixposition,
                     "fixposition_stream": fixposition_stream,
                 }.items(),
                 condition=IfCondition(launch_sensing),
@@ -81,7 +123,21 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_bringup", "launch", "localization.launch.py")
                 ),
-                launch_arguments={"map_path": map_path}.items(),
+                launch_arguments={
+                    "map_path": map_path,
+                    "wheel_base_m": wheel_base_m,
+                    "launch_fixposition_seed": launch_fixposition_seed,
+                    "launch_manual_seed": launch_manual_seed,
+                    "manual_seed_input_topic": manual_seed_input_topic,
+                    "manual_seed_require_input_pose": manual_seed_require_input_pose,
+                    "manual_seed_x": manual_seed_x,
+                    "manual_seed_y": manual_seed_y,
+                    "manual_seed_z": manual_seed_z,
+                    "manual_seed_yaw": manual_seed_yaw,
+                    "manual_seed_xy_variance": manual_seed_xy_variance,
+                    "manual_seed_z_variance": manual_seed_z_variance,
+                    "manual_seed_yaw_variance": manual_seed_yaw_variance,
+                }.items(),
                 condition=IfCondition(launch_localization),
             ),
             IncludeLaunchDescription(
@@ -97,7 +153,11 @@ def generate_launch_description():
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_control", "launch", "control.launch.py")
                 ),
-                launch_arguments={"max_speed_mps": max_speed_mps}.items(),
+                launch_arguments={
+                    "max_speed_mps": max_speed_mps,
+                    "wheel_base_m": wheel_base_m,
+                    "max_steer_rad": max_steer_rad,
+                }.items(),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -106,6 +166,7 @@ def generate_launch_description():
                 launch_arguments={
                     "enable_drive_commands": enable_drive_commands,
                     "max_speed_mps": max_speed_mps,
+                    "max_steer_rad": max_steer_rad,
                 }.items(),
             ),
             IncludeLaunchDescription(

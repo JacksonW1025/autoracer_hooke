@@ -14,8 +14,17 @@ fi
 # shellcheck source=scripts/ros_env.sh
 source "$ROOT_DIR/scripts/ros_env.sh"
 
-ros2 launch autoracer_bringup lidar_rviz.launch.py \
-  lidar_host_ip:="${LIDAR_HOST_IP}" \
-  lidar_sensor_ip:="${LIDAR_SENSOR_IP}" \
-  lidar_data_port:="${LIDAR_DATA_PORT}" \
+LAUNCH_ARGS=(
+  extrinsics_file:="${EXTRINSICS_FILE}"
+  lidar_driver:="${LIDAR_DRIVER}"
+  lidar_param_file:="${LIDAR_PARAM_FILE}"
+  lidar_sensor_ip:="${LIDAR_SENSOR_IP}"
+  lidar_data_port:="${LIDAR_DATA_PORT}"
   lidar_sensor_model:="${LIDAR_SENSOR_MODEL}"
+)
+if [[ -n "${LIDAR_HOST_IP:-}" ]]; then
+  LAUNCH_ARGS+=(lidar_host_ip:="${LIDAR_HOST_IP}")
+fi
+
+ros2 launch autoracer_bringup lidar_rviz.launch.py \
+  "${LAUNCH_ARGS[@]}"
