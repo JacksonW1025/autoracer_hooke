@@ -27,6 +27,9 @@ DEFAULT_LIDAR_HOST_IP="192.168.1.120"
 if [[ "$LIDAR_DRIVER" == "lslidar_c32" ]]; then
   DEFAULT_LIDAR_HOST_IP=""
   DEFAULT_LIDAR_SENSOR_IP="192.168.1.200"
+  REQUIRE_LIDAR_PING="${REQUIRE_LIDAR_PING:-false}"
+else
+  REQUIRE_LIDAR_PING="${REQUIRE_LIDAR_PING:-true}"
 fi
 WARMUP_SEC="${WARMUP_SEC:-12}"
 SAMPLE_TIMEOUT_SEC="${SAMPLE_TIMEOUT_SEC:-8}"
@@ -93,6 +96,16 @@ probe_ping() {
     mark_ok "${label} ping ${host}"
   else
     mark_fail "${label} ping ${host}"
+  fi
+}
+
+probe_ping_optional() {
+  local label="$1"
+  local host="$2"
+  if ping -c 1 -W 1 "$host" >/dev/null 2>&1; then
+    mark_ok "${label} ping ${host}"
+  else
+    mark_warn "${label} ping ${host} failed; continuing to verify live ROS data"
   fi
 }
 
@@ -215,7 +228,11 @@ log "old underlay guard: ${AUTORACER_OLD_REPO:-/home/corage/workspace/project/pi
 log ""
 log "Preflight"
 if is_true "$LAUNCH_LIDAR"; then
-  probe_ping "LiDAR" "${LIDAR_SENSOR_IP:-$DEFAULT_LIDAR_SENSOR_IP}"
+  if is_true "$REQUIRE_LIDAR_PING"; then
+    probe_ping "LiDAR" "${LIDAR_SENSOR_IP:-$DEFAULT_LIDAR_SENSOR_IP}"
+  else
+    probe_ping_optional "LiDAR" "${LIDAR_SENSOR_IP:-$DEFAULT_LIDAR_SENSOR_IP}"
+  fi
 fi
 if is_true "$LAUNCH_FIXPOSITION"; then
   probe_ping "Fixposition" "${FIXPOSITION_IP:-192.168.1.200}"
