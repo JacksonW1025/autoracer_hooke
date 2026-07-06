@@ -55,6 +55,21 @@ def apply_gear_to_velocity(velocity, gear_report, max_speed, deadband_mps=0.05):
     return limited, False, None
 
 
+def telemetry_is_plausible(telemetry, max_speed_mps, max_yaw_rate_radps, expected_flag=1):
+    if int(telemetry.flag) != int(expected_flag):
+        return False
+    values = (telemetry.vx_mps, telemetry.vy_mps, telemetry.wz_rad_s)
+    if not all(math.isfinite(float(value)) for value in values):
+        return False
+    max_speed = abs(float(max_speed_mps))
+    max_yaw_rate = abs(float(max_yaw_rate_radps))
+    return (
+        abs(float(telemetry.vx_mps)) <= max_speed
+        and abs(float(telemetry.vy_mps)) <= max_speed
+        and abs(float(telemetry.wz_rad_s)) <= max_yaw_rate
+    )
+
+
 class PosixSerial:
     def __init__(self, device, baudrate):
         if baudrate not in _BAUD_RATES:
@@ -122,6 +137,9 @@ class RcSerialInterface(Node):
         self.declare_parameter("command_rate_hz", 30.0)
         self.declare_parameter("feedback_rate_hz", 50.0)
         self.declare_parameter("gear_deadband_mps", 0.05)
+        self.declare_parameter("expected_telemetry_flag", 1)
+        self.declare_parameter("max_feedback_speed_mps", 5.0)
+        self.declare_parameter("max_feedback_yaw_rate_radps", 3.0)
         self.declare_parameter("reconnect_interval_sec", 2.0)
         self.declare_parameter("start_in_autonomous", True)
         self.declare_parameter("control_topic", "/control/command/control_cmd")
@@ -136,6 +154,11 @@ class RcSerialInterface(Node):
         self._max_steer = float(self.get_parameter("max_steer_rad").value)
         self._command_timeout = float(self.get_parameter("command_timeout_sec").value)
         self._gear_deadband = float(self.get_parameter("gear_deadband_mps").value)
+        self._expected_telemetry_flag = int(self.get_parameter("expected_telemetry_flag").value)
+        self._max_feedback_speed = float(self.get_parameter("max_feedback_speed_mps").value)
+        self._max_feedback_yaw_rate = float(
+            self.get_parameter("max_feedback_yaw_rate_radps").value
+        )
         self._reconnect_interval = float(self.get_parameter("reconnect_interval_sec").value)
         self._autonomous_requested = _as_bool(self.get_parameter("start_in_autonomous").value)
 
@@ -312,6 +335,20 @@ class RcSerialInterface(Node):
                 continue
             if telemetry is None:
                 break
+            if not telemetry_is_plausible(
+                telemetry,
+                self._max_feedback_speed,
+                self._max_feedback_yaw_rate,
+                self._expected_telemetry_flag,
+            ):
+                self.get_logger().warn(
+                    "dropped implausible telemetry frame: "
+                    f"flag={telemetry.flag}, vx={telemetry.vx_mps:.3f}, vy={telemetry.vy_mps:.3f}, "
+                    f"wz={telemetry.wz_rad_s:.3f}",
+                    throttle_duration_sec=2.0,
+                )
+                self._publish_state("telemetry_rejected:range")
+                continue
             self._last_telemetry_time = self._now()
             self._publish_telemetry(telemetry)
 

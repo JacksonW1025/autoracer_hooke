@@ -29,11 +29,14 @@ def make_pose(stamp, *, x=0.0, y=0.0, yaw=0.0, xy_variance=0.25):
 class KinematicStatePublisherTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        rclpy.init()
+        cls._owns_rclpy_context = not rclpy.ok()
+        if cls._owns_rclpy_context:
+            rclpy.init()
 
     @classmethod
     def tearDownClass(cls):
-        rclpy.shutdown()
+        if cls._owns_rclpy_context and rclpy.ok():
+            rclpy.shutdown()
 
     def test_waits_for_ndt_before_publishing_odometry(self):
         node = KinematicStatePublisher()

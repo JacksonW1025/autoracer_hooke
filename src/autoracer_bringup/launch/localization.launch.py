@@ -16,6 +16,8 @@ def generate_launch_description():
     wheel_base_m = LaunchConfiguration("wheel_base_m")
     launch_fixposition_seed = LaunchConfiguration("launch_fixposition_seed")
     launch_manual_seed = LaunchConfiguration("launch_manual_seed")
+    launch_map_projection_loader = LaunchConfiguration("launch_map_projection_loader")
+    input_pointcloud = LaunchConfiguration("input_pointcloud")
     manual_seed_input_topic = LaunchConfiguration("manual_seed_input_topic")
     manual_seed_require_input_pose = LaunchConfiguration("manual_seed_require_input_pose")
     manual_seed_x = LaunchConfiguration("manual_seed_x")
@@ -25,15 +27,18 @@ def generate_launch_description():
     manual_seed_xy_variance = LaunchConfiguration("manual_seed_xy_variance")
     manual_seed_z_variance = LaunchConfiguration("manual_seed_z_variance")
     manual_seed_yaw_variance = LaunchConfiguration("manual_seed_yaw_variance")
+    ndt_param_file = LaunchConfiguration("ndt_param_file")
+    ndt_initial_pose_stamp_offset_sec = LaunchConfiguration(
+        "ndt_initial_pose_stamp_offset_sec"
+    )
     launch_kinematic_state_publisher = LaunchConfiguration(
         "launch_kinematic_state_publisher"
     )
-
-    ndt_param_file = PathJoinSubstitution(
+    default_ndt_param_file = PathJoinSubstitution(
         [
             get_package_share_directory("autoracer_bringup"),
             "config",
-            "hooke2",
+            "rc",
             "ndt_scan_matcher.param.yaml",
         ]
     )
@@ -49,11 +54,16 @@ def generate_launch_description():
                 "map_path",
                 default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
             ),
-            DeclareLaunchArgument("wheel_base_m", default_value="1.9"),
-            DeclareLaunchArgument("launch_fixposition_seed", default_value="true"),
-            DeclareLaunchArgument("launch_manual_seed", default_value="false"),
+            DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
+            DeclareLaunchArgument("launch_fixposition_seed", default_value="false"),
+            DeclareLaunchArgument("launch_manual_seed", default_value="true"),
+            DeclareLaunchArgument("launch_map_projection_loader", default_value="true"),
+            DeclareLaunchArgument(
+                "input_pointcloud",
+                default_value="/sensing/lidar/filtered/pointcloud",
+            ),
             DeclareLaunchArgument("manual_seed_input_topic", default_value="/initialpose"),
-            DeclareLaunchArgument("manual_seed_require_input_pose", default_value="false"),
+            DeclareLaunchArgument("manual_seed_require_input_pose", default_value="true"),
             DeclareLaunchArgument("manual_seed_x", default_value="0.0"),
             DeclareLaunchArgument("manual_seed_y", default_value="0.0"),
             DeclareLaunchArgument("manual_seed_z", default_value="0.0"),
@@ -61,6 +71,8 @@ def generate_launch_description():
             DeclareLaunchArgument("manual_seed_xy_variance", default_value="1.0"),
             DeclareLaunchArgument("manual_seed_z_variance", default_value="0.25"),
             DeclareLaunchArgument("manual_seed_yaw_variance", default_value="0.03"),
+            DeclareLaunchArgument("ndt_param_file", default_value=default_ndt_param_file),
+            DeclareLaunchArgument("ndt_initial_pose_stamp_offset_sec", default_value="-0.10"),
             DeclareLaunchArgument("launch_kinematic_state_publisher", default_value="true"),
             Node(
                 package="autoware_map_projection_loader",
@@ -74,6 +86,7 @@ def generate_launch_description():
                         "use_local_projector": False,
                     }
                 ],
+                condition=IfCondition(launch_map_projection_loader),
             ),
             Node(
                 package="autoware_map_loader",
@@ -187,6 +200,9 @@ def generate_launch_description():
                         "wheel_base_m": ParameterValue(wheel_base_m, value_type=float),
                         "vehicle_status_timeout_sec": 0.5,
                         "ndt_lost_timeout_sec": 1.0,
+                        "output_stamp_offset_sec": ParameterValue(
+                            ndt_initial_pose_stamp_offset_sec, value_type=float
+                        ),
                     }
                 ],
             ),
@@ -202,7 +218,7 @@ def generate_launch_description():
                 ),
                 launch_arguments={
                     "param_file": ndt_param_file,
-                    "input_pointcloud": "/sensing/lidar/concatenated/pointcloud",
+                    "input_pointcloud": input_pointcloud,
                     "input_initial_pose_topic": "/localization/ndt_initial_pose",
                     "input_regularization_pose_topic": "/localization/fixposition/seed_pose",
                     "input_service_trigger_node": "/localization/ndt_trigger",

@@ -69,8 +69,18 @@ copy_from_pilot_repo() {
     "src/external/autoware/core/sensing/autoware_gnss_poser"
   copy_dir "${pilot_repo}/src/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension" \
     "src/external/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension"
+  copy_dir "${pilot_repo}/src/autoware/autoware_rviz_plugins" \
+    "src/external/autoware/autoware_rviz_plugins"
   copy_dir "${pilot_repo}/src/autoware/universe/common/tier4_api_utils" \
     "src/external/autoware/universe/common/tier4_api_utils"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_control_mode_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_control_mode_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_planning_factor_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_planning_factor_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_state_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_state_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_vehicle_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_vehicle_rviz_plugin"
   copy_dir "${pilot_repo}/src/vendor/nebula" \
     "src/external/vendor/nebula"
   copy_dir "${pilot_repo}/src/vendor/sync_tooling_msgs" \

@@ -3,6 +3,7 @@ import pytest
 from autoracer_vehicle_interface.rc_serial_protocol import (
     FRAME_HEAD,
     FRAME_TAIL,
+    TelemetryFrame,
     bcc,
     decode_telemetry_frame,
     encode_control_frame,
@@ -13,7 +14,10 @@ from autoracer_vehicle_interface.rc_serial_protocol import (
 def test_apply_gear_to_velocity_rejects_mismatched_drive_direction():
     from autoware_vehicle_msgs.msg import GearReport
 
-    from autoracer_vehicle_interface.rc_serial_interface import apply_gear_to_velocity
+    from autoracer_vehicle_interface.rc_serial_interface import (
+        apply_gear_to_velocity,
+        telemetry_is_plausible,
+    )
 
     assert apply_gear_to_velocity(1.0, GearReport.DRIVE, 3.0) == (1.0, False, None)
     assert apply_gear_to_velocity(-1.0, GearReport.REVERSE, 3.0) == (-1.0, False, None)
@@ -32,6 +36,9 @@ def test_apply_gear_to_velocity_rejects_mismatched_drive_direction():
         True,
         "gear_velocity_mismatch",
     )
+    assert telemetry_is_plausible(TelemetryFrame(1, 0.2, 0.0, -0.4, 12000), 5.0, 3.0)
+    assert not telemetry_is_plausible(TelemetryFrame(1, 31.744, 0.0, 0.0, 768), 5.0, 3.0)
+    assert not telemetry_is_plausible(TelemetryFrame(0x28, -0.512, 0.0, 0.0, 768), 5.0, 3.0)
 
 
 def test_encode_control_frame_scales_signed_motion_values():

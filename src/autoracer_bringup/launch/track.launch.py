@@ -17,7 +17,11 @@ def generate_launch_description():
     default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
     map_path = LaunchConfiguration("map_path")
     launch_sensing = LaunchConfiguration("launch_sensing")
+    launch_imu = LaunchConfiguration("launch_imu")
     launch_localization = LaunchConfiguration("launch_localization")
+    launch_planning = LaunchConfiguration("launch_planning")
+    launch_control = LaunchConfiguration("launch_control")
+    launch_safety = LaunchConfiguration("launch_safety")
     launch_vehicle = LaunchConfiguration("launch_vehicle")
     launch_rviz = LaunchConfiguration("launch_rviz")
     rviz_config = LaunchConfiguration("rviz_config")
@@ -38,9 +42,18 @@ def generate_launch_description():
     lidar_driver = LaunchConfiguration("lidar_driver")
     lidar_param_file = LaunchConfiguration("lidar_param_file")
     lidar_sensor_model = LaunchConfiguration("lidar_sensor_model")
+    launch_pointcloud_filter = LaunchConfiguration("launch_pointcloud_filter")
+    pointcloud_filter_input_topic = LaunchConfiguration("pointcloud_filter_input_topic")
+    pointcloud_filter_output_topic = LaunchConfiguration("pointcloud_filter_output_topic")
+    pointcloud_filter_leaf_size_m = LaunchConfiguration("pointcloud_filter_leaf_size_m")
+    pointcloud_filter_min_range_m = LaunchConfiguration("pointcloud_filter_min_range_m")
+    pointcloud_filter_max_range_m = LaunchConfiguration("pointcloud_filter_max_range_m")
+    pointcloud_filter_max_points = LaunchConfiguration("pointcloud_filter_max_points")
+    localization_pointcloud_topic = LaunchConfiguration("localization_pointcloud_topic")
     launch_fixposition = LaunchConfiguration("launch_fixposition")
     launch_fixposition_seed = LaunchConfiguration("launch_fixposition_seed")
     launch_manual_seed = LaunchConfiguration("launch_manual_seed")
+    launch_map_projection_loader = LaunchConfiguration("launch_map_projection_loader")
     manual_seed_input_topic = LaunchConfiguration("manual_seed_input_topic")
     manual_seed_require_input_pose = LaunchConfiguration("manual_seed_require_input_pose")
     manual_seed_x = LaunchConfiguration("manual_seed_x")
@@ -50,11 +63,17 @@ def generate_launch_description():
     manual_seed_xy_variance = LaunchConfiguration("manual_seed_xy_variance")
     manual_seed_z_variance = LaunchConfiguration("manual_seed_z_variance")
     manual_seed_yaw_variance = LaunchConfiguration("manual_seed_yaw_variance")
+    ndt_param_file = LaunchConfiguration("ndt_param_file")
+    ndt_initial_pose_stamp_offset_sec = LaunchConfiguration(
+        "ndt_initial_pose_stamp_offset_sec"
+    )
     fixposition_stream = LaunchConfiguration("fixposition_stream")
+    imu_serial_port = LaunchConfiguration("imu_serial_port")
+    imu_baudrate = LaunchConfiguration("imu_baudrate")
 
-    default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "lidar_pointcloud.rviz")
+    default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "rc_autoware.rviz")
     default_extrinsics_file = _pkg_file(
-        "autoracer_description", "config", "hooke2_sensor_extrinsics.yaml"
+        "autoracer_description", "config", "rc_sensor_extrinsics.yaml"
     )
 
     return LaunchDescription(
@@ -64,37 +83,59 @@ def generate_launch_description():
                 default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
             ),
             DeclareLaunchArgument("launch_sensing", default_value="true"),
+            DeclareLaunchArgument("launch_imu", default_value="true"),
             DeclareLaunchArgument("launch_localization", default_value="true"),
+            DeclareLaunchArgument("launch_planning", default_value="true"),
+            DeclareLaunchArgument("launch_control", default_value="true"),
+            DeclareLaunchArgument("launch_safety", default_value="true"),
             DeclareLaunchArgument("launch_vehicle", default_value="true"),
             DeclareLaunchArgument("launch_rviz", default_value="false"),
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             DeclareLaunchArgument("extrinsics_file", default_value=default_extrinsics_file),
             DeclareLaunchArgument("enable_drive_commands", default_value="false"),
-            DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
-            DeclareLaunchArgument("control_min_lookahead_m", default_value="4.0"),
-            DeclareLaunchArgument("control_lookahead_gain", default_value="1.5"),
-            DeclareLaunchArgument("control_goal_tolerance_m", default_value="1.0"),
-            DeclareLaunchArgument("control_max_steer_rate_radps", default_value="0.5"),
-            DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
+            DeclareLaunchArgument("max_speed_mps", default_value="3.0"),
+            DeclareLaunchArgument("control_min_lookahead_m", default_value="1.0"),
+            DeclareLaunchArgument("control_lookahead_gain", default_value="1.0"),
+            DeclareLaunchArgument("control_goal_tolerance_m", default_value="0.35"),
+            DeclareLaunchArgument("control_max_steer_rate_radps", default_value="1.5"),
+            DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0"),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
             DeclareLaunchArgument("max_steer_rad", default_value="0.262"),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
-            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
+            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.200"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
-            DeclareLaunchArgument("lidar_driver", default_value="hesai"),
+            DeclareLaunchArgument("lidar_driver", default_value="lslidar_c32"),
             DeclareLaunchArgument(
                 "lidar_param_file",
                 default_value=_pkg_file(
-                    "autoracer_bringup", "config", "hooke2", "lidar_top.param.yaml"
+                    "autoracer_bringup", "config", "rc", "lslidar_cx.yaml"
                 ),
             ),
-            DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar40P"),
-            DeclareLaunchArgument("launch_fixposition", default_value="true"),
-            DeclareLaunchArgument("launch_fixposition_seed", default_value="true"),
-            DeclareLaunchArgument("launch_manual_seed", default_value="false"),
+            DeclareLaunchArgument("lidar_sensor_model", default_value="C32"),
+            DeclareLaunchArgument("launch_pointcloud_filter", default_value="true"),
+            DeclareLaunchArgument(
+                "pointcloud_filter_input_topic",
+                default_value="/sensing/lidar/concatenated/pointcloud",
+            ),
+            DeclareLaunchArgument(
+                "pointcloud_filter_output_topic",
+                default_value="/sensing/lidar/filtered/pointcloud",
+            ),
+            DeclareLaunchArgument("pointcloud_filter_leaf_size_m", default_value="0.25"),
+            DeclareLaunchArgument("pointcloud_filter_min_range_m", default_value="0.15"),
+            DeclareLaunchArgument("pointcloud_filter_max_range_m", default_value="60.0"),
+            DeclareLaunchArgument("pointcloud_filter_max_points", default_value="1500"),
+            DeclareLaunchArgument(
+                "localization_pointcloud_topic",
+                default_value="/sensing/lidar/filtered/pointcloud",
+            ),
+            DeclareLaunchArgument("launch_fixposition", default_value="false"),
+            DeclareLaunchArgument("launch_fixposition_seed", default_value="false"),
+            DeclareLaunchArgument("launch_manual_seed", default_value="true"),
+            DeclareLaunchArgument("launch_map_projection_loader", default_value="true"),
             DeclareLaunchArgument("manual_seed_input_topic", default_value="/initialpose"),
-            DeclareLaunchArgument("manual_seed_require_input_pose", default_value="false"),
+            DeclareLaunchArgument("manual_seed_require_input_pose", default_value="true"),
             DeclareLaunchArgument("manual_seed_x", default_value="0.0"),
             DeclareLaunchArgument("manual_seed_y", default_value="0.0"),
             DeclareLaunchArgument("manual_seed_z", default_value="0.0"),
@@ -103,8 +144,17 @@ def generate_launch_description():
             DeclareLaunchArgument("manual_seed_z_variance", default_value="0.25"),
             DeclareLaunchArgument("manual_seed_yaw_variance", default_value="0.03"),
             DeclareLaunchArgument(
+                "ndt_param_file",
+                default_value=_pkg_file(
+                    "autoracer_bringup", "config", "rc", "ndt_scan_matcher.param.yaml"
+                ),
+            ),
+            DeclareLaunchArgument("ndt_initial_pose_stamp_offset_sec", default_value="-0.10"),
+            DeclareLaunchArgument(
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
+            DeclareLaunchArgument("imu_serial_port", default_value="/dev/autoracer_imu"),
+            DeclareLaunchArgument("imu_baudrate", default_value="115200"),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
@@ -124,6 +174,16 @@ def generate_launch_description():
                     "sensor_model": lidar_sensor_model,
                     "launch_fixposition": launch_fixposition,
                     "fixposition_stream": fixposition_stream,
+                    "launch_imu": launch_imu,
+                    "imu_serial_port": imu_serial_port,
+                    "imu_baudrate": imu_baudrate,
+                    "launch_pointcloud_filter": launch_pointcloud_filter,
+                    "pointcloud_filter_input_topic": pointcloud_filter_input_topic,
+                    "pointcloud_filter_output_topic": pointcloud_filter_output_topic,
+                    "pointcloud_filter_leaf_size_m": pointcloud_filter_leaf_size_m,
+                    "pointcloud_filter_min_range_m": pointcloud_filter_min_range_m,
+                    "pointcloud_filter_max_range_m": pointcloud_filter_max_range_m,
+                    "pointcloud_filter_max_points": pointcloud_filter_max_points,
                 }.items(),
                 condition=IfCondition(launch_sensing),
             ),
@@ -134,8 +194,10 @@ def generate_launch_description():
                 launch_arguments={
                     "map_path": map_path,
                     "wheel_base_m": wheel_base_m,
+                    "input_pointcloud": localization_pointcloud_topic,
                     "launch_fixposition_seed": launch_fixposition_seed,
                     "launch_manual_seed": launch_manual_seed,
+                    "launch_map_projection_loader": launch_map_projection_loader,
                     "manual_seed_input_topic": manual_seed_input_topic,
                     "manual_seed_require_input_pose": manual_seed_require_input_pose,
                     "manual_seed_x": manual_seed_x,
@@ -145,6 +207,8 @@ def generate_launch_description():
                     "manual_seed_xy_variance": manual_seed_xy_variance,
                     "manual_seed_z_variance": manual_seed_z_variance,
                     "manual_seed_yaw_variance": manual_seed_yaw_variance,
+                    "ndt_param_file": ndt_param_file,
+                    "ndt_initial_pose_stamp_offset_sec": ndt_initial_pose_stamp_offset_sec,
                 }.items(),
                 condition=IfCondition(launch_localization),
             ),
@@ -156,6 +220,7 @@ def generate_launch_description():
                     "map_path": map_path,
                     "max_speed_mps": max_speed_mps,
                 }.items(),
+                condition=IfCondition(launch_planning),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -169,6 +234,7 @@ def generate_launch_description():
                     "lookahead_gain": control_lookahead_gain,
                     "goal_tolerance_m": control_goal_tolerance_m,
                 }.items(),
+                condition=IfCondition(launch_control),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
@@ -180,6 +246,7 @@ def generate_launch_description():
                     "max_steer_rad": max_steer_rad,
                     "max_steer_rate_radps": control_max_steer_rate_radps,
                 }.items(),
+                condition=IfCondition(launch_safety),
             ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

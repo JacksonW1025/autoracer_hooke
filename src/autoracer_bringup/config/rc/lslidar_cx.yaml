@@ -20,7 +20,7 @@
     horizontal_angle_resolution: 0.18     #10Hz:0.18  20Hz:0.36 5Hz: 0.09
     frame_id: lidar_top      #点云帧id
     topic_name: /sensing/lidar/concatenated/pointcloud #点云话题名称
-    publish_scan: true        #是否发布 laserscan话题
+    publish_scan: false       #建图/NDT 使用 PointCloud2；关闭 LaserScan 生成以避免 C32 3.0 scan 路径崩溃
     scan_num: 16              #laserscan线号 (0-31, 16=horizontal plane)
     coordinate_opt: false     #在ROS坐标系中点云0度角对应方向  true: x轴正方向   false:Y轴方向为起始0°
     #pcap: /home/ls/Downloads/xxx.pcap   #pcap包路径，离线解析pcap包时打开此注释

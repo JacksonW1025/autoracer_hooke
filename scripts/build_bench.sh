@@ -16,9 +16,16 @@ fi
 PACKAGES_UP_TO=(
   autoracer_sensing
   autoracer_vehicle_interface
+  hipnuc_imu
   lslidar_driver
   nebula_hesai
   fixposition_driver_ros2
+  autoware_localization_rviz_plugin
+  autoware_planning_rviz_plugin
+  tier4_control_mode_rviz_plugin
+  tier4_state_rviz_plugin
+  tier4_vehicle_rviz_plugin
+  tier4_planning_factor_rviz_plugin
 )
 
 PACKAGES_SELECT=(

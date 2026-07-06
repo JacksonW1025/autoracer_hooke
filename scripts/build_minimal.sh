@@ -21,6 +21,7 @@ PACKAGES=(
   autoracer_control
   autoracer_safety
   autoracer_vehicle_interface
+  hipnuc_imu
   lslidar_msgs
   lslidar_driver
   autoracer_bringup
@@ -52,6 +53,12 @@ PACKAGES=(
   nebula_msgs
   nebula_hesai
   nebula_hesai_decoders
+  autoware_localization_rviz_plugin
+  autoware_planning_rviz_plugin
+  tier4_control_mode_rviz_plugin
+  tier4_state_rviz_plugin
+  tier4_vehicle_rviz_plugin
+  tier4_planning_factor_rviz_plugin
   fixposition_driver_msgs
   fixposition_driver_lib
   rtcm_msgs

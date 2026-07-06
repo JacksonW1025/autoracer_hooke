@@ -1,0 +1,140 @@
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DOCS = ROOT / "docs"
+
+
+FORMAL_DOCS = [
+    DOCS / "README_zh.md",
+    DOCS / "architecture" / "platform_and_stack_zh.md",
+    DOCS / "architecture" / "official_migration_zh.md",
+    DOCS / "architecture" / "runtime_alignment_audit_zh.md",
+    DOCS / "operations" / "rc_full_chain_execution_zh.md",
+    DOCS / "operations" / "rc_runbook_zh.md",
+    DOCS / "operations" / "mapping_workflow_zh.md",
+    DOCS / "reference" / "interfaces_and_topics_zh.md",
+    DOCS / "reference" / "calibration_zh.md",
+    DOCS / "superpowers" / "plans" / "2026-07-01-rc-full-chain-implementation.md",
+    DOCS / "superpowers" / "specs" / "2026-07-01-docs-structure-design.md",
+]
+
+
+OLD_DOC_NAMES = [
+    "rc_hooke_platform_boundary_zh.md",
+    "rc_run_readiness_checklist_zh.md",
+    "rc_autoware_full_workflow_zh.md",
+    "autoracer_hooke_chain_audit",
+    "rc_official_autoware_diff_audit_zh.md",
+    "sensing_feedback_topics.md",
+    "hooke2_chassis_chain.md",
+    "calibration_checklist.md",
+    "minimal_stack.md",
+]
+
+
+def read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def test_docs_readme_indexes_formal_docs():
+    text = read(DOCS / "README_zh.md")
+    for path in FORMAL_DOCS:
+        if path.name == "README_zh.md":
+            continue
+        rel = path.relative_to(DOCS).as_posix()
+        assert f"`{rel}`" in text
+
+
+def test_no_reader_role_table_or_old_doc_names():
+    combined = "\n".join(read(path) for path in FORMAL_DOCS if path.exists())
+    assert "| 文档 | 角色 | 什么时候读 |" not in combined
+    for name in OLD_DOC_NAMES:
+        assert name not in combined
+
+
+def test_platform_doc_has_two_architecture_diagrams():
+    text = read(DOCS / "architecture" / "platform_and_stack_zh.md")
+    assert "## Hooke 底盘架构图" in text
+    assert "## RC 底盘架构图" in text
+    assert text.count("```mermaid") == 2
+    assert text.count("```") % 2 == 0
+    assert "Shared upper stack" in text
+    assert "rc_serial_interface" in text
+    assert "hooke2_interface" in text
+
+
+def test_current_phase_does_not_describe_future_state_fusion():
+    combined = "\n".join(read(path) for path in FORMAL_DOCS if path.exists())
+    forbidden_terms = ["卡尔曼", "Kalman", "EKF", "ekf"]
+    for term in forbidden_terms:
+        assert term not in combined
+
+
+def test_runtime_audit_records_pointcloud_filter_contract():
+    text = read(DOCS / "architecture" / "runtime_alignment_audit_zh.md")
+    assert "pointcloud_voxel_filter" in text
+    assert "/sensing/lidar/concatenated/pointcloud" in text
+    assert "/sensing/lidar/filtered/pointcloud" in text
+
+
+def test_full_chain_doc_preserves_audit_to_runtime_order():
+    text = read(DOCS / "operations" / "rc_full_chain_execution_zh.md")
+    required_terms = [
+        "架构/Launch 差距审计",
+        "车端传感器和 TF",
+        "工作机 bag 检查和 Foxglove 查看",
+        "Super-LIO 生成 PCD",
+        "NDT localization-only",
+        "planning/control/gate dry-run",
+        "低速动态验证",
+        "docs/architecture/runtime_alignment_audit_zh.md",
+        "docs/operations/mapping_workflow_zh.md",
+        "docs/operations/rc_runbook_zh.md",
+    ]
+    for term in required_terms:
+        assert term in text
+
+
+def test_full_chain_implementation_plan_has_engineering_gates():
+    text = read(DOCS / "superpowers" / "plans" / "2026-07-01-rc-full-chain-implementation.md")
+    required_terms = [
+        "阶段 1 文档基线",
+        "阶段 2 传感器 runtime",
+        "阶段 5 Super-LIO 建图",
+        "阶段 7 地图回灌和 localization-only",
+        "阶段 8 Full stack dry-run",
+        "阶段 10 低速动态验证",
+        "完成证据",
+        "没有保存产物或命令输出的阶段不能声明完成",
+    ]
+    for term in required_terms:
+        assert term in text
+
+
+def test_static_architecture_png_is_documented_as_preview():
+    assert (DOCS / "architecture" / "image.png").exists()
+    readme = read(DOCS / "README_zh.md")
+    platform = read(DOCS / "architecture" / "platform_and_stack_zh.md")
+    assert "`architecture/image.png`" in readme
+    assert "`docs/architecture/image.png`" in platform
+    assert "静态预览图" in platform
+    assert "Mermaid" in platform
+    assert "runtime_alignment_audit_zh.md" in platform
+
+
+def test_docs_structure_spec_matches_current_docs():
+    text = read(DOCS / "superpowers" / "specs" / "2026-07-01-docs-structure-design.md")
+    required_terms = [
+        "operations/rc_full_chain_execution_zh.md",
+        "architecture/runtime_alignment_audit_zh.md",
+        "architecture/image.png",
+        "plans/2026-07-01-rc-full-chain-implementation.md",
+        "过时计划删除",
+    ]
+    for term in required_terms:
+        assert term in text
+
+
+def test_completed_architecture_alignment_plan_removed():
+    assert not (DOCS / "superpowers" / "plans" / "2026-07-01-architecture-launch-alignment.md").exists()

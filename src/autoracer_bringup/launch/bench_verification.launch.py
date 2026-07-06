@@ -34,35 +34,35 @@ def generate_launch_description():
 
     default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "lidar_pointcloud.rviz")
     default_extrinsics_file = _pkg_file(
-        "autoracer_description", "config", "hooke2_sensor_extrinsics.yaml"
+        "autoracer_description", "config", "rc_sensor_extrinsics.yaml"
     )
 
     return LaunchDescription(
         [
             DeclareLaunchArgument("launch_static_tf", default_value="true"),
             DeclareLaunchArgument("launch_lidar", default_value="true"),
-            DeclareLaunchArgument("launch_fixposition", default_value="true"),
+            DeclareLaunchArgument("launch_fixposition", default_value="false"),
             DeclareLaunchArgument("launch_vehicle", default_value="true"),
             DeclareLaunchArgument("launch_rviz", default_value="false"),
             DeclareLaunchArgument("extrinsics_file", default_value=default_extrinsics_file),
-            DeclareLaunchArgument("lidar_driver", default_value="hesai"),
+            DeclareLaunchArgument("lidar_driver", default_value="lslidar_c32"),
             DeclareLaunchArgument(
                 "lidar_param_file",
                 default_value=_pkg_file(
-                    "autoracer_bringup", "config", "hooke2", "lidar_top.param.yaml"
+                    "autoracer_bringup", "config", "rc", "lslidar_cx.yaml"
                 ),
             ),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
-            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
+            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.200"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
-            DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar40P"),
+            DeclareLaunchArgument("lidar_sensor_model", default_value="C32"),
             DeclareLaunchArgument(
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
-            DeclareLaunchArgument("serial_port", default_value="/dev/ttyUSB0"),
+            DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0"),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
-            DeclareLaunchArgument("max_speed_mps", default_value="1.5"),
+            DeclareLaunchArgument("max_speed_mps", default_value="3.0"),
             DeclareLaunchArgument("max_steer_rad", default_value="0.262"),
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             IncludeLaunchDescription(

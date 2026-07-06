@@ -22,21 +22,21 @@ def generate_launch_description():
 
     default_rviz_config = _pkg_file("autoracer_bringup", "rviz", "lidar_pointcloud.rviz")
     default_extrinsics_file = _pkg_file(
-        "autoracer_description", "config", "hooke2_sensor_extrinsics.yaml"
+        "autoracer_description", "config", "rc_sensor_extrinsics.yaml"
     )
     default_lidar_param_file = _pkg_file(
-        "autoracer_bringup", "config", "hooke2", "lidar_top.param.yaml"
+        "autoracer_bringup", "config", "rc", "lslidar_cx.yaml"
     )
 
     return LaunchDescription(
         [
             DeclareLaunchArgument("extrinsics_file", default_value=default_extrinsics_file),
-            DeclareLaunchArgument("lidar_driver", default_value="hesai"),
+            DeclareLaunchArgument("lidar_driver", default_value="lslidar_c32"),
             DeclareLaunchArgument("lidar_param_file", default_value=default_lidar_param_file),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
-            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
+            DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.200"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
-            DeclareLaunchArgument("lidar_sensor_model", default_value="Pandar40P"),
+            DeclareLaunchArgument("lidar_sensor_model", default_value="C32"),
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(

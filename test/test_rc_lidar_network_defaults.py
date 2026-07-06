@@ -14,8 +14,7 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
     expected_defaults = {
         "defaults.env": f'LIDAR_HOST_IP:={RC_LIDAR_HOST_IP}',
         "scripts/configure_rc_lidar_link.sh": f'LIDAR_HOST_IP:-{RC_LIDAR_HOST_IP}',
-        "scripts/check_sensor_status.sh": f'LIDAR_HOST_IP:-{RC_LIDAR_HOST_IP}',
-        "scripts/verify_sensing_feedback.sh": f'DEFAULT_LIDAR_HOST_IP="{RC_LIDAR_HOST_IP}"',
+        "scripts/rc/rc_configure_lidar.sh": "configure_rc_lidar_link.sh",
     }
 
     for relative_path, expected in expected_defaults.items():
@@ -23,13 +22,27 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
 
 
 def test_rc_user_docs_do_not_recommend_conflicting_host_address():
-    docs = [
+    canonical_link_docs = [
         "README.md",
-        "docs/sensing_feedback_topics.md",
-        "docs/rc_run_readiness_checklist_zh.md",
+        "docs/reference/interfaces_and_topics_zh.md",
     ]
 
-    for relative_path in docs:
+    for relative_path in canonical_link_docs:
         content = read(relative_path)
         assert RC_LIDAR_HOST_IP in content
+
+    current_user_docs = [
+        "README.md",
+        "docs/README_zh.md",
+        "docs/architecture/platform_and_stack_zh.md",
+        "docs/architecture/runtime_alignment_audit_zh.md",
+        "docs/operations/rc_full_chain_execution_zh.md",
+        "docs/operations/rc_runbook_zh.md",
+        "docs/operations/mapping_workflow_zh.md",
+        "docs/reference/interfaces_and_topics_zh.md",
+        "docs/reference/calibration_zh.md",
+    ]
+
+    for relative_path in current_user_docs:
+        content = read(relative_path)
         assert CONFLICTING_HOST_IP not in content
