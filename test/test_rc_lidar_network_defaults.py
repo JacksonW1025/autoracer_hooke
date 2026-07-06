@@ -1,9 +1,10 @@
 from pathlib import Path
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
 RC_LIDAR_HOST_IP = "192.168.1.120"
-CONFLICTING_HOST_IP = "192.168.1.102"
+FORBIDDEN_LIDAR_HOST_IP = ".".join(("192", "168", "1", str(100 + 2)))
 
 
 def read(relative_path: str) -> str:
@@ -45,4 +46,21 @@ def test_rc_user_docs_do_not_recommend_conflicting_host_address():
 
     for relative_path in current_user_docs:
         content = read(relative_path)
-        assert CONFLICTING_HOST_IP not in content
+        assert FORBIDDEN_LIDAR_HOST_IP not in content
+
+
+def test_repo_does_not_carry_obsolete_lidar_host_address():
+    tracked_files = subprocess.check_output(
+        ["git", "ls-files"],
+        cwd=ROOT,
+        text=True,
+    ).splitlines()
+    forbidden = FORBIDDEN_LIDAR_HOST_IP.encode()
+
+    offenders = []
+    for relative_path in tracked_files:
+        path = ROOT / relative_path
+        if forbidden in path.read_bytes():
+            offenders.append(relative_path)
+
+    assert offenders == []

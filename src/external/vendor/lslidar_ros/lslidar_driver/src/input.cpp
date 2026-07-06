@@ -66,7 +66,7 @@ namespace lslidar_driver {
             struct ip_mreq group;
             group.imr_multiaddr.s_addr = inet_addr(group_ip.c_str());
             group.imr_interface.s_addr = htonl(INADDR_ANY);
-            //group.imr_interface.s_addr = inet_addr("192.168.1.102");
+            //group.imr_interface.s_addr = inet_addr("192.168.1.120");
 
             if (setsockopt(sockfd_, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *) &group, sizeof(group)) < 0) {
                 perror("Adding multicast group error ");
