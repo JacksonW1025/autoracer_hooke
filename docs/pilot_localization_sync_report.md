@@ -89,7 +89,14 @@ Plan-specific launch constraints carried into implementation:
 
 ## Phase commits
 
-To be filled after each phase commit.
+- Phase 0: `50236b5` - audit pilot localization sync baseline.
+- Phase 1: `f8df6d5` - archive legacy localization experiments.
+- Phase 2: `4ab9086` - sync pilot localization packages.
+- Phase 3: `fb625cd` - copy pilot localization parameters.
+- Phase 4: `52e8a15` - add pilot CarMaker localization wrapper.
+- Phase 5: `625b329` - declare pilot localization dependencies.
+- Phase 6: `3b4bc08` - validate pilot localization build and launch.
+- Phase 7: final commit in this phase; see `git log --oneline -1` after commit.
 
 ## Phase 1 archive
 
@@ -250,6 +257,7 @@ Build:
   `build/autoware_ndt_scan_matcher` and `install/autoware_ndt_scan_matcher`.
 - Retried the same build command successfully.
 - Final summary: `104 packages finished [1min 24s]`.
+- Final rebuild after Phase 7 wrapper compatibility fixes: `104 packages finished [10.0s]`.
 - Non-fatal warnings observed:
   - colcon underlay override warning for selected Autoware packages already present in `/opt/ros/humble`;
   - ament scoped header install deprecation warnings during packages rebuilt on the first attempt;
@@ -294,6 +302,126 @@ Key wiring checks:
 - gyro_odometer IMU input default: `/sensing/imu/imu_data`; wrapper relays `/fixposition/rawimu` to it.
 - Forbidden node list and `/carmaker/ground_truth/pose` were absent from the wrapper and copied `tier4_localization_launch` files.
 
+## Phase 7 runtime readiness
+
+The full CarMaker closed-loop run was not executed in this session. Reasons:
+
+- No CarMaker process was already running.
+- Starting the full `SimProject_TianmenRace/run_stage_c0_ndt_realtime.sh` path would start
+  CarMaker/MovieEGL and use desktop/GPU state.
+- The script's defaults are wired for the archived stage-C0 experiment chain, so using it with the
+  new wrapper requires explicit node/topic overrides.
+
+Wrapper compatibility fixes made during Phase 7:
+
+- Added `localization_map_path` as an alias for `map_path` because the reference script passes
+  `localization_map_path:=...`.
+- Added declared `use_sim_time` argument and kept launch-level `SetParameter`.
+- Scoped the `autoware_vehicle_velocity_converter` and `autoware_gnss_poser` XML includes so generic
+  launch args (`config_file`, `param_file`) cannot leak into `tier4_localization_launch`. This fixes
+  a launch-only smoke issue where `gyro_odometer` inherited the vehicle velocity converter config.
+
+Launch-only smoke test, without CarMaker/GPU:
+
+- Environment sanitized to avoid Anaconda `libstdc++` overriding ROS Humble runtime libraries.
+- Map used: `src/autoracer_bringup` wrapper argument
+  `localization_map_path:=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/maps/carmaker_builtin_urban`
+  because this directory contains `map_projector_info.yaml`.
+- Result: wrapper started and was interrupted intentionally (`SIGTERM`, status 143) after inspection.
+- Nodes observed:
+  - `/map/pointcloud_map_loader`
+  - `/pointcloud_container`
+  - `/vehicle_velocity_converter`
+  - `/gnss_poser`
+  - `/fixposition_rawimu_to_sensing_imu_relay`
+  - `/localization/pose_estimator/ndt_scan_matcher`
+  - `/localization/twist_estimator/gyro_odometer`
+  - `/localization/util/pose_initializer`
+  - `/localization/util/default_adapi/helpers/autoware_automatic_pose_initializer`
+  - `/localization/pose_twist_fusion_filter/ekf_localizer`
+  - `/localization/pose_twist_fusion_filter/stop_filter`
+  - `/localization/pose_twist_fusion_filter/twist2accel`
+  - `/localization/pose_twist_fusion_filter/pose_instability_detector`
+  - `/localization/localization_error_monitor`
+- Topic/service checks:
+  - `/localization/kinematic_state`: publisher `/localization/pose_twist_fusion_filter/stop_filter`.
+  - `/localization/pose_twist_fusion_filter/kinematic_state`: publisher EKF, subscriber stop_filter.
+  - `/localization/util/downsample/pointcloud`: publisher random downsample filter, subscriber NDT.
+  - `/localization/pose_estimator/pose_with_covariance`: publisher NDT, subscriber EKF.
+  - `/localization/twist_estimator/twist_with_covariance`: publisher gyro_odometer, subscribers EKF/twist2accel/pose_instability_detector.
+  - `/sensing/gnss/pose_with_covariance`: publisher gnss_poser, subscriber pose_initializer.
+  - `/sensing/imu/imu_data`: gyro_odometer subscriber present; publisher absent in launch-only smoke because no `/fixposition/rawimu` source was running for `topic_tools` relay discovery.
+  - Services present: `/localization/initialize`, `/api/localization/initialize`,
+    `/localization/pose_estimator/ndt_align_srv`, `/localization/pose_estimator/trigger_node`,
+    `/localization/pose_twist_fusion_filter/trigger_node`,
+    `/map/get_differential_pointcloud_map`, `/map/get_partial_pointcloud_map`.
+
+Full CarMaker closed-loop commands for manual execution:
+
+```bash
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+export PYTHONNOUSERSITE=1
+unset PYTHONHOME CONDA_PREFIX CONDA_DEFAULT_ENV CONDA_EXE CONDA_PYTHON_EXE CONDA_SHLVL
+export LD_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"
+source /opt/ros/humble/setup.bash
+cd /opt/ipg/carmaker/linux64-15.1/autoracer_hooke
+source install/setup.bash
+```
+
+Standalone wrapper smoke with CarMaker already publishing bridge topics:
+
+```bash
+ros2 launch autoracer_bringup pilot_carmaker_localization.launch.py \
+  localization_map_path:=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/maps/carmaker_builtin_urban \
+  use_sim_time:=true
+```
+
+Reference-script style run, with old stage-C0 checks overridden:
+
+```bash
+cd /opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace
+LAUNCH_FILE=pilot_carmaker_localization.launch.py \
+MAP_PATH=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/maps/carmaker_builtin_urban \
+ENABLE_ROS_CLI_INTROSPECTION=1 \
+RUN_COMPARE=0 \
+REQUIRE_COMPARISON=0 \
+BASE_REQUIRED_NODES="/map/pointcloud_map_loader /pointcloud_container /vehicle_velocity_converter /gnss_poser /fixposition_rawimu_to_sensing_imu_relay /localization/pose_estimator/ndt_scan_matcher /localization/twist_estimator/gyro_odometer /localization/util/pose_initializer /localization/pose_twist_fusion_filter/ekf_localizer /localization/pose_twist_fusion_filter/stop_filter" \
+REQUIRED_SMOKE_TOPICS="/sensing/lidar/concatenated/pointcloud /vehicle/status/velocity_status /fixposition/rawimu /fixposition/fix /sensing/vehicle_velocity_converter/twist_with_covariance /sensing/imu/imu_data /sensing/gnss/pose_with_covariance /localization/util/downsample/pointcloud /localization/pose_estimator/pose_with_covariance /localization/twist_estimator/twist_with_covariance /localization/pose_twist_fusion_filter/kinematic_state /localization/kinematic_state" \
+BASE_RECORD_TOPICS="/clock /sensing/lidar/concatenated/pointcloud /vehicle/status/velocity_status /fixposition/rawimu /fixposition/fix /fixposition/autoware_orientation /sensing/vehicle_velocity_converter/twist_with_covariance /sensing/imu/imu_data /sensing/gnss/pose_with_covariance /localization/util/downsample/pointcloud /localization/pose_estimator/pose_with_covariance /localization/twist_estimator/twist_with_covariance /localization/pose_twist_fusion_filter/kinematic_state /localization/kinematic_state" \
+./run_stage_c0_ndt_realtime.sh
+```
+
+Post-launch checks:
+
+```bash
+ros2 topic info /localization/kinematic_state -v
+ros2 topic info /localization/pose_twist_fusion_filter/kinematic_state -v
+ros2 topic info /localization/util/downsample/pointcloud -v
+ros2 topic info /localization/pose_estimator/pose_with_covariance -v
+ros2 topic info /localization/twist_estimator/twist_with_covariance -v
+ros2 topic info /sensing/gnss/pose_with_covariance -v
+ros2 topic info /sensing/imu/imu_data -v
+ros2 service list | rg "initialize|ndt_align|trigger_node|get_differential|get_partial"
+```
+
+## Decisions and risks
+
+- `autoracer_localization` remains in `src` as required, but the new wrapper does not depend on it.
+- The wrapper keeps both `map_path` and `localization_map_path`; this is only a launch-script
+  compatibility alias and does not affect algorithm code.
+- `autoware_map_loader` in the copied source does not declare an `enable_differential_load`
+  parameter; it constructs the differential map service unconditionally. The wrapper remaps and
+  verifies `/map/get_differential_pointcloud_map`.
+- Current checkout does not contain `maps/whale_map_20251107`; use `MAP_PATH`, `map_path`, or
+  `localization_map_path` to point at a map directory containing `map_projector_info.yaml`,
+  `lanelet2_map.osm`, and pointcloud map metadata.
+- Full closed-loop remains pending on a CarMaker/GPU session with the correct map and Bridge topics.
+
 ## Verification summary
 
-To be filled after Phase 6/7.
+- Package scan: pass; no duplicate package names.
+- Build: pass; final `colcon build --symlink-install --packages-up-to autoracer_bringup` succeeded.
+- Algorithm package copy proof: pass; five replaced packages diff clean against pilot.
+- Static launch `--print`: pass; no missing launch arguments.
+- Launch-only smoke: pass for node/service/topic ownership that does not require active CarMaker data.
+- Full CarMaker closed-loop: pending manual execution.

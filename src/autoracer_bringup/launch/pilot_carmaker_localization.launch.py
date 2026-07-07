@@ -19,7 +19,8 @@ def _localization_param(*parts):
 
 def generate_launch_description():
     default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
-    map_path = LaunchConfiguration("map_path")
+    map_path = LaunchConfiguration("localization_map_path")
+    use_sim_time = LaunchConfiguration("use_sim_time")
     input_pointcloud = LaunchConfiguration("input_pointcloud")
     initial_pose = LaunchConfiguration("initial_pose")
     localization_pointcloud_container_name = LaunchConfiguration(
@@ -39,7 +40,10 @@ def generate_launch_description():
     )
 
     runtime_actions = [
-        SetParameter(name="use_sim_time", value=True),
+        SetParameter(
+            name="use_sim_time",
+            value=ParameterValue(use_sim_time, value_type=bool),
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
@@ -92,32 +96,40 @@ def generate_launch_description():
             name="pointcloud_container",
             output="screen",
         ),
-        IncludeLaunchDescription(
-            AnyLaunchDescriptionSource(
-                _pkg_file(
-                    "autoware_vehicle_velocity_converter",
-                    "launch",
-                    "vehicle_velocity_converter.launch.xml",
+        GroupAction(
+            [
+                IncludeLaunchDescription(
+                    AnyLaunchDescriptionSource(
+                        _pkg_file(
+                            "autoware_vehicle_velocity_converter",
+                            "launch",
+                            "vehicle_velocity_converter.launch.xml",
+                        )
+                    ),
+                    launch_arguments={
+                        "input_vehicle_velocity_topic": "/vehicle/status/velocity_status",
+                        "output_twist_with_covariance": (
+                            "/sensing/vehicle_velocity_converter/twist_with_covariance"
+                        ),
+                    }.items(),
                 )
-            ),
-            launch_arguments={
-                "input_vehicle_velocity_topic": "/vehicle/status/velocity_status",
-                "output_twist_with_covariance": (
-                    "/sensing/vehicle_velocity_converter/twist_with_covariance"
-                ),
-            }.items(),
+            ]
         ),
-        IncludeLaunchDescription(
-            AnyLaunchDescriptionSource(
-                _pkg_file("autoware_gnss_poser", "launch", "gnss_poser.launch.xml")
-            ),
-            launch_arguments={
-                "input_topic_fix": "/fixposition/fix",
-                "input_topic_orientation": "/fixposition/autoware_orientation",
-                "output_topic_gnss_pose": "/sensing/gnss/pose",
-                "output_topic_gnss_pose_cov": "/sensing/gnss/pose_with_covariance",
-                "output_topic_gnss_fixed": "/sensing/gnss/fixed",
-            }.items(),
+        GroupAction(
+            [
+                IncludeLaunchDescription(
+                    AnyLaunchDescriptionSource(
+                        _pkg_file("autoware_gnss_poser", "launch", "gnss_poser.launch.xml")
+                    ),
+                    launch_arguments={
+                        "input_topic_fix": "/fixposition/fix",
+                        "input_topic_orientation": "/fixposition/autoware_orientation",
+                        "output_topic_gnss_pose": "/sensing/gnss/pose",
+                        "output_topic_gnss_pose_cov": "/sensing/gnss/pose_with_covariance",
+                        "output_topic_gnss_fixed": "/sensing/gnss/fixed",
+                    }.items(),
+                )
+            ]
         ),
         Node(
             package="topic_tools",
@@ -204,6 +216,11 @@ def generate_launch_description():
                 default_value=EnvironmentVariable("MAP_PATH", default_value=default_map_path),
             ),
             DeclareLaunchArgument(
+                "localization_map_path",
+                default_value=LaunchConfiguration("map_path"),
+            ),
+            DeclareLaunchArgument("use_sim_time", default_value="true"),
+            DeclareLaunchArgument(
                 "input_pointcloud",
                 default_value="/sensing/lidar/concatenated/pointcloud",
             ),
@@ -215,4 +232,3 @@ def generate_launch_description():
             GroupAction(runtime_actions),
         ]
     )
-
