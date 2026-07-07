@@ -183,6 +183,34 @@ Phase 3 checks:
 - `cmp -s` matched every copied file against the pilot source file.
 - `ndt_scan_matcher.param.yaml` contains `ndt.regularization.enable: false`.
 
+## Phase 4 wrapper launch
+
+Added:
+
+- `src/autoracer_bringup/launch/pilot_carmaker_localization.launch.py`
+
+Wrapper responsibilities implemented:
+
+- Launch-level `SetParameter(name="use_sim_time", value=True)`.
+- Existing `autoracer_description/launch/static_tf.launch.py`.
+- `autoware_map_projection_loader`.
+- `/map/pointcloud_map_loader` via `autoware_map_loader/autoware_pointcloud_map_loader`.
+- `rclcpp_components/component_container_mt` as `/pointcloud_container`.
+- `autoware_vehicle_velocity_converter` from `/vehicle/status/velocity_status`.
+- `autoware_gnss_poser` from `/fixposition/fix` and `/fixposition/autoware_orientation`.
+- `topic_tools/relay` from `/fixposition/rawimu` to `/sensing/imu/imu_data`.
+- `tier4_localization_launch/launch/localization.launch.xml` with `pose_source=ndt`,
+  `twist_source=gyro_odom`, `system_run_mode=logging_simulation`, all required parameter paths,
+  and explicit `twist2accel_param_path`.
+
+Phase 4 checks:
+
+- `/usr/bin/python3 -m py_compile src/autoracer_bringup/launch/pilot_carmaker_localization.launch.py` passed.
+- `rg` against the wrapper for the Phase 7 forbidden node list and `/carmaker/ground_truth/pose` produced no output.
+- `rg` confirmed `twist2accel_param_path`, `eagleye_param_path`,
+  `ar_tag_based_localizer_param_path`, `lidar_marker_localizer/*`, IMU relay, map services,
+  and `/pointcloud_container` are present.
+
 ## Verification summary
 
 To be filled after Phase 6/7.
