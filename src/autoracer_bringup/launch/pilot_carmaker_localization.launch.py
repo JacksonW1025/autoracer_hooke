@@ -86,7 +86,6 @@ def generate_launch_description():
                     "enable_whole_load": True,
                     "enable_downsampled_whole_load": False,
                     "enable_partial_load": True,
-                    "enable_differential_load": True,
                     "enable_selected_load": False,
                     "leaf_size": 3.0,
                     "pcd_paths_or_directory": ParameterValue(
