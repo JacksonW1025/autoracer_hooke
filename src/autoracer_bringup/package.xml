@@ -18,6 +18,9 @@
   <exec_depend>autoracer_safety</exec_depend>
   <exec_depend>autoware_crop_box_filter</exec_depend>
   <exec_depend>autoware_downsample_filters</exec_depend>
+  <exec_depend>autoware_adapi_specs</exec_depend>
+  <exec_depend>autoware_automatic_pose_initializer</exec_depend>
+  <exec_depend>autoware_component_interface_utils</exec_depend>
   <exec_depend>autoware_ekf_localizer</exec_depend>
   <exec_depend>autoware_gnss_poser</exec_depend>
   <exec_depend>autoware_gyro_odometer</exec_depend>
@@ -28,6 +31,8 @@
   <exec_depend>autoware_ndt_scan_matcher</exec_depend>
   <exec_depend>autoware_pose_initializer</exec_depend>
   <exec_depend>autoware_pose_instability_detector</exec_depend>
+  <exec_depend>autoware_stop_filter</exec_depend>
+  <exec_depend>autoware_twist2accel</exec_depend>
   <exec_depend>autoware_vehicle_velocity_converter</exec_depend>
   <exec_depend>can_driver</exec_depend>
   <exec_depend>fixposition_driver_ros2</exec_depend>
@@ -39,6 +44,8 @@
   <exec_depend>rclcpp_components</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  <exec_depend>tier4_localization_launch</exec_depend>
+  <exec_depend>topic_tools</exec_depend>
   <exec_depend>xacro</exec_depend>
 
   <export>

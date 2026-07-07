@@ -211,6 +211,25 @@ Phase 4 checks:
   `ar_tag_based_localizer_param_path`, `lidar_marker_localizer/*`, IMU relay, map services,
   and `/pointcloud_container` are present.
 
+## Phase 5 package dependencies
+
+Updated `src/autoracer_bringup/package.xml` with runtime dependencies:
+
+- `autoware_adapi_specs`
+- `autoware_automatic_pose_initializer`
+- `autoware_component_interface_utils`
+- `autoware_stop_filter`
+- `autoware_twist2accel`
+- `tier4_localization_launch`
+- `topic_tools`
+
+Existing `rclcpp_components` dependency was preserved.
+
+Phase 5 checks:
+
+- `/usr/bin/python3 -c "import xml.etree.ElementTree as ET; ET.parse('src/autoracer_bringup/package.xml')"` passed.
+- `rg` confirmed all added dependency names in `package.xml`.
+
 ## Verification summary
 
 To be filled after Phase 6/7.
