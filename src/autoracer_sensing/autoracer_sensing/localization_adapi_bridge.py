@@ -1,6 +1,7 @@
 import threading
 
 import rclpy
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from autoware_adapi_v1_msgs.msg import ResponseStatus as AdapiResponseStatus
 from autoware_adapi_v1_msgs.srv import InitializeLocalization as AdapiInitialize
 from autoware_localization_msgs.srv import InitializeLocalization as LocalInitialize
@@ -22,15 +23,19 @@ class LocalizationAdapiBridge(Node):
         self.declare_parameter(
             "local_initialization_state_topic", "/localization/initialization_state"
         )
+        self.declare_parameter("gnss_pose_topic", "/sensing/gnss/pose_with_covariance")
         self.declare_parameter("service_timeout_sec", 30.0)
 
         api_service = self._string_param("api_initialize_service")
         local_service = self._string_param("local_initialize_service")
         api_state_topic = self._string_param("api_initialization_state_topic")
         local_state_topic = self._string_param("local_initialization_state_topic")
+        gnss_pose_topic = self._string_param("gnss_pose_topic")
         self._service_timeout_sec = (
             self.get_parameter("service_timeout_sec").get_parameter_value().double_value
         )
+        self._latest_gnss_pose = None
+        self._lock = threading.Lock()
 
         qos_state = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
@@ -49,6 +54,13 @@ class LocalizationAdapiBridge(Node):
             qos_state,
             callback_group=self._group,
         )
+        self._sub_gnss_pose = self.create_subscription(
+            PoseWithCovarianceStamped,
+            gnss_pose_topic,
+            self._on_gnss_pose,
+            1,
+            callback_group=self._group,
+        )
         self._client = self.create_client(
             LocalInitialize, local_service, callback_group=self._group
         )
@@ -62,6 +74,10 @@ class LocalizationAdapiBridge(Node):
     def _on_state(self, msg: LocalizationInitializationState) -> None:
         self._pub_state.publish(msg)
 
+    def _on_gnss_pose(self, msg: PoseWithCovarianceStamped) -> None:
+        with self._lock:
+            self._latest_gnss_pose = msg
+
     def _on_initialize(self, request, response):
         if not self._client.wait_for_service(timeout_sec=1.0):
             response.status = self._status(
@@ -72,8 +88,21 @@ class LocalizationAdapiBridge(Node):
             return response
 
         local_request = LocalInitialize.Request()
-        local_request.method = LocalInitialize.Request.AUTO
-        local_request.pose_with_covariance = list(request.pose)
+        if len(request.pose) > 0:
+            local_request.method = LocalInitialize.Request.AUTO
+            local_request.pose_with_covariance = list(request.pose)
+        else:
+            with self._lock:
+                gnss_pose = self._latest_gnss_pose
+            if gnss_pose is None:
+                response.status = self._status(
+                    False,
+                    AdapiInitialize.Response.ERROR_GNSS,
+                    "GNSS pose has not arrived",
+                )
+                return response
+            local_request.method = LocalInitialize.Request.DIRECT
+            local_request.pose_with_covariance = [gnss_pose]
 
         done = threading.Event()
         future = self._client.call_async(local_request)
