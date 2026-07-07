@@ -425,3 +425,47 @@ ros2 service list | rg "initialize|ndt_align|trigger_node|get_differential|get_p
 - Static launch `--print`: pass; no missing launch arguments.
 - Launch-only smoke: pass for node/service/topic ownership that does not require active CarMaker data.
 - Full CarMaker closed-loop: pending manual execution.
+
+---
+
+## 2026-07-07 独立复审(review)发现与修复记录
+
+复审方式：逐项对照 implement prompt 验收标准 + 二进制级证据核查。
+
+### 复审确认合格的项
+
+- 8 个 Phase commit、工作区干净、归档目录含 `COLCON_IGNORE`；
+- 5 个替换包与 7 个新增包对 pilot `diff -r` 全部为空；
+- 15 个参数文件与 pilot 原版逐一 diff 为空（含必填的 eagleye/ar_tag/lidar_marker）；
+- wrapper 传齐了全部必填 arg（含 `twist2accel_param_path`）；map_loader 命名
+  `/map/pointcloud_map_loader` 与服务 remap 正确；vvc/gnss_poser/relay 接线与
+  pilot 原版 launch 接口核对一致；旧 launch 家族与耦合契约测试已一并归档；
+- `colcon list` 无重名包；`ros2 launch --print` exit 0。
+
+### 缺陷 1（严重）：4 个替换包源码换了但二进制未重编
+
+- 现象：`build/` 下 EKF(.so 5/31)、gnss_poser(5/30)、pose_initializer(6/7)、
+  pose_instability_detector(6/7) 均早于同步日期；EKF 二进制内仍含魔改符号
+  `output_time_offset`，gnss_poser 仍含 CarMaker latest-TF 注释字符串。
+- 根因：`cp -a` 保留了 pilot 源文件的旧 mtime（4/8），make 按 mtime 判定产物较新而
+  跳过编译。只有 NDT 因构建缓存引用了已删除源文件而报错、被 rm 后真正重建。
+- 修复：`rm -rf build/<pkg> install/<pkg>` × 5 后强制重建，二进制全部为 7/7 新产物，
+  魔改符号 strings 检查归零。
+
+### 缺陷 2（中等）：重建未跟随工作区构建约定
+
+- 现象：Phase 6 中 NDT 的重建用裸 `colcon build`，`CMAKE_BUILD_TYPE` 为空（无优化）；
+  工作区基准（scripts/build_minimal.sh 及存量包）为 `Release` + `-DBUILD_TESTING=OFF`。
+  NDT 无优化构建会直接损害实时定位性能。
+- 附带发现：`BUILD_TESTING=ON` 时 gnss_poser 测试目标链接失败
+  （GLIBCXX_3.4.30，anaconda 旧 libstdc++ 污染链接环境），主库不受影响；
+  按工作区约定关闭测试构建即可规避。
+- 修复：5 个同步包统一以 `-DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release` 重建，
+  CMakeCache 确认全部 Release。
+
+### 运行时前置条件提醒（非缺陷）
+
+- wrapper 默认地图路径 `maps/whale_map_20251107` 在本机不存在（maps/ 下仅有
+  TM99、carmaker_builtin_urban）。闭环运行前必须通过 `MAP_PATH` 环境变量或
+  `localization_map_path` launch 参数指向真实地图目录，且该目录需包含
+  `pointcloud_map_metadata.yaml`、`map_projector_info.yaml`、`lanelet2_map.osm` 与 PCD 分块。
