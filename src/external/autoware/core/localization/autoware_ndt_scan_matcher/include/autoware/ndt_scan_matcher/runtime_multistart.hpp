@@ -2,6 +2,7 @@
 #define AUTOWARE__NDT_SCAN_MATCHER__RUNTIME_MULTISTART_HPP_
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cmath>
 #include <limits>
@@ -27,7 +28,12 @@ struct RuntimeCandidate
   double offset_cross_m{};
   double offset_yaw_deg{};
   double covariance_condition_number{1.0};
+  double localizability_along_variance_m2{};
+  double localizability_cross_variance_m2{};
   double execution_time_ms{};
+  bool has_gnss_weak_prior{};
+  double gnss_weak_prior_distance_m{};
+  double gnss_weak_prior_penalty{};
 };
 
 struct RuntimeCandidateScoringOptions
@@ -56,6 +62,13 @@ struct RuntimeCandidateScoringOptions
   double raw_score_override_max_abs_cross_m{0.0};
   double raw_score_override_max_abs_yaw_deg{0.0};
   double raw_score_override_max_initial_to_result_distance_m{0.0};
+  bool enable_gnss_weak_prior{};
+  double gnss_weak_prior_weight{0.0};
+  double gnss_weak_prior_sigma_m{5.0};
+  double gnss_weak_prior_max_penalty{8.0};
+  double gnss_weak_prior_max_distance_m{0.0};
+  bool gnss_weak_prior_innovation_gate_enable{};
+  double gnss_weak_prior_innovation_gate_m{0.0};
 };
 
 struct RuntimeCandidateTierOptions
@@ -87,6 +100,12 @@ struct RuntimeCandidateSelection
   std::vector<RuntimeCandidateScore> candidate_scores{};
 };
 
+struct RuntimeOutputSelection
+{
+  bool has_output_candidate{};
+  std::size_t output_candidate_index{};
+};
+
 struct RuntimeCandidateSpreadCovariance
 {
   bool ambiguous{};
@@ -94,6 +113,121 @@ struct RuntimeCandidateSpreadCovariance
   double along_variance_m2{};
   double cross_variance_m2{};
 };
+
+struct RuntimeGnssWeakPriorGateOptions
+{
+  bool enable_gnss_weak_prior{};
+  bool condition_enable{};
+  bool has_fresh_gnss_prior{};
+  bool base_candidate_converged{};
+  bool recovery_active{};
+  bool small_tier_ambiguous{};
+  bool spread_covariance_ambiguous{};
+  int rejected_scan_streak{};
+  double base_localizability_along_variance_m2{};
+  double min_along_variance_m2{};
+  bool healthy_base_passthrough_enable{};
+  int weak_prior_hold_remaining_scans{};
+};
+
+struct RuntimeGnssWeakPriorGateDecision
+{
+  bool enable_weak_prior{};
+  bool healthy_base_passthrough{};
+  std::string reason{"disabled"};
+};
+
+struct RuntimeOutputCovariance
+{
+  double along_variance_m2{};
+  double cross_variance_m2{};
+};
+
+inline double project_planar_pose_covariance(
+  const std::array<double, 36> & covariance, const double axis_x, const double axis_y)
+{
+  const double xx = covariance[0 + 6 * 0];
+  const double xy = covariance[0 + 6 * 1];
+  const double yx = covariance[1 + 6 * 0];
+  const double yy = covariance[1 + 6 * 1];
+  return axis_x * axis_x * xx + axis_x * axis_y * (xy + yx) + axis_y * axis_y * yy;
+}
+
+inline RuntimeOutputCovariance project_runtime_output_covariance(
+  const std::array<double, 36> & covariance, const double forward_x, const double forward_y,
+  const double lateral_x, const double lateral_y)
+{
+  RuntimeOutputCovariance projected;
+  projected.along_variance_m2 = project_planar_pose_covariance(covariance, forward_x, forward_y);
+  projected.cross_variance_m2 = project_planar_pose_covariance(covariance, lateral_x, lateral_y);
+  return projected;
+}
+
+inline RuntimeGnssWeakPriorGateDecision decide_runtime_gnss_weak_prior_gate(
+  const RuntimeGnssWeakPriorGateOptions & options)
+{
+  RuntimeGnssWeakPriorGateDecision decision;
+  if (!options.enable_gnss_weak_prior) {
+    decision.reason = "global_disabled";
+    return decision;
+  }
+  if (!options.has_fresh_gnss_prior) {
+    decision.reason = "no_fresh_gnss";
+    return decision;
+  }
+  if (!options.condition_enable) {
+    decision.enable_weak_prior = true;
+    decision.reason = "unconditional";
+    return decision;
+  }
+  if (options.weak_prior_hold_remaining_scans > 0) {
+    if (options.healthy_base_passthrough_enable && options.base_candidate_converged) {
+      decision.healthy_base_passthrough = true;
+      decision.reason = "condition_hold_healthy_base_passthrough";
+      return decision;
+    }
+    decision.enable_weak_prior = true;
+    decision.reason = "condition_hold";
+    return decision;
+  }
+  if (!options.base_candidate_converged) {
+    decision.enable_weak_prior = true;
+    decision.reason = "base_not_converged";
+    return decision;
+  }
+  if (options.rejected_scan_streak > 0) {
+    decision.enable_weak_prior = true;
+    decision.reason = "rejected_scan_streak";
+    return decision;
+  }
+  if (options.recovery_active) {
+    decision.enable_weak_prior = true;
+    decision.reason = "recovery_active";
+    return decision;
+  }
+  if (options.small_tier_ambiguous) {
+    decision.enable_weak_prior = true;
+    decision.reason = "small_tier_ambiguous";
+    return decision;
+  }
+  if (options.spread_covariance_ambiguous) {
+    decision.enable_weak_prior = true;
+    decision.reason = "spread_covariance_ambiguous";
+    return decision;
+  }
+  if (
+    options.min_along_variance_m2 > 0.0 &&
+    options.base_localizability_along_variance_m2 >= options.min_along_variance_m2) {
+    decision.enable_weak_prior = true;
+    decision.reason = "along_variance_high";
+    return decision;
+  }
+
+  decision.reason = "healthy_tracking";
+  decision.healthy_base_passthrough =
+    options.healthy_base_passthrough_enable && options.base_candidate_converged;
+  return decision;
+}
 
 inline void disable_runtime_selection_gates_for_single_start(
   RuntimeCandidateScoringOptions & options)
@@ -108,6 +242,23 @@ inline void disable_runtime_selection_gates_for_single_start(
   options.max_prior_yaw_deg = 0.0;
   options.min_total_score = -std::numeric_limits<double>::infinity();
   options.max_iteration_num = 0;
+}
+
+inline RuntimeOutputSelection choose_runtime_output_candidate(
+  const bool runtime_controls_output, const std::vector<RuntimeCandidate> & candidates,
+  const RuntimeCandidateSelection & selection)
+{
+  RuntimeOutputSelection output;
+  if (!runtime_controls_output) {
+    if (!candidates.empty()) {
+      output.has_output_candidate = true;
+      output.output_candidate_index = candidates.front().index;
+    }
+    return output;
+  }
+  output.has_output_candidate = selection.has_selected_candidate;
+  output.output_candidate_index = selection.selected_candidate_index;
+  return output;
 }
 
 struct RuntimeRecoveryState
@@ -140,6 +291,14 @@ inline RuntimeRecoveryState update_runtime_recovery_state(
     state.recovery_active = !state.recovery_verified;
   }
   return state;
+}
+
+inline bool runtime_candidate_fails_gnss_innovation_gate(
+  const RuntimeCandidate & candidate, const RuntimeCandidateScoringOptions & options)
+{
+  return options.gnss_weak_prior_innovation_gate_enable &&
+         options.gnss_weak_prior_innovation_gate_m > 0.0 && candidate.has_gnss_weak_prior &&
+         candidate.gnss_weak_prior_distance_m > options.gnss_weak_prior_innovation_gate_m;
 }
 
 inline RuntimeCandidateScore score_runtime_candidate(
@@ -207,6 +366,23 @@ inline RuntimeCandidateScore score_runtime_candidate(
     options.innovation_yaw_penalty_weight * innovation_yaw_deg -
     options.initial_to_result_penalty_weight * candidate.initial_to_result_distance_m -
     options.covariance_condition_penalty_weight * condition_penalty;
+  if (options.enable_gnss_weak_prior && candidate.has_gnss_weak_prior) {
+    if (
+      options.gnss_weak_prior_max_distance_m > 0.0 &&
+      candidate.gnss_weak_prior_distance_m > options.gnss_weak_prior_max_distance_m) {
+      score.reject_reason = "gnss_weak_prior_distance_too_large";
+      return score;
+    }
+    score.total_score -=
+      std::max(0.0, options.gnss_weak_prior_weight) *
+      std::min(
+        std::max(0.0, candidate.gnss_weak_prior_penalty),
+        std::max(0.0, options.gnss_weak_prior_max_penalty));
+  }
+  if (runtime_candidate_fails_gnss_innovation_gate(candidate, options)) {
+    score.reject_reason = "gnss_weak_prior_innovation_too_large";
+    return score;
+  }
   if (score.total_score < options.min_total_score) {
     score.reject_reason = "total_score_below_threshold";
   }
@@ -453,17 +629,32 @@ inline RuntimeCandidateSpreadCovariance estimate_runtime_candidate_spread_covari
   const RuntimeCandidateScoringOptions & options, const double raw_score_margin)
 {
   RuntimeCandidateSpreadCovariance spread;
-  if (!selection.has_selected_candidate || raw_score_margin < 0.0) {
+  if (raw_score_margin < 0.0) {
     return spread;
   }
 
-  const RuntimeCandidate * selected =
-    find_runtime_candidate_by_index(candidates, selection.selected_candidate_index);
-  if (selected == nullptr) {
-    return spread;
+  double reference_raw_score = -std::numeric_limits<double>::infinity();
+  if (selection.has_selected_candidate) {
+    const RuntimeCandidate * selected =
+      find_runtime_candidate_by_index(candidates, selection.selected_candidate_index);
+    if (selected == nullptr) {
+      return spread;
+    }
+    reference_raw_score = runtime_candidate_raw_score(*selected, options);
+  } else {
+    for (const auto & score : selection.candidate_scores) {
+      const RuntimeCandidate * candidate =
+        find_runtime_candidate_by_index(candidates, score.candidate_index);
+      if (candidate == nullptr) {
+        continue;
+      }
+      const double raw_score = runtime_candidate_raw_score(*candidate, options);
+      if (std::isfinite(raw_score)) {
+        reference_raw_score = std::max(reference_raw_score, raw_score);
+      }
+    }
   }
-  const double selected_raw_score = runtime_candidate_raw_score(*selected, options);
-  if (!std::isfinite(selected_raw_score)) {
+  if (!std::isfinite(reference_raw_score)) {
     return spread;
   }
 
@@ -472,16 +663,16 @@ inline RuntimeCandidateSpreadCovariance estimate_runtime_candidate_spread_covari
   double min_cross = std::numeric_limits<double>::infinity();
   double max_cross = -std::numeric_limits<double>::infinity();
   for (const auto & score : selection.candidate_scores) {
-    if (!score.reject_reason.empty()) {
+    if (selection.has_selected_candidate && !score.reject_reason.empty()) {
       continue;
     }
     const RuntimeCandidate * candidate =
       find_runtime_candidate_by_index(candidates, score.candidate_index);
-    if (candidate == nullptr || !candidate->converged) {
+    if (candidate == nullptr || (selection.has_selected_candidate && !candidate->converged)) {
       continue;
     }
     const double raw_score = runtime_candidate_raw_score(*candidate, options);
-    if (!std::isfinite(raw_score) || selected_raw_score - raw_score > raw_score_margin) {
+    if (!std::isfinite(raw_score) || reference_raw_score - raw_score > raw_score_margin) {
       continue;
     }
 

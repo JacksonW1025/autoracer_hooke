@@ -113,6 +113,7 @@ struct HyperParameters
     double update_distance{};
     double map_radius{};
     double lidar_radius{};
+    bool rebuild_on_scan_out_of_map{};
   } dynamic_map_loading{};
 
   double output_pose_time_offset_sec{};
@@ -120,7 +121,12 @@ struct HyperParameters
   struct RuntimeMultistart
   {
     bool enable{};
+    bool observer_enable{};
+    bool force_zero_offsets_only{};
+    bool fallback_to_base_on_rejection{};
     std::string debug_topic{};
+    std::string observer_topic{};
+    std::string observer_debug_topic{};
     double min_stamp_sec{};
     double trigger_initial_to_result_distance_m{};
     double trigger_yaw_delta_deg{};
@@ -151,6 +157,33 @@ struct HyperParameters
     double raw_score_override_max_abs_cross_m{};
     double raw_score_override_max_abs_yaw_deg{};
     double raw_score_override_max_initial_to_result_distance_m{};
+    bool enable_gnss_weak_prior{};
+    std::string gnss_weak_prior_topic{};
+    double gnss_weak_prior_sigma_m{};
+    double gnss_weak_prior_weight{};
+    double gnss_weak_prior_max_age_sec{};
+    double gnss_weak_prior_max_penalty{};
+    double gnss_weak_prior_max_distance_m{};
+    bool gnss_weak_prior_innovation_gate_enable{};
+    double gnss_weak_prior_innovation_gate_m{};
+    bool gnss_weak_prior_seed_candidate_enable{};
+    double gnss_weak_prior_seed_candidate_max_prior_distance_m{};
+    bool gnss_weak_prior_condition_enable{};
+    double gnss_weak_prior_min_along_variance_m2{};
+    bool healthy_base_passthrough_enable{};
+    int gnss_weak_prior_condition_hold_scans{};
+    bool enable_map_z_prior{};
+    double map_z_prior_search_radius_m{};
+    double map_z_prior_percentile{};
+    int map_z_prior_min_points{};
+    int map_z_prior_min_failure_count{};
+    double map_z_prior_min_abs_z_delta_m{};
+    bool enable_route_z_prior{};
+    std::string route_z_prior_samples_csv{};
+    double route_z_prior_max_xy_distance_m{};
+    int route_z_prior_min_failure_count{};
+    double route_z_prior_min_abs_z_delta_m{};
+    double route_z_prior_max_abs_z_delta_m{};
     double tier1_max_abs_along_m{};
     double tier1_max_abs_cross_m{};
     double tier1_max_abs_yaw_deg{};
@@ -160,6 +193,7 @@ struct HyperParameters
     double ambiguity_score_margin{};
     double ambiguity_along_spread_m{};
     int recovery_stable_required_frames{};
+    bool require_recovery_verification{};
     double recovery_stable_max_innovation_m{};
     double recovery_stable_max_yaw_deg{};
     double recovery_far_tier_period_sec{};
@@ -278,10 +312,23 @@ public:
       node->declare_parameter<double>("dynamic_map_loading.map_radius");
     dynamic_map_loading.lidar_radius =
       node->declare_parameter<double>("dynamic_map_loading.lidar_radius");
+    dynamic_map_loading.rebuild_on_scan_out_of_map =
+      node->declare_parameter<bool>("dynamic_map_loading.rebuild_on_scan_out_of_map", false);
 
     runtime_multistart.enable = node->declare_parameter<bool>("runtime_multistart.enable");
+    runtime_multistart.observer_enable =
+      node->declare_parameter<bool>("runtime_multistart.observer_enable", false);
+    runtime_multistart.force_zero_offsets_only =
+      node->declare_parameter<bool>("runtime_multistart.force_zero_offsets_only", false);
+    runtime_multistart.fallback_to_base_on_rejection =
+      node->declare_parameter<bool>("runtime_multistart.fallback_to_base_on_rejection", false);
     runtime_multistart.debug_topic =
       node->declare_parameter<std::string>("runtime_multistart.debug_topic");
+    runtime_multistart.observer_topic = node->declare_parameter<std::string>(
+      "runtime_multistart.observer_topic", "/localization/ndt/runtime_multistart/observer");
+    runtime_multistart.observer_debug_topic = node->declare_parameter<std::string>(
+      "runtime_multistart.observer_debug_topic",
+      "/localization/ndt/runtime_multistart/observer_debug");
     runtime_multistart.min_stamp_sec =
       node->declare_parameter<double>("runtime_multistart.min_stamp_sec");
     runtime_multistart.trigger_initial_to_result_distance_m =
@@ -349,6 +396,61 @@ public:
     runtime_multistart.raw_score_override_max_initial_to_result_distance_m =
       node->declare_parameter<double>(
         "runtime_multistart.raw_score_override_max_initial_to_result_distance_m", 0.0);
+    runtime_multistart.enable_gnss_weak_prior =
+      node->declare_parameter<bool>("runtime_multistart.enable_gnss_weak_prior", false);
+    runtime_multistart.gnss_weak_prior_topic =
+      node->declare_parameter<std::string>("runtime_multistart.gnss_weak_prior_topic", "");
+    runtime_multistart.gnss_weak_prior_sigma_m =
+      node->declare_parameter<double>("runtime_multistart.gnss_weak_prior_sigma_m", 5.0);
+    runtime_multistart.gnss_weak_prior_weight =
+      node->declare_parameter<double>("runtime_multistart.gnss_weak_prior_weight", 1.0);
+    runtime_multistart.gnss_weak_prior_max_age_sec =
+      node->declare_parameter<double>("runtime_multistart.gnss_weak_prior_max_age_sec", 0.5);
+    runtime_multistart.gnss_weak_prior_max_penalty =
+      node->declare_parameter<double>("runtime_multistart.gnss_weak_prior_max_penalty", 8.0);
+    runtime_multistart.gnss_weak_prior_max_distance_m =
+      node->declare_parameter<double>("runtime_multistart.gnss_weak_prior_max_distance_m", 0.0);
+    runtime_multistart.gnss_weak_prior_innovation_gate_enable = node->declare_parameter<bool>(
+      "runtime_multistart.gnss_weak_prior_innovation_gate_enable", false);
+    runtime_multistart.gnss_weak_prior_innovation_gate_m = node->declare_parameter<double>(
+      "runtime_multistart.gnss_weak_prior_innovation_gate_m", 0.0);
+    runtime_multistart.gnss_weak_prior_seed_candidate_enable = node->declare_parameter<bool>(
+      "runtime_multistart.gnss_weak_prior_seed_candidate_enable", false);
+    runtime_multistart.gnss_weak_prior_seed_candidate_max_prior_distance_m =
+      node->declare_parameter<double>(
+        "runtime_multistart.gnss_weak_prior_seed_candidate_max_prior_distance_m", 20.0);
+    runtime_multistart.gnss_weak_prior_condition_enable =
+      node->declare_parameter<bool>("runtime_multistart.gnss_weak_prior_condition_enable", false);
+    runtime_multistart.gnss_weak_prior_min_along_variance_m2 = node->declare_parameter<double>(
+      "runtime_multistart.gnss_weak_prior_min_along_variance_m2", 0.0);
+    runtime_multistart.healthy_base_passthrough_enable =
+      node->declare_parameter<bool>("runtime_multistart.healthy_base_passthrough_enable", false);
+    runtime_multistart.gnss_weak_prior_condition_hold_scans = static_cast<int>(
+      node->declare_parameter<int64_t>("runtime_multistart.gnss_weak_prior_condition_hold_scans", 0));
+    runtime_multistart.enable_map_z_prior =
+      node->declare_parameter<bool>("runtime_multistart.enable_map_z_prior", false);
+    runtime_multistart.map_z_prior_search_radius_m =
+      node->declare_parameter<double>("runtime_multistart.map_z_prior_search_radius_m", 2.0);
+    runtime_multistart.map_z_prior_percentile =
+      node->declare_parameter<double>("runtime_multistart.map_z_prior_percentile", 50.0);
+    runtime_multistart.map_z_prior_min_points = static_cast<int>(
+      node->declare_parameter<int64_t>("runtime_multistart.map_z_prior_min_points", 20));
+    runtime_multistart.map_z_prior_min_failure_count = static_cast<int>(
+      node->declare_parameter<int64_t>("runtime_multistart.map_z_prior_min_failure_count", 5));
+    runtime_multistart.map_z_prior_min_abs_z_delta_m =
+      node->declare_parameter<double>("runtime_multistart.map_z_prior_min_abs_z_delta_m", 5.0);
+    runtime_multistart.enable_route_z_prior =
+      node->declare_parameter<bool>("runtime_multistart.enable_route_z_prior", false);
+    runtime_multistart.route_z_prior_samples_csv =
+      node->declare_parameter<std::string>("runtime_multistart.route_z_prior_samples_csv", "");
+    runtime_multistart.route_z_prior_max_xy_distance_m =
+      node->declare_parameter<double>("runtime_multistart.route_z_prior_max_xy_distance_m", 8.0);
+    runtime_multistart.route_z_prior_min_failure_count = static_cast<int>(
+      node->declare_parameter<int64_t>("runtime_multistart.route_z_prior_min_failure_count", 5));
+    runtime_multistart.route_z_prior_min_abs_z_delta_m =
+      node->declare_parameter<double>("runtime_multistart.route_z_prior_min_abs_z_delta_m", 5.0);
+    runtime_multistart.route_z_prior_max_abs_z_delta_m =
+      node->declare_parameter<double>("runtime_multistart.route_z_prior_max_abs_z_delta_m", 40.0);
     runtime_multistart.tier1_max_abs_along_m =
       node->declare_parameter<double>("runtime_multistart.tier1_max_abs_along_m", 1.0);
     runtime_multistart.tier1_max_abs_cross_m =
@@ -367,6 +469,8 @@ public:
       node->declare_parameter<double>("runtime_multistart.ambiguity_along_spread_m", 1.5);
     runtime_multistart.recovery_stable_required_frames = static_cast<int>(
       node->declare_parameter<int64_t>("runtime_multistart.recovery_stable_required_frames", 3));
+    runtime_multistart.require_recovery_verification =
+      node->declare_parameter<bool>("runtime_multistart.require_recovery_verification", false);
     runtime_multistart.recovery_stable_max_innovation_m =
       node->declare_parameter<double>("runtime_multistart.recovery_stable_max_innovation_m", 1.0);
     runtime_multistart.recovery_stable_max_yaw_deg =

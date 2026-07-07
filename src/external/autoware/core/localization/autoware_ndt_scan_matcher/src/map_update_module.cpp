@@ -15,6 +15,7 @@
 #include <autoware/ndt_scan_matcher/map_update_module.hpp>
 
 #include <memory>
+#include <algorithm>
 #include <string>
 
 namespace autoware::ndt_scan_matcher
@@ -22,9 +23,12 @@ namespace autoware::ndt_scan_matcher
 
 MapUpdateModule::MapUpdateModule(
   rclcpp::Node * node, std::mutex * ndt_ptr_mutex, NdtPtrType & ndt_ptr,
-  HyperParameters::DynamicMapLoading param)
+  HyperParameters::DynamicMapLoading param, NdtPtrType * observer_ndt_ptr,
+  std::mutex * observer_ndt_ptr_mutex)
 : ndt_ptr_(ndt_ptr),
   ndt_ptr_mutex_(ndt_ptr_mutex),
+  observer_ndt_ptr_(observer_ndt_ptr),
+  observer_ndt_ptr_mutex_(observer_ndt_ptr_mutex),
   logger_(node->get_logger()),
   clock_(node->get_clock()),
   param_(param)
@@ -219,6 +223,16 @@ void MapUpdateModule::update_map(
 
   secondary_ndt_ptr_.reset(new NdtType);
   *secondary_ndt_ptr_ = *ndt_ptr_;
+  if (observer_ndt_ptr_ != nullptr && observer_ndt_ptr_mutex_ != nullptr && ndt_ptr_) {
+    std::lock_guard<std::mutex> lock(*observer_ndt_ptr_mutex_);
+    if (!*observer_ndt_ptr_) {
+      observer_ndt_ptr_->reset(new NdtType);
+    }
+    **observer_ndt_ptr_ = *ndt_ptr_;
+    auto observer_params = (*observer_ndt_ptr_)->getParams();
+    observer_params.num_threads = std::max(1, std::min(observer_params.num_threads, 2));
+    (*observer_ndt_ptr_)->setParams(observer_params);
+  }
 
   // Memorize the position of the last update
   last_update_position_mtx_.lock();

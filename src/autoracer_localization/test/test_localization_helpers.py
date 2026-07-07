@@ -45,6 +45,8 @@ from autoracer_localization.diagnostic_pose_reinitializer import (
 )
 from autoracer_localization.startup_pose_initializer_once import (
     InitializeLocalization as StartupInitializeLocalization,
+    replace_startup_pose_yaw_from_route,
+    route_heading_for_xy,
     startup_initialize_method_to_request,
     startup_initialize_should_attempt,
 )
@@ -562,6 +564,116 @@ class LocalizationHelperTest(unittest.TestCase):
             startup_initialize_method_to_request("DIRECT"),
             StartupInitializeLocalization.Request.DIRECT,
         )
+
+    def test_route_heading_for_xy_uses_nearest_route_segment(self):
+        route = [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (3.0, 0.0)]
+
+        result = route_heading_for_xy(
+            route,
+            x=1.2,
+            y=0.3,
+            max_distance_m=1.0,
+            neighbor_stride=1,
+        )
+
+        self.assertIsNotNone(result)
+        yaw, distance, index = result
+        self.assertAlmostEqual(yaw, 0.0)
+        self.assertAlmostEqual(distance, math.hypot(0.2, 0.3))
+        self.assertEqual(index, 1)
+
+    def test_route_heading_for_xy_rejects_far_gnss_seed(self):
+        self.assertIsNone(
+            route_heading_for_xy(
+                [(0.0, 0.0), (1.0, 0.0)],
+                x=20.0,
+                y=0.0,
+                max_distance_m=2.0,
+                neighbor_stride=1,
+            )
+        )
+
+    def test_route_heading_for_xy_can_prefer_route_start_near_startup_seed(self):
+        result = route_heading_for_xy(
+            [(0.0, 0.0), (1.0, 0.0), (100.0, 0.0)],
+            x=1.5,
+            y=0.0,
+            max_distance_m=10.0,
+            neighbor_stride=1,
+            prefer_start_within_m=2.0,
+        )
+
+        self.assertIsNotNone(result)
+        _, distance, index = result
+        self.assertEqual(index, 0)
+        self.assertAlmostEqual(distance, 1.5)
+
+    def test_startup_route_heading_replaces_yaw_only_when_enabled_and_near_route(self):
+        msg = make_pose(
+            Time(seconds=2.0),
+            x=0.2,
+            y=1.0,
+            yaw=1.5,
+            xy_variance=25.0,
+            yaw_variance=9.0,
+        )
+        route = [(0.0, 0.0), (0.0, 1.0), (0.0, 2.0)]
+
+        updated, applied, distance, index = replace_startup_pose_yaw_from_route(
+            msg,
+            route,
+            enabled=True,
+            max_distance_m=1.0,
+            neighbor_stride=1,
+            yaw_variance=0.02,
+        )
+
+        self.assertTrue(applied)
+        self.assertAlmostEqual(distance, 0.2)
+        self.assertEqual(index, 1)
+        self.assertAlmostEqual(updated.pose.pose.position.x, msg.pose.pose.position.x)
+        self.assertAlmostEqual(updated.pose.pose.position.y, msg.pose.pose.position.y)
+        self.assertAlmostEqual(updated.pose.covariance[0], 25.0)
+        self.assertAlmostEqual(updated.pose.covariance[35], 0.02)
+        self.assertAlmostEqual(_yaw_from_quaternion(updated.pose.pose.orientation), math.pi / 2.0)
+        self.assertAlmostEqual(_yaw_from_quaternion(msg.pose.pose.orientation), 1.5)
+
+    def test_startup_route_heading_can_snap_xy_to_nearest_route_sample(self):
+        msg = make_pose(Time(seconds=2.0), x=0.2, y=1.0, yaw=1.5)
+        route = [(0.0, 0.0), (0.0, 1.0), (0.0, 2.0)]
+
+        updated, applied, _, index = replace_startup_pose_yaw_from_route(
+            msg,
+            route,
+            enabled=True,
+            max_distance_m=1.0,
+            neighbor_stride=1,
+            yaw_variance=0.02,
+            snap_xy_to_route=True,
+        )
+
+        self.assertTrue(applied)
+        self.assertEqual(index, 1)
+        self.assertAlmostEqual(updated.pose.pose.position.x, 0.0)
+        self.assertAlmostEqual(updated.pose.pose.position.y, 1.0)
+        self.assertAlmostEqual(_yaw_from_quaternion(updated.pose.pose.orientation), math.pi / 2.0)
+
+    def test_startup_route_heading_disabled_keeps_original_pose_object(self):
+        msg = make_pose(Time(seconds=2.0), x=0.0, y=0.0, yaw=1.0)
+
+        updated, applied, distance, index = replace_startup_pose_yaw_from_route(
+            msg,
+            [(0.0, 0.0), (1.0, 0.0)],
+            enabled=False,
+            max_distance_m=1.0,
+            neighbor_stride=1,
+            yaw_variance=0.02,
+        )
+
+        self.assertIs(updated, msg)
+        self.assertFalse(applied)
+        self.assertIsNone(distance)
+        self.assertIsNone(index)
 
     def test_ekf_feedback_requires_fresh_measurement_backing(self):
         ekf_stamp = Time(seconds=40.0)

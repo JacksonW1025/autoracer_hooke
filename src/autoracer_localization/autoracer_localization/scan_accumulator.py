@@ -91,6 +91,26 @@ def voxel_downsample_points(points: Iterable[PointRow], voxel_size_m: float) -> 
     return list(selected.values())
 
 
+def shape_condition_xy(points: Iterable[PointRow]) -> float | None:
+    rows = list(points)
+    if len(rows) < 3:
+        return None
+    xs = [float(point[0]) for point in rows]
+    ys = [float(point[1]) for point in rows]
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    cxx = sum((x - mean_x) * (x - mean_x) for x in xs) / max(len(xs) - 1, 1)
+    cyy = sum((y - mean_y) * (y - mean_y) for y in ys) / max(len(ys) - 1, 1)
+    cxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / max(len(xs) - 1, 1)
+    trace = cxx + cyy
+    det_term = math.sqrt(max(0.0, (cxx - cyy) * (cxx - cyy) + 4.0 * cxy * cxy))
+    major = 0.5 * (trace + det_term)
+    minor = 0.5 * (trace - det_term)
+    if minor <= 1e-9:
+        return math.inf
+    return major / minor
+
+
 class SlidingPointCloudAccumulator:
     def __init__(self, *, max_frames: int, max_age_sec: float, voxel_size_m: float):
         if max_frames <= 0:
@@ -210,6 +230,7 @@ class ScanAccumulator(Node):
         self.declare_parameter("min_points_to_publish", 1)
         self.declare_parameter("max_twist_dt_sec", 0.2)
         self.declare_parameter("adaptive_min_input_points", 0)
+        self.declare_parameter("adaptive_max_shape_condition", 0.0)
         self.declare_parameter("adaptive_max_frames", 8)
         self.declare_parameter("adaptive_max_age_sec", 0.8)
 
@@ -222,7 +243,13 @@ class ScanAccumulator(Node):
         self._adaptive_min_input_points = int(
             self.get_parameter("adaptive_min_input_points").value
         )
-        adaptive_enabled = self._adaptive_min_input_points > 0
+        self._adaptive_max_shape_condition = float(
+            self.get_parameter("adaptive_max_shape_condition").value
+        )
+        adaptive_enabled = (
+            self._adaptive_min_input_points > 0
+            or self._adaptive_max_shape_condition > 0.0
+        )
         self._adaptive_max_frames = max(base_max_frames, adaptive_max_frames)
         self._adaptive_max_age_sec = max(base_max_age_sec, adaptive_max_age_sec)
         retention_max_frames = self._adaptive_max_frames if adaptive_enabled else base_max_frames
@@ -244,10 +271,20 @@ class ScanAccumulator(Node):
         self.create_subscription(PointCloud2, input_topic, self._on_pointcloud, qos_profile_sensor_data)
         self.create_subscription(TwistWithCovarianceStamped, twist_topic, self._on_twist, 50)
 
-    def _accumulation_policy(self, input_point_count: int) -> tuple[int, float]:
+    def _accumulation_policy(
+        self,
+        input_point_count: int,
+        input_shape_condition: float | None = None,
+    ) -> tuple[int, float]:
         if (
             self._adaptive_min_input_points > 0
             and input_point_count < self._adaptive_min_input_points
+        ):
+            return self._adaptive_max_frames, self._adaptive_max_age_sec
+        if (
+            self._adaptive_max_shape_condition > 0.0
+            and input_shape_condition is not None
+            and float(input_shape_condition) > self._adaptive_max_shape_condition
         ):
             return self._adaptive_max_frames, self._adaptive_max_age_sec
         return self._base_max_frames, self._base_max_age_sec
@@ -289,7 +326,10 @@ class ScanAccumulator(Node):
         )
         points = _read_xyzi_points(msg)
         self._accumulator.add_frame(stamp_sec=stamp_sec, odom_state=odom_state, points=points)
-        max_frames, max_age_sec = self._accumulation_policy(len(points))
+        max_frames, max_age_sec = self._accumulation_policy(
+            len(points),
+            shape_condition_xy(points),
+        )
         accumulated = self._accumulator.accumulated_points(
             current_stamp_sec=stamp_sec,
             current_odom_state=odom_state,

@@ -22,6 +22,11 @@
           "description": "Radius of input LiDAR range (used for diagnostics of dynamic map loading).",
           "default": 100.0,
           "minimum": 0.0
+        },
+        "rebuild_on_scan_out_of_map": {
+          "type": "boolean",
+          "description": "Rebuild the dynamic map immediately from the scan callback when the interpolated initial pose is outside the loaded map range.",
+          "default": false
         }
       },
       "required": ["update_distance", "map_radius", "lidar_radius"],

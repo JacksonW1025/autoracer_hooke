@@ -58,6 +58,11 @@ autoware_agnocast_wrapper_register_node(${PROJECT_NAME}
   AGNOCAST_EXECUTOR CallbackIsolatedAgnocastExecutor
 )
 
+ament_auto_add_executable(independent_candidate_observer_node
+  src/independent_candidate_observer_node.cpp
+)
+target_link_libraries(independent_candidate_observer_node ${PCL_LIBRARIES} multigrid_ndt_omp)
+
 if(BUILD_TESTING)
   add_launch_test(
     test/test_ndt_scan_matcher_launch.py

@@ -30,6 +30,7 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -41,7 +42,9 @@
 #endif
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <fstream>
 #include <functional>
 #include <iomanip>
 #include <limits>
@@ -128,6 +131,351 @@ bool is_acceptable_ndt_solution(
 
 geometry_msgs::msg::Pose offset_pose_in_body_frame(
   const geometry_msgs::msg::Pose & pose, const double along_m, const double cross_m,
+  const double yaw_offset_rad);
+
+template <class TransformationArray>
+std::vector<geometry_msgs::msg::Pose> transformation_array_to_poses(
+  const TransformationArray & transformation_array)
+{
+  std::vector<geometry_msgs::msg::Pose> poses;
+  poses.reserve(transformation_array.size());
+  for (const auto & pose_matrix : transformation_array) {
+    poses.push_back(matrix4f_to_pose(pose_matrix));
+  }
+  return poses;
+}
+
+int count_runtime_oscillation(const std::vector<geometry_msgs::msg::Pose> & result_pose_msg_array)
+{
+  constexpr double inversion_vector_threshold = -0.9;
+
+  int oscillation_cnt = 0;
+  int max_oscillation_cnt = 0;
+
+  for (size_t i = 2; i < result_pose_msg_array.size(); ++i) {
+    const Eigen::Vector3d current_pose = point_to_vector3d(result_pose_msg_array.at(i).position);
+    const Eigen::Vector3d prev_pose = point_to_vector3d(result_pose_msg_array.at(i - 1).position);
+    const Eigen::Vector3d prev_prev_pose =
+      point_to_vector3d(result_pose_msg_array.at(i - 2).position);
+    const auto current_vec = (current_pose - prev_pose).normalized();
+    const auto prev_vec = (prev_pose - prev_prev_pose).normalized();
+    const double cosine_value = current_vec.dot(prev_vec);
+    const bool oscillation = cosine_value < inversion_vector_threshold;
+    if (oscillation) {
+      oscillation_cnt++;
+    } else {
+      oscillation_cnt = 0;
+    }
+    max_oscillation_cnt = std::max(max_oscillation_cnt, oscillation_cnt);
+  }
+  return max_oscillation_cnt;
+}
+
+struct RuntimeAlignment
+{
+  std::size_t index{};
+  double offset_along_m{};
+  double offset_cross_m{};
+  double offset_yaw_deg{};
+  geometry_msgs::msg::Pose initial_pose{};
+  Eigen::Matrix4f initial_pose_matrix{};
+  pcl::shared_ptr<pcl::PointCloud<pcl::PointXYZ>> output_cloud{};
+  pclomp::NdtResult ndt_result{};
+  geometry_msgs::msg::Pose result_pose{};
+  std::vector<geometry_msgs::msg::Pose> transformation_msg_array{};
+  RuntimeCandidate candidate{};
+  double score{};
+  bool is_ok_score{};
+  bool is_ok_iteration_num{};
+  bool is_local_optimal_solution_oscillation{};
+};
+
+using RuntimeNdtType = pclomp::MultiGridNormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>;
+
+struct MapZPriorEstimate
+{
+  std::optional<double> z;
+  std::size_t nearby_point_count{};
+  std::size_t map_point_count{};
+};
+
+struct RouteZPriorEstimate
+{
+  std::optional<double> z;
+  double nearest_distance_m{std::numeric_limits<double>::quiet_NaN()};
+  std::size_t sample_count{};
+};
+
+std::vector<std::array<double, 3>> load_route_z_prior_samples(const std::string & path)
+{
+  std::vector<std::array<double, 3>> samples;
+  if (path.empty()) {
+    return samples;
+  }
+  std::ifstream stream(path);
+  if (!stream.good()) {
+    return samples;
+  }
+  std::string line;
+  if (!std::getline(stream, line)) {
+    return samples;
+  }
+  while (std::getline(stream, line)) {
+    std::stringstream row(line);
+    std::string x_text;
+    std::string y_text;
+    std::string z_text;
+    if (
+      !std::getline(row, x_text, ',') || !std::getline(row, y_text, ',') ||
+      !std::getline(row, z_text, ',')) {
+      continue;
+    }
+    try {
+      samples.push_back({std::stod(x_text), std::stod(y_text), std::stod(z_text)});
+    } catch (const std::exception &) {
+      continue;
+    }
+  }
+  return samples;
+}
+
+RouteZPriorEstimate estimate_route_z_prior(
+  const std::vector<std::array<double, 3>> & samples, const geometry_msgs::msg::Pose & pose,
+  const double max_xy_distance_m)
+{
+  RouteZPriorEstimate estimate;
+  estimate.sample_count = samples.size();
+  if (samples.empty() || max_xy_distance_m <= 0.0) {
+    return estimate;
+  }
+  double best_distance2 = std::numeric_limits<double>::infinity();
+  double best_z = std::numeric_limits<double>::quiet_NaN();
+  for (const auto & sample : samples) {
+    const double dx = sample[0] - pose.position.x;
+    const double dy = sample[1] - pose.position.y;
+    const double distance2 = dx * dx + dy * dy;
+    if (distance2 < best_distance2) {
+      best_distance2 = distance2;
+      best_z = sample[2];
+    }
+  }
+  estimate.nearest_distance_m = std::sqrt(best_distance2);
+  if (estimate.nearest_distance_m <= max_xy_distance_m && std::isfinite(best_z)) {
+    estimate.z = best_z;
+  }
+  return estimate;
+}
+
+MapZPriorEstimate estimate_map_z_prior_from_map_cloud(
+  const pcl::PointCloud<pcl::PointXYZ> & map_cloud, const geometry_msgs::msg::Pose & pose,
+  const double search_radius_m, const double percentile, const int min_points)
+{
+  MapZPriorEstimate estimate;
+  estimate.map_point_count = map_cloud.points.size();
+  if (search_radius_m <= 0.0 || min_points <= 0) {
+    return estimate;
+  }
+  std::vector<double> z_values;
+  z_values.reserve(static_cast<std::size_t>(min_points));
+  const double radius2 = search_radius_m * search_radius_m;
+  for (const auto & point : map_cloud.points) {
+    const double dx = static_cast<double>(point.x) - pose.position.x;
+    const double dy = static_cast<double>(point.y) - pose.position.y;
+    if (dx * dx + dy * dy <= radius2 && std::isfinite(point.z)) {
+      z_values.push_back(static_cast<double>(point.z));
+    }
+  }
+  estimate.nearby_point_count = z_values.size();
+  if (z_values.size() < static_cast<std::size_t>(min_points)) {
+    return estimate;
+  }
+  const double clipped_percentile = std::clamp(percentile, 0.0, 100.0);
+  const auto index = static_cast<std::size_t>(
+    std::round((clipped_percentile / 100.0) * static_cast<double>(z_values.size() - 1)));
+  std::nth_element(z_values.begin(), z_values.begin() + index, z_values.end());
+  estimate.z = z_values[index];
+  return estimate;
+}
+
+bool build_runtime_alignment(
+  RuntimeNdtType & ndt, const std::size_t index, const double offset_along_m,
+  const double offset_cross_m, const double offset_yaw_deg,
+  const geometry_msgs::msg::Pose & prior_pose, const double prior_yaw,
+  const double prior_forward_x, const double prior_forward_y, const double prior_lateral_x,
+  const double prior_lateral_y,
+  const std::optional<geometry_msgs::msg::PoseWithCovarianceStamped> & gnss_weak_prior_pose,
+  const bool has_fresh_gnss_weak_prior, const HyperParameters & param,
+  const std::size_t sensor_points_size, RuntimeAlignment & alignment,
+  DiagnosticsInterface * diagnostics_scan_points = nullptr)
+{
+  alignment.index = index;
+  alignment.offset_along_m = offset_along_m;
+  alignment.offset_cross_m = offset_cross_m;
+  alignment.offset_yaw_deg = offset_yaw_deg;
+  alignment.initial_pose = offset_pose_in_body_frame(
+    prior_pose, alignment.offset_along_m, alignment.offset_cross_m,
+    alignment.offset_yaw_deg * M_PI / 180.0);
+  alignment.initial_pose_matrix = pose_to_matrix4f(alignment.initial_pose);
+  alignment.output_cloud = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>();
+  ndt.align(*alignment.output_cloud, alignment.initial_pose_matrix);
+  alignment.ndt_result = ndt.getResult();
+  alignment.result_pose = matrix4f_to_pose(alignment.ndt_result.pose);
+  alignment.transformation_msg_array =
+    transformation_array_to_poses(alignment.ndt_result.transformation_array);
+
+  alignment.is_ok_iteration_num = alignment.ndt_result.iteration_num < ndt.getMaximumIterations();
+  constexpr int oscillation_num_threshold = 10;
+  alignment.is_local_optimal_solution_oscillation =
+    count_runtime_oscillation(alignment.transformation_msg_array) > oscillation_num_threshold;
+
+  if (param.score_estimation.converged_param_type == ConvergedParamType::TRANSFORM_PROBABILITY) {
+    alignment.score = alignment.ndt_result.transform_probability;
+    alignment.is_ok_score =
+      alignment.score > param.score_estimation.converged_param_transform_probability;
+  } else if (
+    param.score_estimation.converged_param_type ==
+    ConvergedParamType::NEAREST_VOXEL_TRANSFORMATION_LIKELIHOOD) {
+    alignment.score = alignment.ndt_result.nearest_voxel_transformation_likelihood;
+    alignment.is_ok_score =
+      alignment.score > param.score_estimation.converged_param_nearest_voxel_transformation_likelihood;
+  } else {
+    if (diagnostics_scan_points != nullptr) {
+      std::stringstream message;
+      message << "Unknown converged param type. Please check `score_estimation.converged_param_type`";
+      diagnostics_scan_points->update_level_and_message(
+        diagnostic_msgs::msg::DiagnosticStatus::ERROR, message.str());
+    }
+    return false;
+  }
+
+  const auto initial_to_result =
+    planar_distance(alignment.initial_pose.position, alignment.result_pose.position);
+  const double prior_dx = alignment.result_pose.position.x - prior_pose.position.x;
+  const double prior_dy = alignment.result_pose.position.y - prior_pose.position.y;
+  RuntimeCandidate candidate;
+  candidate.index = alignment.index;
+  const double initial_to_result_yaw_rad =
+    normalize_angle(yaw_from_pose(alignment.result_pose) - yaw_from_pose(alignment.initial_pose));
+  candidate.converged = is_acceptable_ndt_solution(
+    alignment.is_ok_iteration_num, alignment.is_local_optimal_solution_oscillation,
+    alignment.is_ok_score, initial_to_result, initial_to_result_yaw_rad, sensor_points_size);
+  candidate.iteration_num = alignment.ndt_result.iteration_num;
+  candidate.max_iterations = ndt.getMaximumIterations();
+  candidate.transform_probability = alignment.ndt_result.transform_probability;
+  candidate.nearest_voxel_transformation_likelihood =
+    alignment.ndt_result.nearest_voxel_transformation_likelihood;
+  candidate.initial_to_result_distance_m = initial_to_result;
+  candidate.innovation_along_m = prior_dx * prior_forward_x + prior_dy * prior_forward_y;
+  candidate.innovation_cross_m = prior_dx * prior_lateral_x + prior_dy * prior_lateral_y;
+  candidate.innovation_yaw_rad = normalize_angle(yaw_from_pose(alignment.result_pose) - prior_yaw);
+  candidate.offset_along_m = alignment.offset_along_m;
+  candidate.offset_cross_m = alignment.offset_cross_m;
+  candidate.offset_yaw_deg = alignment.offset_yaw_deg;
+  if (has_fresh_gnss_weak_prior && gnss_weak_prior_pose.has_value()) {
+    const double dx = alignment.result_pose.position.x - gnss_weak_prior_pose->pose.pose.position.x;
+    const double dy = alignment.result_pose.position.y - gnss_weak_prior_pose->pose.pose.position.y;
+    const double sigma = std::max(1.0e-3, param.runtime_multistart.gnss_weak_prior_sigma_m);
+    candidate.has_gnss_weak_prior = true;
+    candidate.gnss_weak_prior_distance_m = std::hypot(dx, dy);
+    candidate.gnss_weak_prior_penalty =
+      candidate.gnss_weak_prior_distance_m * candidate.gnss_weak_prior_distance_m /
+      (2.0 * sigma * sigma);
+  }
+  const Eigen::Vector2d prior_forward_2d(prior_forward_x, prior_forward_y);
+  const Eigen::Vector2d prior_lateral_2d(prior_lateral_x, prior_lateral_y);
+  const Eigen::Matrix2d localizability_covariance_map =
+    pclomp::estimate_xy_covariance_by_laplace_approximation(alignment.ndt_result.hessian);
+  const double localizability_along_variance =
+    (prior_forward_2d.transpose() * localizability_covariance_map * prior_forward_2d)(0, 0);
+  const double localizability_cross_variance =
+    (prior_lateral_2d.transpose() * localizability_covariance_map * prior_lateral_2d)(0, 0);
+  if (std::isfinite(localizability_along_variance) && localizability_along_variance > 0.0) {
+    candidate.localizability_along_variance_m2 = localizability_along_variance;
+  }
+  if (std::isfinite(localizability_cross_variance) && localizability_cross_variance > 0.0) {
+    candidate.localizability_cross_variance_m2 = localizability_cross_variance;
+  }
+  const double min_localizability_variance =
+    std::min(candidate.localizability_along_variance_m2, candidate.localizability_cross_variance_m2);
+  const double max_localizability_variance =
+    std::max(candidate.localizability_along_variance_m2, candidate.localizability_cross_variance_m2);
+  candidate.covariance_condition_number =
+    min_localizability_variance > 1.0e-9 ? max_localizability_variance / min_localizability_variance
+                                         : 1.0;
+  alignment.candidate = candidate;
+  return true;
+}
+
+void append_runtime_observer_candidate_json(
+  std::ostringstream & payload, const RuntimeAlignment & alignment,
+  const RuntimeCandidateScore & candidate_score, const bool selected_by_observer)
+{
+  payload << "{\"index\":" << alignment.index
+          << ",\"selected_by_observer\":" << (selected_by_observer ? "true" : "false")
+          << ",\"initial_x\":" << alignment.initial_pose.position.x
+          << ",\"initial_y\":" << alignment.initial_pose.position.y
+          << ",\"initial_z\":" << alignment.initial_pose.position.z << ",\"initial_yaw_deg\":"
+          << yaw_from_pose(alignment.initial_pose) * 180.0 / M_PI
+          << ",\"result_x\":" << alignment.result_pose.position.x
+          << ",\"result_y\":" << alignment.result_pose.position.y
+          << ",\"result_z\":" << alignment.result_pose.position.z << ",\"result_yaw_deg\":"
+          << yaw_from_pose(alignment.result_pose) * 180.0 / M_PI
+          << ",\"offset_along_m\":" << alignment.offset_along_m
+          << ",\"offset_cross_m\":" << alignment.offset_cross_m
+          << ",\"offset_yaw_deg\":" << alignment.offset_yaw_deg
+          << ",\"converged\":" << (alignment.candidate.converged ? "true" : "false")
+          << ",\"iteration_count\":" << alignment.ndt_result.iteration_num
+          << ",\"iteration_num\":" << alignment.ndt_result.iteration_num
+          << ",\"max_iterations\":" << alignment.candidate.max_iterations
+          << ",\"hit_max_iteration\":"
+          << (alignment.ndt_result.iteration_num >= alignment.candidate.max_iterations ? "true"
+                                                                                       : "false")
+          << ",\"transform_probability\":" << alignment.ndt_result.transform_probability
+          << ",\"nearest_voxel_transformation_likelihood\":"
+          << alignment.ndt_result.nearest_voxel_transformation_likelihood
+          << ",\"score\":" << alignment.score << ",\"total_score\":";
+  if (std::isfinite(candidate_score.total_score)) {
+    payload << candidate_score.total_score;
+  } else {
+    payload << "null";
+  }
+  payload << ",\"initial_to_result_distance_m\":"
+          << alignment.candidate.initial_to_result_distance_m
+          << ",\"initial_to_result_yaw_deg\":"
+          << (
+               normalize_angle(
+                 yaw_from_pose(alignment.result_pose) - yaw_from_pose(alignment.initial_pose)) *
+               180.0 / M_PI)
+          << ",\"innovation_along_m\":" << alignment.candidate.innovation_along_m
+          << ",\"innovation_cross_m\":" << alignment.candidate.innovation_cross_m
+          << ",\"innovation_yaw_deg\":"
+          << alignment.candidate.innovation_yaw_rad * 180.0 / M_PI
+          << ",\"localizability_along_variance_m2\":"
+          << alignment.candidate.localizability_along_variance_m2
+          << ",\"localizability_cross_variance_m2\":"
+          << alignment.candidate.localizability_cross_variance_m2
+          << ",\"covariance_condition_number\":" << alignment.candidate.covariance_condition_number
+          << ",\"has_gnss_weak_prior\":"
+          << (alignment.candidate.has_gnss_weak_prior ? "true" : "false")
+          << ",\"gnss_weak_prior_distance_m\":";
+  if (alignment.candidate.has_gnss_weak_prior) {
+    payload << alignment.candidate.gnss_weak_prior_distance_m;
+  } else {
+    payload << "null";
+  }
+  payload << ",\"gnss_weak_prior_penalty\":";
+  if (alignment.candidate.has_gnss_weak_prior) {
+    payload << alignment.candidate.gnss_weak_prior_penalty;
+  } else {
+    payload << "null";
+  }
+  payload << ",\"route_progress_m\":null"
+          << ",\"rejection_reason\":\"" << candidate_score.reject_reason << "\""
+          << ",\"reject_reason\":\"" << candidate_score.reject_reason << "\"}";
+}
+
+geometry_msgs::msg::Pose offset_pose_in_body_frame(
+  const geometry_msgs::msg::Pose & pose, const double along_m, const double cross_m,
   const double yaw_offset_rad)
 {
   geometry_msgs::msg::Pose ret = pose;
@@ -140,18 +488,6 @@ geometry_msgs::msg::Pose offset_pose_in_body_frame(
   quaternion.setRPY(rpy.x, rpy.y, normalize_angle(yaw + yaw_offset_rad));
   ret.orientation = tf2::toMsg(quaternion);
   return ret;
-}
-
-template <class TransformationArray>
-std::vector<geometry_msgs::msg::Pose> transformation_array_to_poses(
-  const TransformationArray & transformation_array)
-{
-  std::vector<geometry_msgs::msg::Pose> poses;
-  poses.reserve(transformation_array.size());
-  for (const auto & pose_matrix : transformation_array) {
-    poses.push_back(matrix4f_to_pose(pose_matrix));
-  }
-  return poses;
 }
 
 RuntimeCandidateScoringOptions make_runtime_scoring_options(const HyperParameters & param)
@@ -198,6 +534,16 @@ RuntimeCandidateScoringOptions make_runtime_scoring_options(const HyperParameter
     param.runtime_multistart.raw_score_override_max_abs_yaw_deg;
   options.raw_score_override_max_initial_to_result_distance_m =
     param.runtime_multistart.raw_score_override_max_initial_to_result_distance_m;
+  options.enable_gnss_weak_prior = param.runtime_multistart.enable_gnss_weak_prior;
+  options.gnss_weak_prior_weight = param.runtime_multistart.gnss_weak_prior_weight;
+  options.gnss_weak_prior_sigma_m = param.runtime_multistart.gnss_weak_prior_sigma_m;
+  options.gnss_weak_prior_max_penalty = param.runtime_multistart.gnss_weak_prior_max_penalty;
+  options.gnss_weak_prior_max_distance_m =
+    param.runtime_multistart.gnss_weak_prior_max_distance_m;
+  options.gnss_weak_prior_innovation_gate_enable =
+    param.runtime_multistart.gnss_weak_prior_innovation_gate_enable;
+  options.gnss_weak_prior_innovation_gate_m =
+    param.runtime_multistart.gnss_weak_prior_innovation_gate_m;
   return options;
 }
 
@@ -224,11 +570,12 @@ RuntimeCandidateTierOptions make_runtime_tier_options(const HyperParameters & pa
 NDTScanMatcher::NDTScanMatcher(const rclcpp::NodeOptions & options)
 : Node("ndt_scan_matcher", options),
   tf2_broadcaster_(*this),
-  tf2_buffer_(this->get_clock()),
-  tf2_listener_(tf2_buffer_),
-  ndt_ptr_(new NormalDistributionsTransform),
-  is_activated_(false),
-  param_(this)
+	  tf2_buffer_(this->get_clock()),
+	  tf2_listener_(tf2_buffer_),
+	  ndt_ptr_(new NormalDistributionsTransform),
+	  runtime_observer_ndt_ptr_(new NormalDistributionsTransform),
+	  is_activated_(false),
+	  param_(this)
 {
   timer_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   rclcpp::CallbackGroup::SharedPtr initial_pose_callback_group =
@@ -274,6 +621,25 @@ NDTScanMatcher::NDTScanMatcher(const rclcpp::NodeOptions & options)
 
     diagnostics_regularization_pose_ =
       std::make_unique<DiagnosticsInterface>(this, "regularization_pose_subscriber_status");
+  }
+  if (
+    param_.runtime_multistart.enable_gnss_weak_prior &&
+    !param_.runtime_multistart.gnss_weak_prior_topic.empty()) {
+    gnss_weak_prior_sub_ =
+      this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+        param_.runtime_multistart.gnss_weak_prior_topic, 10,
+        std::bind(&NDTScanMatcher::callback_gnss_weak_prior, this, std::placeholders::_1),
+        initial_pose_sub_opt);
+  }
+  if (
+    param_.runtime_multistart.enable_route_z_prior &&
+    !param_.runtime_multistart.route_z_prior_samples_csv.empty()) {
+    route_z_prior_samples_ = load_route_z_prior_samples(
+      param_.runtime_multistart.route_z_prior_samples_csv);
+    RCLCPP_INFO(
+      this->get_logger(), "Loaded %zu route-z prior samples from %s",
+      route_z_prior_samples_.size(),
+      param_.runtime_multistart.route_z_prior_samples_csv.c_str());
   }
 
   sensor_aligned_pose_pub_ =
@@ -328,6 +694,16 @@ NDTScanMatcher::NDTScanMatcher(const rclcpp::NodeOptions & options)
       ? nullptr
       : this->create_publisher<std_msgs::msg::String>(
           param_.runtime_multistart.debug_topic, rclcpp::QoS{10});
+  runtime_multistart_observer_pub_ =
+    param_.runtime_multistart.observer_topic.empty()
+      ? nullptr
+      : this->create_publisher<std_msgs::msg::String>(
+          param_.runtime_multistart.observer_topic, rclcpp::QoS{10});
+  runtime_multistart_observer_debug_pub_ =
+    param_.runtime_multistart.observer_debug_topic.empty()
+      ? nullptr
+      : this->create_publisher<std_msgs::msg::String>(
+          param_.runtime_multistart.observer_debug_topic, rclcpp::QoS{10});
 
   service_ =
     this->create_service<autoware_internal_localization_msgs::srv::PoseWithCovarianceStamped>(
@@ -342,13 +718,20 @@ NDTScanMatcher::NDTScanMatcher(const rclcpp::NodeOptions & options)
     AUTOWARE_DEFAULT_SERVICES_QOS_PROFILE(), sensor_callback_group);
 
   ndt_ptr_->setParams(param_.ndt);
+  runtime_observer_ndt_ptr_->setParams(param_.ndt);
 
   initial_pose_buffer_ = std::make_unique<SmartPoseBuffer>(
     this->get_logger(), param_.validation.initial_pose_timeout_sec,
     param_.validation.initial_pose_distance_tolerance_m);
 
-  map_update_module_ =
-    std::make_unique<MapUpdateModule>(this, &ndt_ptr_mtx_, ndt_ptr_, param_.dynamic_map_loading);
+  const bool enable_runtime_observer_ndt =
+    param_.runtime_multistart.observer_enable &&
+    param_.runtime_multistart.tracking_tier1_period_sec > 0.0 &&
+    !param_.runtime_multistart.force_zero_offsets_only;
+  map_update_module_ = std::make_unique<MapUpdateModule>(
+    this, &ndt_ptr_mtx_, ndt_ptr_, param_.dynamic_map_loading,
+    enable_runtime_observer_ndt ? &runtime_observer_ndt_ptr_ : nullptr,
+    enable_runtime_observer_ndt ? &runtime_observer_ndt_ptr_mtx_ : nullptr);
 
   diagnostics_scan_points_ = std::make_unique<DiagnosticsInterface>(this, "scan_matching_status");
   diagnostics_initial_pose_ =
@@ -435,6 +818,20 @@ void NDTScanMatcher::callback_regularization_pose(
   regularization_pose_buffer_->push_back(pose_conv_msg_ptr);
 
   diagnostics_regularization_pose_->publish(pose_conv_msg_ptr->header.stamp);
+}
+
+void NDTScanMatcher::callback_gnss_weak_prior(
+  geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr pose_msg_ptr)
+{
+  if (pose_msg_ptr->header.frame_id != param_.frame.map_frame) {
+    RCLCPP_WARN_THROTTLE(
+      this->get_logger(), *this->get_clock(), 5000,
+      "Ignoring GNSS weak prior in frame '%s'; expected '%s'",
+      pose_msg_ptr->header.frame_id.c_str(), param_.frame.map_frame.c_str());
+    return;
+  }
+  std::lock_guard<std::mutex> lock(gnss_weak_prior_mtx_);
+  latest_gnss_weak_prior_pose_ = *pose_msg_ptr;
 }
 
 void NDTScanMatcher::callback_sensor_points(
@@ -550,7 +947,7 @@ bool NDTScanMatcher::callback_sensor_points_main(
   }
 
   // lock mutex
-  std::lock_guard<std::mutex> lock(ndt_ptr_mtx_);
+  std::unique_lock<std::mutex> lock(ndt_ptr_mtx_);
 
   // set sensor points to ndt class
   ndt_ptr_->setInputSource(sensor_points_in_baselink_frame);
@@ -595,9 +992,17 @@ bool NDTScanMatcher::callback_sensor_points_main(
     add_regularization_pose(sensor_ros_time);
   }
 
-  // Warn if the lidar has gone out of the map range
-  if (map_update_module_->out_of_map_range(
-        interpolation_result.interpolated_pose.pose.pose.position)) {
+  // Warn if the lidar has gone out of the map range. In offline/replay runs the timer-based
+  // dynamic map update can lag behind fast scan replay, leaving NDT aligned against a stale
+  // local map. Keep the default behavior unchanged, but allow an explicit bounded rebuild on
+  // the scan path for relocalization experiments.
+  const bool is_scan_out_of_map_range = map_update_module_->out_of_map_range(
+    interpolation_result.interpolated_pose.pose.pose.position);
+  diagnostics_scan_points_->add_key_value("is_scan_out_of_map_range", is_scan_out_of_map_range);
+  diagnostics_scan_points_->add_key_value(
+    "scan_out_of_map_rebuild_enabled", param_.dynamic_map_loading.rebuild_on_scan_out_of_map);
+  diagnostics_scan_points_->add_key_value("scan_out_of_map_rebuild_attempted", false);
+  if (is_scan_out_of_map_range) {
     std::stringstream msg;
 
     msg << "Lidar has gone out of the map range";
@@ -605,6 +1010,19 @@ bool NDTScanMatcher::callback_sensor_points_main(
       diagnostic_msgs::msg::DiagnosticStatus::WARN, msg.str());
 
     RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, msg.str());
+
+    if (param_.dynamic_map_loading.rebuild_on_scan_out_of_map) {
+      diagnostics_scan_points_->add_key_value("scan_out_of_map_rebuild_attempted", true);
+      lock.unlock();
+      map_update_module_->update_map(
+        interpolation_result.interpolated_pose.pose.pose.position, diagnostics_scan_points_);
+      lock.lock();
+      ndt_ptr_->setInputSource(sensor_points_in_baselink_frame);
+      const bool is_scan_still_out_of_map_range = map_update_module_->out_of_map_range(
+        interpolation_result.interpolated_pose.pose.pose.position);
+      diagnostics_scan_points_->add_key_value(
+        "is_scan_still_out_of_map_range_after_rebuild", is_scan_still_out_of_map_range);
+    }
   }
 
   // check is_set_map_points
@@ -618,37 +1036,109 @@ bool NDTScanMatcher::callback_sensor_points_main(
     return false;
   }
 
-  struct RuntimeAlignment
-  {
-    std::size_t index{};
-    double offset_along_m{};
-    double offset_cross_m{};
-    double offset_yaw_deg{};
-    geometry_msgs::msg::Pose initial_pose{};
-    Eigen::Matrix4f initial_pose_matrix{};
-    pcl::shared_ptr<pcl::PointCloud<PointSource>> output_cloud{};
-    pclomp::NdtResult ndt_result{};
-    geometry_msgs::msg::Pose result_pose{};
-    std::vector<geometry_msgs::msg::Pose> transformation_msg_array{};
-    RuntimeCandidate candidate{};
-    double score{};
-    bool is_ok_score{};
-    bool is_ok_iteration_num{};
-    bool is_local_optimal_solution_oscillation{};
-  };
-
   // perform NDT scan matching for one or more runtime candidates
-  const geometry_msgs::msg::Pose prior_pose = interpolation_result.interpolated_pose.pose.pose;
+  geometry_msgs::msg::Pose prior_pose = interpolation_result.interpolated_pose.pose.pose;
+  bool route_z_prior_applied = false;
+  double route_z_prior_value = std::numeric_limits<double>::quiet_NaN();
+  double route_z_prior_delta = std::numeric_limits<double>::quiet_NaN();
+  double route_z_prior_nearest_distance = std::numeric_limits<double>::quiet_NaN();
+  const bool route_z_prior_armed =
+    param_.runtime_multistart.enable_route_z_prior &&
+    consecutive_scan_matching_failure_count_ >=
+      param_.runtime_multistart.route_z_prior_min_failure_count &&
+    !route_z_prior_samples_.empty();
+  if (route_z_prior_armed) {
+    const auto route_z = estimate_route_z_prior(
+      route_z_prior_samples_, prior_pose,
+      param_.runtime_multistart.route_z_prior_max_xy_distance_m);
+    route_z_prior_nearest_distance = route_z.nearest_distance_m;
+    if (route_z.z.has_value()) {
+      route_z_prior_value = route_z.z.value();
+      route_z_prior_delta = route_z_prior_value - prior_pose.position.z;
+      if (
+        std::abs(route_z_prior_delta) >=
+          param_.runtime_multistart.route_z_prior_min_abs_z_delta_m &&
+        std::abs(route_z_prior_delta) <=
+          param_.runtime_multistart.route_z_prior_max_abs_z_delta_m) {
+        prior_pose.position.z = route_z_prior_value;
+        route_z_prior_applied = true;
+      }
+    }
+  }
+  bool map_z_prior_applied = false;
+  double map_z_prior_value = std::numeric_limits<double>::quiet_NaN();
+  double map_z_prior_delta = std::numeric_limits<double>::quiet_NaN();
+  std::size_t map_z_prior_point_count = 0;
+  std::size_t map_z_prior_map_point_count = 0;
+  const bool map_z_prior_armed =
+    param_.runtime_multistart.enable_map_z_prior &&
+    !route_z_prior_applied &&
+    consecutive_scan_matching_failure_count_ >=
+      param_.runtime_multistart.map_z_prior_min_failure_count;
+  if (map_z_prior_armed) {
+    const auto map_z = estimate_map_z_prior_from_map_cloud(
+      ndt_ptr_->getVoxelPCD(), prior_pose, param_.runtime_multistart.map_z_prior_search_radius_m,
+      param_.runtime_multistart.map_z_prior_percentile,
+      param_.runtime_multistart.map_z_prior_min_points);
+    map_z_prior_point_count = map_z.nearby_point_count;
+    map_z_prior_map_point_count = map_z.map_point_count;
+    if (map_z.z.has_value()) {
+      map_z_prior_value = map_z.z.value();
+      map_z_prior_delta = map_z_prior_value - prior_pose.position.z;
+      if (
+        std::abs(map_z_prior_delta) >=
+        param_.runtime_multistart.map_z_prior_min_abs_z_delta_m) {
+        prior_pose.position.z = map_z_prior_value;
+        map_z_prior_applied = true;
+      }
+    }
+  }
+  diagnostics_scan_points_->add_key_value("runtime_map_z_prior_enabled", param_.runtime_multistart.enable_map_z_prior);
+  diagnostics_scan_points_->add_key_value("runtime_route_z_prior_enabled", param_.runtime_multistart.enable_route_z_prior);
+  diagnostics_scan_points_->add_key_value("runtime_route_z_prior_armed", route_z_prior_armed);
+  diagnostics_scan_points_->add_key_value(
+    "runtime_route_z_prior_sample_count", static_cast<int64_t>(route_z_prior_samples_.size()));
+  diagnostics_scan_points_->add_key_value("runtime_route_z_prior_applied", route_z_prior_applied);
+  if (std::isfinite(route_z_prior_nearest_distance)) {
+    diagnostics_scan_points_->add_key_value(
+      "runtime_route_z_prior_nearest_distance_m", route_z_prior_nearest_distance);
+  }
+  if (std::isfinite(route_z_prior_delta)) {
+    diagnostics_scan_points_->add_key_value("runtime_route_z_prior_delta_m", route_z_prior_delta);
+    diagnostics_scan_points_->add_key_value("runtime_route_z_prior_value", route_z_prior_value);
+  }
+  diagnostics_scan_points_->add_key_value("runtime_map_z_prior_armed", map_z_prior_armed);
+  diagnostics_scan_points_->add_key_value(
+    "runtime_map_z_prior_failure_count", static_cast<int64_t>(consecutive_scan_matching_failure_count_));
+  diagnostics_scan_points_->add_key_value("runtime_map_z_prior_applied", map_z_prior_applied);
+  if (param_.runtime_multistart.enable_map_z_prior) {
+    diagnostics_scan_points_->add_key_value(
+      "runtime_map_z_prior_point_count", static_cast<int64_t>(map_z_prior_point_count));
+    diagnostics_scan_points_->add_key_value(
+      "runtime_map_z_prior_map_point_count", static_cast<int64_t>(map_z_prior_map_point_count));
+  }
+  if (std::isfinite(map_z_prior_delta)) {
+    diagnostics_scan_points_->add_key_value("runtime_map_z_prior_delta_m", map_z_prior_delta);
+    diagnostics_scan_points_->add_key_value("runtime_map_z_prior_value", map_z_prior_value);
+  }
+  const bool runtime_observer_only =
+    param_.runtime_multistart.observer_enable && !param_.runtime_multistart.enable;
+  const bool runtime_candidate_generation_enabled = param_.runtime_multistart.enable;
   std::vector<double> offset_along_m =
-    param_.runtime_multistart.enable ? param_.runtime_multistart.offset_along_m
-                                     : std::vector<double>{0.0};
+    runtime_candidate_generation_enabled ? param_.runtime_multistart.offset_along_m
+                                         : std::vector<double>{0.0};
   std::vector<double> offset_cross_m =
-    param_.runtime_multistart.enable ? param_.runtime_multistart.offset_cross_m
-                                     : std::vector<double>{0.0};
+    runtime_candidate_generation_enabled ? param_.runtime_multistart.offset_cross_m
+                                         : std::vector<double>{0.0};
   std::vector<double> offset_yaw_deg =
-    param_.runtime_multistart.enable ? param_.runtime_multistart.offset_yaw_deg
-                                     : std::vector<double>{0.0};
+    runtime_candidate_generation_enabled ? param_.runtime_multistart.offset_yaw_deg
+                                         : std::vector<double>{0.0};
   if (offset_along_m.empty()) {
+    offset_along_m = {0.0};
+    offset_cross_m = {0.0};
+    offset_yaw_deg = {0.0};
+  }
+  if (param_.runtime_multistart.force_zero_offsets_only) {
     offset_along_m = {0.0};
     offset_cross_m = {0.0};
     offset_yaw_deg = {0.0};
@@ -659,6 +1149,35 @@ bool NDTScanMatcher::callback_sensor_points_main(
   const double prior_forward_y = std::sin(prior_yaw);
   const double prior_lateral_x = -std::sin(prior_yaw);
   const double prior_lateral_y = std::cos(prior_yaw);
+  std::optional<geometry_msgs::msg::PoseWithCovarianceStamped> gnss_weak_prior_pose;
+  if (param_.runtime_multistart.enable_gnss_weak_prior) {
+    std::lock_guard<std::mutex> lock(gnss_weak_prior_mtx_);
+    gnss_weak_prior_pose = latest_gnss_weak_prior_pose_;
+  }
+  const bool has_fresh_gnss_weak_prior =
+    gnss_weak_prior_pose.has_value() &&
+    std::abs(
+      (sensor_ros_time - rclcpp::Time(gnss_weak_prior_pose->header.stamp)).seconds()) <=
+      param_.runtime_multistart.gnss_weak_prior_max_age_sec;
+  if (
+    runtime_candidate_generation_enabled && has_fresh_gnss_weak_prior &&
+    param_.runtime_multistart.gnss_weak_prior_seed_candidate_enable) {
+    const double dx =
+      gnss_weak_prior_pose->pose.pose.position.x - prior_pose.position.x;
+    const double dy =
+      gnss_weak_prior_pose->pose.pose.position.y - prior_pose.position.y;
+    const double prior_to_gnss_m = std::hypot(dx, dy);
+    const double max_prior_distance_m =
+      param_.runtime_multistart.gnss_weak_prior_seed_candidate_max_prior_distance_m;
+    if (
+      std::isfinite(prior_to_gnss_m) && prior_to_gnss_m > 1.0e-3 &&
+      (max_prior_distance_m <= 0.0 || prior_to_gnss_m <= max_prior_distance_m)) {
+      offset_along_m.push_back(dx * prior_forward_x + dy * prior_forward_y);
+      offset_cross_m.push_back(dx * prior_lateral_x + dy * prior_lateral_y);
+      // GNSS yaw is intentionally ignored: ordinary 5 m GNSS is only a coarse XY basin seed.
+      offset_yaw_deg.push_back(0.0);
+    }
+  }
 
   std::vector<RuntimeAlignment> runtime_alignments;
   runtime_alignments.reserve(offset_along_m.size());
@@ -755,7 +1274,39 @@ bool NDTScanMatcher::callback_sensor_points_main(
     candidate.offset_along_m = alignment.offset_along_m;
     candidate.offset_cross_m = alignment.offset_cross_m;
     candidate.offset_yaw_deg = alignment.offset_yaw_deg;
-    candidate.covariance_condition_number = 1.0;
+    if (has_fresh_gnss_weak_prior) {
+      const double dx =
+        alignment.result_pose.position.x - gnss_weak_prior_pose->pose.pose.position.x;
+      const double dy =
+        alignment.result_pose.position.y - gnss_weak_prior_pose->pose.pose.position.y;
+      const double sigma = std::max(1.0e-3, param_.runtime_multistart.gnss_weak_prior_sigma_m);
+      candidate.has_gnss_weak_prior = true;
+      candidate.gnss_weak_prior_distance_m = std::hypot(dx, dy);
+      candidate.gnss_weak_prior_penalty =
+        candidate.gnss_weak_prior_distance_m * candidate.gnss_weak_prior_distance_m /
+        (2.0 * sigma * sigma);
+    }
+    const Eigen::Vector2d prior_forward_2d(prior_forward_x, prior_forward_y);
+    const Eigen::Vector2d prior_lateral_2d(prior_lateral_x, prior_lateral_y);
+    const Eigen::Matrix2d localizability_covariance_map =
+      pclomp::estimate_xy_covariance_by_laplace_approximation(alignment.ndt_result.hessian);
+    const double localizability_along_variance =
+      (prior_forward_2d.transpose() * localizability_covariance_map * prior_forward_2d)(0, 0);
+    const double localizability_cross_variance =
+      (prior_lateral_2d.transpose() * localizability_covariance_map * prior_lateral_2d)(0, 0);
+    if (std::isfinite(localizability_along_variance) && localizability_along_variance > 0.0) {
+      candidate.localizability_along_variance_m2 = localizability_along_variance;
+    }
+    if (std::isfinite(localizability_cross_variance) && localizability_cross_variance > 0.0) {
+      candidate.localizability_cross_variance_m2 = localizability_cross_variance;
+    }
+    const double min_localizability_variance =
+      std::min(candidate.localizability_along_variance_m2, candidate.localizability_cross_variance_m2);
+    const double max_localizability_variance =
+      std::max(candidate.localizability_along_variance_m2, candidate.localizability_cross_variance_m2);
+    candidate.covariance_condition_number =
+      min_localizability_variance > 1.0e-9 ? max_localizability_variance / min_localizability_variance
+                                           : 1.0;
     alignment.candidate = candidate;
     runtime_candidates.push_back(candidate);
     runtime_alignments.push_back(alignment);
@@ -787,17 +1338,17 @@ bool NDTScanMatcher::callback_sensor_points_main(
     std::abs(base_candidate.innovation_yaw_rad) * 180.0 / M_PI >
     param_.runtime_multistart.trigger_yaw_delta_deg;
   const bool periodic_tier1_refresh =
-    param_.runtime_multistart.enable && runtime_stamp_enabled &&
+    runtime_candidate_generation_enabled && runtime_stamp_enabled &&
     should_refresh_tracking_tier1(
       sensor_ros_time.seconds(), runtime_last_tier1_stamp_sec_,
       param_.runtime_multistart.tracking_tier1_period_sec);
   const bool periodic_along_health_refresh =
-    param_.runtime_multistart.enable && runtime_stamp_enabled &&
+    runtime_candidate_generation_enabled && runtime_stamp_enabled &&
     should_refresh_tracking_tier1(
       sensor_ros_time.seconds(), runtime_last_along_health_stamp_sec_,
       param_.runtime_multistart.tracking_along_health_period_sec);
   const bool should_expand_candidates =
-    param_.runtime_multistart.enable && runtime_stamp_enabled &&
+    runtime_candidate_generation_enabled && runtime_stamp_enabled &&
     (!base_candidate.converged || base_large_translation || base_large_yaw ||
      !base_score_has_margin || periodic_tier1_refresh || runtime_recovery_active_);
 
@@ -816,6 +1367,9 @@ bool NDTScanMatcher::callback_sensor_points_main(
       runtime_last_along_health_stamp_sec_ = sensor_ros_time.seconds();
     }
     RuntimeCandidateScoringOptions tier1_scoring_options = make_runtime_scoring_options(param_);
+    if (param_.runtime_multistart.gnss_weak_prior_condition_enable) {
+      tier1_scoring_options.enable_gnss_weak_prior = false;
+    }
     RuntimeCandidateSelection tier1_selection =
       select_runtime_candidate(runtime_candidates, tier1_scoring_options);
     small_tier_ambiguous =
@@ -858,18 +1412,103 @@ bool NDTScanMatcher::callback_sensor_points_main(
   }
 
   RuntimeCandidateScoringOptions runtime_scoring_options = make_runtime_scoring_options(param_);
+  RuntimeCandidateScoringOptions preliminary_scoring_options = runtime_scoring_options;
+  if (param_.runtime_multistart.gnss_weak_prior_condition_enable) {
+    preliminary_scoring_options.enable_gnss_weak_prior = false;
+  }
   if (runtime_alignments.size() == 1) {
     // Single-start frames keep the original NDT acceptance semantics.  Runtime prior gates are
     // only for choosing between multiple basins; applying them to the only candidate creates
     // avoidable coverage holes and can prevent the predictor from recovering after startup.
+    disable_runtime_selection_gates_for_single_start(preliminary_scoring_options);
+  }
+  RuntimeCandidateSelection preliminary_selection =
+    select_runtime_candidate(runtime_candidates, preliminary_scoring_options);
+  const RuntimeCandidateSpreadCovariance runtime_spread_covariance =
+    estimate_runtime_candidate_spread_covariance(
+      runtime_candidates, preliminary_selection, preliminary_scoring_options,
+      param_.runtime_multistart.ambiguity_score_margin);
+
+  RuntimeGnssWeakPriorGateOptions gnss_gate_options;
+  gnss_gate_options.enable_gnss_weak_prior = param_.runtime_multistart.enable_gnss_weak_prior;
+  gnss_gate_options.condition_enable =
+    param_.runtime_multistart.gnss_weak_prior_condition_enable;
+  gnss_gate_options.has_fresh_gnss_prior = has_fresh_gnss_weak_prior;
+  gnss_gate_options.base_candidate_converged = base_candidate.converged;
+  gnss_gate_options.recovery_active = runtime_recovery_active_;
+  gnss_gate_options.small_tier_ambiguous = small_tier_ambiguous;
+  gnss_gate_options.spread_covariance_ambiguous = runtime_spread_covariance.ambiguous;
+  gnss_gate_options.rejected_scan_streak = runtime_rejected_scan_streak_;
+  gnss_gate_options.base_localizability_along_variance_m2 =
+    base_candidate.localizability_along_variance_m2;
+  gnss_gate_options.min_along_variance_m2 =
+    param_.runtime_multistart.gnss_weak_prior_min_along_variance_m2;
+  gnss_gate_options.healthy_base_passthrough_enable =
+    param_.runtime_multistart.healthy_base_passthrough_enable;
+  gnss_gate_options.weak_prior_hold_remaining_scans =
+    runtime_gnss_weak_prior_hold_remaining_scans_;
+  RuntimeGnssWeakPriorGateDecision gnss_gate_decision =
+    decide_runtime_gnss_weak_prior_gate(gnss_gate_options);
+  if (
+    param_.runtime_multistart.gnss_weak_prior_condition_enable &&
+    param_.runtime_multistart.gnss_weak_prior_condition_hold_scans > 0) {
+    if (gnss_gate_decision.enable_weak_prior && gnss_gate_decision.reason != "condition_hold") {
+      runtime_gnss_weak_prior_hold_remaining_scans_ =
+        param_.runtime_multistart.gnss_weak_prior_condition_hold_scans;
+    } else if (gnss_gate_decision.reason == "condition_hold") {
+      runtime_gnss_weak_prior_hold_remaining_scans_ =
+        std::max(0, runtime_gnss_weak_prior_hold_remaining_scans_ - 1);
+    } else if (!has_fresh_gnss_weak_prior) {
+      runtime_gnss_weak_prior_hold_remaining_scans_ = 0;
+    }
+  } else {
+    runtime_gnss_weak_prior_hold_remaining_scans_ = 0;
+  }
+
+  runtime_scoring_options.enable_gnss_weak_prior = gnss_gate_decision.enable_weak_prior;
+  if (runtime_alignments.size() == 1) {
     disable_runtime_selection_gates_for_single_start(runtime_scoring_options);
   }
   RuntimeCandidateSelection runtime_selection =
     select_runtime_candidate(runtime_candidates, runtime_scoring_options);
-  const RuntimeCandidateSpreadCovariance runtime_spread_covariance =
-    estimate_runtime_candidate_spread_covariance(
-      runtime_candidates, runtime_selection, runtime_scoring_options,
-      param_.runtime_multistart.ambiguity_score_margin);
+  if (gnss_gate_decision.healthy_base_passthrough) {
+    if (runtime_candidate_fails_gnss_innovation_gate(base_candidate, preliminary_scoring_options)) {
+      runtime_selection = preliminary_selection;
+      runtime_selection.has_selected_candidate = false;
+      for (auto & score : runtime_selection.candidate_scores) {
+        if (score.candidate_index == base_candidate.index) {
+          score.reject_reason = "gnss_weak_prior_innovation_too_large";
+          break;
+        }
+      }
+    } else {
+      runtime_selection = preliminary_selection;
+      runtime_selection.has_selected_candidate = true;
+      runtime_selection.selected_candidate_index = base_candidate.index;
+      for (auto & score : runtime_selection.candidate_scores) {
+        if (score.candidate_index != base_candidate.index) {
+          continue;
+        }
+        score.reject_reason.clear();
+        if (!std::isfinite(score.total_score)) {
+          score.total_score = runtime_candidate_raw_score(base_candidate, preliminary_scoring_options);
+        }
+        break;
+      }
+    }
+  }
+  if (
+    !runtime_selection.has_selected_candidate &&
+    param_.runtime_multistart.fallback_to_base_on_rejection && !runtime_alignments.empty()) {
+    runtime_selection.has_selected_candidate = true;
+    runtime_selection.selected_candidate_index = runtime_alignments.front().index;
+    for (auto & score : runtime_selection.candidate_scores) {
+      if (score.candidate_index == runtime_selection.selected_candidate_index) {
+        score.reject_reason = "fallback_to_base_on_rejection";
+        break;
+      }
+    }
+  }
   auto selected_alignment_iter = std::find_if(
     runtime_alignments.begin(), runtime_alignments.end(),
     [&runtime_selection](const RuntimeAlignment & item) {
@@ -894,6 +1533,18 @@ bool NDTScanMatcher::callback_sensor_points_main(
   runtime_recovery_active_ = recovery_state.recovery_active;
   runtime_recovery_stable_frames_ = recovery_state.recovery_stable_frames;
   const bool recovery_verified = recovery_state.recovery_verified;
+  if (
+    param_.runtime_multistart.require_recovery_verification && recovery_attempt &&
+    !recovery_verified) {
+    for (auto & score : runtime_selection.candidate_scores) {
+      if (runtime_selection.has_selected_candidate &&
+          score.candidate_index == runtime_selection.selected_candidate_index) {
+        score.reject_reason = "recovery_not_verified";
+        break;
+      }
+    }
+    runtime_selection.has_selected_candidate = false;
+  }
 
   if (param_.runtime_multistart.enable && runtime_multistart_debug_pub_ != nullptr) {
     std_msgs::msg::String debug_msg;
@@ -902,6 +1553,20 @@ bool NDTScanMatcher::callback_sensor_points_main(
     payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
             << ",\"reason\":\"runtime_scored_multistart\""
             << ",\"uses_gnss_or_gt\":false"
+            << ",\"has_fresh_gnss_weak_prior\":"
+            << (has_fresh_gnss_weak_prior ? "true" : "false")
+            << ",\"uses_gnss_weak_prior\":"
+            << (gnss_gate_decision.enable_weak_prior ? "true" : "false")
+            << ",\"gnss_weak_prior_gate_reason\":\""
+            << gnss_gate_decision.reason << "\""
+            << ",\"healthy_base_passthrough\":"
+            << (gnss_gate_decision.healthy_base_passthrough ? "true" : "false")
+            << ",\"gnss_weak_prior_hold_remaining_scans\":"
+            << runtime_gnss_weak_prior_hold_remaining_scans_
+            << ",\"gnss_weak_prior_sigma_m\":"
+            << param_.runtime_multistart.gnss_weak_prior_sigma_m
+            << ",\"gnss_weak_prior_weight\":"
+            << param_.runtime_multistart.gnss_weak_prior_weight
             << ",\"candidate_count\":" << runtime_alignments.size()
             << ",\"along_health_evaluated\":" << (along_health_evaluated ? "true" : "false")
             << ",\"tier2_evaluated\":" << (tier2_evaluated ? "true" : "false")
@@ -957,6 +1622,27 @@ bool NDTScanMatcher::callback_sensor_points_main(
               << ",\"innovation_cross_m\":" << alignment.candidate.innovation_cross_m
               << ",\"innovation_yaw_deg\":"
               << alignment.candidate.innovation_yaw_rad * 180.0 / M_PI
+              << ",\"localizability_along_variance_m2\":"
+              << alignment.candidate.localizability_along_variance_m2
+              << ",\"localizability_cross_variance_m2\":"
+              << alignment.candidate.localizability_cross_variance_m2
+              << ",\"covariance_condition_number\":"
+              << alignment.candidate.covariance_condition_number
+              << ",\"has_gnss_weak_prior\":"
+              << (alignment.candidate.has_gnss_weak_prior ? "true" : "false")
+              << ",\"gnss_weak_prior_distance_m\":";
+      if (alignment.candidate.has_gnss_weak_prior) {
+        payload << alignment.candidate.gnss_weak_prior_distance_m;
+      } else {
+        payload << "null";
+      }
+      payload << ",\"gnss_weak_prior_penalty\":";
+      if (alignment.candidate.has_gnss_weak_prior) {
+        payload << alignment.candidate.gnss_weak_prior_penalty;
+      } else {
+        payload << "null";
+      }
+      payload
               << ",\"total_score\":";
       if (std::isfinite(candidate_score.total_score)) {
         payload << candidate_score.total_score;
@@ -970,7 +1656,151 @@ bool NDTScanMatcher::callback_sensor_points_main(
     runtime_multistart_debug_pub_->publish(debug_msg);
   }
 
-  if (!runtime_selection.has_selected_candidate || selected_alignment_iter == runtime_alignments.end()) {
+  if (
+    param_.runtime_multistart.observer_enable && !runtime_observer_only &&
+    runtime_multistart_observer_pub_ != nullptr) {
+    std_msgs::msg::String observer_msg;
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(6);
+    payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
+            << ",\"reason\":\"runtime_candidate_observer\""
+            << ",\"uses_gnss_or_gt\":false"
+            << ",\"controls_output\":false"
+            << ",\"base_output_candidate_index\":0"
+            << ",\"has_fresh_gnss_weak_prior\":"
+            << (has_fresh_gnss_weak_prior ? "true" : "false")
+            << ",\"uses_gnss_weak_prior\":"
+            << (gnss_gate_decision.enable_weak_prior ? "true" : "false")
+            << ",\"gnss_weak_prior_gate_reason\":\""
+            << gnss_gate_decision.reason << "\""
+            << ",\"candidate_count\":" << runtime_alignments.size()
+            << ",\"has_selected_candidate\":"
+            << (runtime_selection.has_selected_candidate ? "true" : "false")
+            << ",\"selected_candidate_index\":";
+    if (runtime_selection.has_selected_candidate) {
+      payload << runtime_selection.selected_candidate_index;
+    } else {
+      payload << "null";
+    }
+    payload << ",\"candidates\":[";
+    for (std::size_t i = 0; i < runtime_alignments.size(); ++i) {
+      const auto & alignment = runtime_alignments[i];
+      const auto & candidate_score = runtime_selection.candidate_scores[i];
+      const bool selected_by_observer =
+        runtime_selection.has_selected_candidate &&
+        runtime_selection.selected_candidate_index == alignment.index;
+      if (i > 0) {
+        payload << ",";
+      }
+      payload << "{\"index\":" << alignment.index
+              << ",\"selected_by_observer\":" << (selected_by_observer ? "true" : "false")
+              << ",\"initial_x\":" << alignment.initial_pose.position.x
+              << ",\"initial_y\":" << alignment.initial_pose.position.y
+              << ",\"initial_z\":" << alignment.initial_pose.position.z
+              << ",\"initial_yaw_deg\":"
+              << yaw_from_pose(alignment.initial_pose) * 180.0 / M_PI
+              << ",\"result_x\":" << alignment.result_pose.position.x
+              << ",\"result_y\":" << alignment.result_pose.position.y
+              << ",\"result_z\":" << alignment.result_pose.position.z
+              << ",\"result_yaw_deg\":"
+              << yaw_from_pose(alignment.result_pose) * 180.0 / M_PI
+              << ",\"offset_along_m\":" << alignment.offset_along_m
+              << ",\"offset_cross_m\":" << alignment.offset_cross_m
+              << ",\"offset_yaw_deg\":" << alignment.offset_yaw_deg
+              << ",\"converged\":" << (alignment.candidate.converged ? "true" : "false")
+              << ",\"iteration_count\":" << alignment.ndt_result.iteration_num
+              << ",\"iteration_num\":" << alignment.ndt_result.iteration_num
+              << ",\"max_iterations\":" << alignment.candidate.max_iterations
+              << ",\"hit_max_iteration\":"
+              << (alignment.ndt_result.iteration_num >= alignment.candidate.max_iterations ? "true"
+                                                                                             : "false")
+              << ",\"transform_probability\":" << alignment.ndt_result.transform_probability
+              << ",\"nearest_voxel_transformation_likelihood\":"
+              << alignment.ndt_result.nearest_voxel_transformation_likelihood
+              << ",\"score\":" << alignment.score
+              << ",\"total_score\":";
+      if (std::isfinite(candidate_score.total_score)) {
+        payload << candidate_score.total_score;
+      } else {
+        payload << "null";
+      }
+      payload << ",\"initial_to_result_distance_m\":"
+              << alignment.candidate.initial_to_result_distance_m
+              << ",\"initial_to_result_yaw_deg\":"
+              << (
+                   normalize_angle(
+                     yaw_from_pose(alignment.result_pose) -
+                     yaw_from_pose(alignment.initial_pose)) *
+                   180.0 / M_PI)
+              << ",\"innovation_along_m\":" << alignment.candidate.innovation_along_m
+              << ",\"innovation_cross_m\":" << alignment.candidate.innovation_cross_m
+              << ",\"innovation_yaw_deg\":"
+              << alignment.candidate.innovation_yaw_rad * 180.0 / M_PI
+              << ",\"localizability_along_variance_m2\":"
+              << alignment.candidate.localizability_along_variance_m2
+              << ",\"localizability_cross_variance_m2\":"
+              << alignment.candidate.localizability_cross_variance_m2
+              << ",\"covariance_condition_number\":"
+              << alignment.candidate.covariance_condition_number
+              << ",\"has_gnss_weak_prior\":"
+              << (alignment.candidate.has_gnss_weak_prior ? "true" : "false")
+              << ",\"gnss_weak_prior_distance_m\":";
+      if (alignment.candidate.has_gnss_weak_prior) {
+        payload << alignment.candidate.gnss_weak_prior_distance_m;
+      } else {
+        payload << "null";
+      }
+      payload << ",\"gnss_weak_prior_penalty\":";
+      if (alignment.candidate.has_gnss_weak_prior) {
+        payload << alignment.candidate.gnss_weak_prior_penalty;
+      } else {
+        payload << "null";
+      }
+      payload << ",\"route_progress_m\":null"
+              << ",\"rejection_reason\":\"" << candidate_score.reject_reason << "\""
+              << ",\"reject_reason\":\"" << candidate_score.reject_reason << "\"}";
+    }
+    payload << "]}";
+    observer_msg.data = payload.str();
+    runtime_multistart_observer_pub_->publish(observer_msg);
+  }
+  if (
+    param_.runtime_multistart.observer_enable && !runtime_observer_only &&
+    runtime_multistart_observer_debug_pub_ != nullptr) {
+    std_msgs::msg::String observer_debug_msg;
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(6);
+    payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
+            << ",\"reason\":\"runtime_candidate_observer_debug\""
+            << ",\"controls_output\":false"
+            << ",\"candidate_count\":" << runtime_alignments.size()
+            << ",\"has_selected_candidate\":"
+            << (runtime_selection.has_selected_candidate ? "true" : "false")
+            << ",\"selected_candidate_index\":";
+    if (runtime_selection.has_selected_candidate) {
+      payload << runtime_selection.selected_candidate_index;
+    } else {
+      payload << "null";
+    }
+    payload << ",\"base_converged\":"
+            << (base_candidate.converged ? "true" : "false")
+            << ",\"base_rejection_does_not_block_publication\":true}";
+    observer_debug_msg.data = payload.str();
+    runtime_multistart_observer_debug_pub_->publish(observer_debug_msg);
+  }
+
+  const RuntimeOutputSelection output_selection = choose_runtime_output_candidate(
+    param_.runtime_multistart.enable, runtime_candidates, runtime_selection);
+  selected_alignment_iter = std::find_if(
+    runtime_alignments.begin(), runtime_alignments.end(),
+    [&output_selection](const RuntimeAlignment & item) {
+      return output_selection.has_output_candidate &&
+             item.index == output_selection.output_candidate_index;
+    });
+
+  if (
+    param_.runtime_multistart.enable &&
+    (!output_selection.has_output_candidate || selected_alignment_iter == runtime_alignments.end())) {
     std::stringstream message;
     message << "Runtime multi-start rejected all " << runtime_alignments.size() << " candidates.";
     if (!runtime_alignments.empty() && !runtime_selection.candidate_scores.empty()) {
@@ -987,6 +1817,9 @@ bool NDTScanMatcher::callback_sensor_points_main(
     diagnostics_scan_points_->update_level_and_message(
       diagnostic_msgs::msg::DiagnosticStatus::WARN, message.str());
     RCLCPP_WARN_STREAM_THROTTLE(this->get_logger(), *this->get_clock(), 1000, message.str());
+    return false;
+  }
+  if (selected_alignment_iter == runtime_alignments.end()) {
     return false;
   }
 
@@ -1138,7 +1971,7 @@ bool NDTScanMatcher::callback_sensor_points_main(
     ndt_covariance[1 + 6 * 0] = estimated_covariance_2d_adj(1, 0);
     ndt_covariance[0 + 6 * 1] = estimated_covariance_2d_adj(0, 1);
   }
-  if (runtime_spread_covariance.ambiguous) {
+  if (param_.runtime_multistart.enable && runtime_spread_covariance.ambiguous) {
     Eigen::Matrix2d body_to_map;
     body_to_map << prior_forward_x, prior_lateral_x, prior_forward_y, prior_lateral_y;
     Eigen::Matrix2d spread_covariance_body = Eigen::Matrix2d::Zero();
@@ -1154,6 +1987,35 @@ bool NDTScanMatcher::callback_sensor_points_main(
       "runtime_spread_covariance_along_m2", runtime_spread_covariance.along_variance_m2);
     diagnostics_scan_points_->add_key_value(
       "runtime_spread_covariance_cross_m2", runtime_spread_covariance.cross_variance_m2);
+  }
+  const RuntimeOutputCovariance runtime_output_covariance = project_runtime_output_covariance(
+    ndt_covariance, prior_forward_x, prior_forward_y, prior_lateral_x, prior_lateral_y);
+  diagnostics_scan_points_->add_key_value(
+    "runtime_output_covariance_along_m2", runtime_output_covariance.along_variance_m2);
+  diagnostics_scan_points_->add_key_value(
+    "runtime_output_covariance_cross_m2", runtime_output_covariance.cross_variance_m2);
+  if (param_.runtime_multistart.enable && runtime_multistart_debug_pub_ != nullptr) {
+    std_msgs::msg::String debug_msg;
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(6);
+    payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
+            << ",\"reason\":\"runtime_selected_output_covariance\""
+            << ",\"uses_gnss_or_gt\":false"
+            << ",\"candidate_count\":" << runtime_alignments.size()
+            << ",\"has_selected_candidate\":"
+            << (runtime_selection.has_selected_candidate ? "true" : "false")
+            << ",\"selected_candidate_index\":";
+    if (runtime_selection.has_selected_candidate) {
+      payload << runtime_selection.selected_candidate_index;
+    } else {
+      payload << "null";
+    }
+    payload << ",\"selected_output_covariance_along_m2\":"
+            << runtime_output_covariance.along_variance_m2
+            << ",\"selected_output_covariance_cross_m2\":"
+            << runtime_output_covariance.cross_variance_m2 << "}";
+    debug_msg.data = payload.str();
+    runtime_multistart_debug_pub_->publish(debug_msg);
   }
   // check distance_initial_to_result
   const double z_initial_to_result =
@@ -1246,6 +2108,309 @@ bool NDTScanMatcher::callback_sensor_points_main(
   autoware_utils_pcl::transform_pointcloud(
     *sensor_points_in_baselink_frame, *sensor_points_in_map_ptr, ndt_result.pose);
   publish_point_cloud(sensor_ros_time, param_.frame.map_frame, sensor_points_in_map_ptr);
+
+  const bool runtime_observer_snapshot_due =
+    runtime_observer_only &&
+    should_refresh_tracking_tier1(
+      sensor_ros_time.seconds(), runtime_last_tier1_stamp_sec_,
+      param_.runtime_multistart.tracking_tier1_period_sec);
+  if (runtime_observer_snapshot_due) {
+    runtime_last_tier1_stamp_sec_ = sensor_ros_time.seconds();
+  }
+  if (
+    runtime_observer_snapshot_due && runtime_multistart_observer_pub_ != nullptr) {
+    std_msgs::msg::String observer_msg;
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(6);
+    payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
+            << ",\"reason\":\"runtime_candidate_observer\""
+            << ",\"uses_gnss_or_gt\":false"
+            << ",\"controls_output\":false"
+            << ",\"base_output_candidate_index\":0"
+            << ",\"has_fresh_gnss_weak_prior\":"
+            << (has_fresh_gnss_weak_prior ? "true" : "false")
+            << ",\"uses_gnss_weak_prior\":"
+            << (gnss_gate_decision.enable_weak_prior ? "true" : "false")
+            << ",\"gnss_weak_prior_gate_reason\":\"" << gnss_gate_decision.reason << "\""
+            << ",\"candidate_count\":" << runtime_alignments.size()
+            << ",\"has_selected_candidate\":"
+            << (runtime_selection.has_selected_candidate ? "true" : "false")
+            << ",\"selected_candidate_index\":";
+    if (runtime_selection.has_selected_candidate) {
+      payload << runtime_selection.selected_candidate_index;
+    } else {
+      payload << "null";
+    }
+    payload << ",\"candidates\":[";
+    for (std::size_t i = 0; i < runtime_alignments.size(); ++i) {
+      if (i > 0) {
+        payload << ",";
+      }
+      const auto & alignment = runtime_alignments[i];
+      const auto & candidate_score = runtime_selection.candidate_scores[i];
+      const bool selected_by_observer =
+        runtime_selection.has_selected_candidate &&
+        runtime_selection.selected_candidate_index == alignment.index;
+      append_runtime_observer_candidate_json(
+        payload, alignment, candidate_score, selected_by_observer);
+    }
+    payload << "]}";
+    observer_msg.data = payload.str();
+    runtime_multistart_observer_pub_->publish(observer_msg);
+  }
+  if (
+    runtime_observer_snapshot_due && runtime_multistart_observer_debug_pub_ != nullptr) {
+    std_msgs::msg::String observer_debug_msg;
+    std::ostringstream payload;
+    payload << std::fixed << std::setprecision(6);
+    payload << "{\"stamp_sec\":" << sensor_ros_time.seconds()
+            << ",\"reason\":\"runtime_candidate_observer_debug\""
+            << ",\"controls_output\":false"
+            << ",\"candidate_count\":" << runtime_alignments.size()
+            << ",\"has_selected_candidate\":"
+            << (runtime_selection.has_selected_candidate ? "true" : "false")
+            << ",\"selected_candidate_index\":";
+    if (runtime_selection.has_selected_candidate) {
+      payload << runtime_selection.selected_candidate_index;
+    } else {
+      payload << "null";
+    }
+    payload << ",\"base_converged\":" << (base_candidate.converged ? "true" : "false")
+            << ",\"base_rejection_does_not_block_publication\":true}";
+    observer_debug_msg.data = payload.str();
+    runtime_multistart_observer_debug_pub_->publish(observer_debug_msg);
+  }
+
+  const bool runtime_observer_worker_enabled =
+    runtime_observer_only && !param_.runtime_multistart.force_zero_offsets_only;
+  if (runtime_observer_worker_enabled && runtime_multistart_observer_pub_ != nullptr) {
+    const bool observer_stamp_enabled =
+      sensor_ros_time.seconds() >= param_.runtime_multistart.min_stamp_sec;
+    const bool observer_periodic_refresh =
+      observer_stamp_enabled && should_refresh_tracking_tier1(
+                                  sensor_ros_time.seconds(), runtime_last_tier1_stamp_sec_,
+                                  param_.runtime_multistart.tracking_tier1_period_sec);
+    const bool observer_should_run = observer_stamp_enabled && observer_periodic_refresh;
+
+    if (observer_should_run && !runtime_observer_worker_active_.exchange(true)) {
+      runtime_last_tier1_stamp_sec_ = sensor_ros_time.seconds();
+      std::vector<double> observer_offset_along_m = param_.runtime_multistart.offset_along_m;
+      std::vector<double> observer_offset_cross_m = param_.runtime_multistart.offset_cross_m;
+      std::vector<double> observer_offset_yaw_deg = param_.runtime_multistart.offset_yaw_deg;
+      std::size_t observer_offset_count = std::min(
+        observer_offset_along_m.size(),
+        std::min(observer_offset_cross_m.size(), observer_offset_yaw_deg.size()));
+      if (observer_offset_count == 0 || param_.runtime_multistart.force_zero_offsets_only) {
+        observer_offset_along_m = {0.0};
+        observer_offset_cross_m = {0.0};
+        observer_offset_yaw_deg = {0.0};
+        observer_offset_count = 1;
+      } else {
+        observer_offset_along_m.resize(observer_offset_count);
+        observer_offset_cross_m.resize(observer_offset_count);
+        observer_offset_yaw_deg.resize(observer_offset_count);
+      }
+      constexpr std::size_t observer_only_max_candidates = 11;
+      if (observer_offset_along_m.size() > observer_only_max_candidates) {
+        observer_offset_along_m.resize(observer_only_max_candidates);
+        observer_offset_cross_m.resize(observer_only_max_candidates);
+        observer_offset_yaw_deg.resize(observer_only_max_candidates);
+      }
+      if (
+        has_fresh_gnss_weak_prior &&
+        param_.runtime_multistart.gnss_weak_prior_seed_candidate_enable) {
+        const double dx =
+          gnss_weak_prior_pose->pose.pose.position.x - prior_pose.position.x;
+        const double dy =
+          gnss_weak_prior_pose->pose.pose.position.y - prior_pose.position.y;
+        const double prior_to_gnss_m = std::hypot(dx, dy);
+        const double max_prior_distance_m =
+          param_.runtime_multistart.gnss_weak_prior_seed_candidate_max_prior_distance_m;
+        if (
+          std::isfinite(prior_to_gnss_m) && prior_to_gnss_m > 1.0e-3 &&
+          (max_prior_distance_m <= 0.0 || prior_to_gnss_m <= max_prior_distance_m)) {
+          observer_offset_along_m.push_back(dx * prior_forward_x + dy * prior_forward_y);
+          observer_offset_cross_m.push_back(dx * prior_lateral_x + dy * prior_lateral_y);
+          observer_offset_yaw_deg.push_back(0.0);
+        }
+      }
+
+      std::shared_ptr<NormalDistributionsTransform> observer_ndt_ptr;
+      {
+        std::lock_guard<std::mutex> observer_ndt_lock(runtime_observer_ndt_ptr_mtx_);
+        observer_ndt_ptr = runtime_observer_ndt_ptr_;
+      }
+      auto * observer_ndt_mtx = &runtime_observer_ndt_ptr_mtx_;
+      auto observer_pub = runtime_multistart_observer_pub_;
+      auto observer_debug_pub = runtime_multistart_observer_debug_pub_;
+      auto * observer_worker_active = &runtime_observer_worker_active_;
+      const HyperParameters param_copy = param_;
+      const auto prior_pose_copy = prior_pose;
+      const auto gnss_weak_prior_pose_copy = gnss_weak_prior_pose;
+      const bool has_fresh_gnss_weak_prior_copy = has_fresh_gnss_weak_prior;
+      const double stamp_sec = sensor_ros_time.seconds();
+      const std::size_t sensor_points_size = sensor_points_in_baselink_frame->points.size();
+      const double prior_yaw_copy = prior_yaw;
+      const double prior_forward_x_copy = prior_forward_x;
+      const double prior_forward_y_copy = prior_forward_y;
+      const double prior_lateral_x_copy = prior_lateral_x;
+      const double prior_lateral_y_copy = prior_lateral_y;
+
+      std::thread(
+        [observer_worker_active, observer_ndt_ptr, observer_ndt_mtx, observer_pub, observer_debug_pub,
+         param_copy, prior_pose_copy, gnss_weak_prior_pose_copy, has_fresh_gnss_weak_prior_copy,
+         stamp_sec, sensor_points_size, prior_yaw_copy, prior_forward_x_copy, prior_forward_y_copy,
+         prior_lateral_x_copy, prior_lateral_y_copy, sensor_points_in_baselink_frame,
+         observer_offset_along_m = std::move(observer_offset_along_m),
+         observer_offset_cross_m = std::move(observer_offset_cross_m),
+         observer_offset_yaw_deg = std::move(observer_offset_yaw_deg)]() mutable {
+          struct ScopedObserverWorkerReset
+          {
+            std::atomic<bool> * active;
+            ~ScopedObserverWorkerReset() { active->store(false); }
+          } reset{observer_worker_active};
+
+          std::vector<RuntimeAlignment> observer_alignments;
+          std::vector<RuntimeCandidate> observer_candidates;
+          observer_alignments.reserve(observer_offset_along_m.size());
+          observer_candidates.reserve(observer_offset_along_m.size());
+
+          std::lock_guard<std::mutex> ndt_lock(*observer_ndt_mtx);
+          if (observer_ndt_ptr == nullptr || observer_ndt_ptr->getInputTarget() == nullptr) {
+            if (observer_debug_pub != nullptr) {
+              std_msgs::msg::String debug_msg;
+              std::ostringstream payload;
+              payload << std::fixed << std::setprecision(6);
+              payload << "{\"stamp_sec\":" << stamp_sec
+                      << ",\"reason\":\"runtime_candidate_observer_debug\""
+                      << ",\"controls_output\":false"
+                      << ",\"candidate_count\":0"
+                      << ",\"has_selected_candidate\":false"
+                      << ",\"selected_candidate_index\":null"
+                      << ",\"base_converged\":false"
+                      << ",\"base_rejection_does_not_block_publication\":true"
+                      << ",\"observer_error\":\"map_unavailable\"}";
+              debug_msg.data = payload.str();
+              observer_debug_pub->publish(debug_msg);
+            }
+            return;
+          }
+          observer_ndt_ptr->setInputSource(sensor_points_in_baselink_frame);
+
+          for (std::size_t i = 0; i < observer_offset_along_m.size(); ++i) {
+            RuntimeAlignment alignment;
+            if (!build_runtime_alignment(
+                  *observer_ndt_ptr, i, observer_offset_along_m[i], observer_offset_cross_m[i],
+                  observer_offset_yaw_deg[i], prior_pose_copy, prior_yaw_copy,
+                  prior_forward_x_copy, prior_forward_y_copy, prior_lateral_x_copy,
+                  prior_lateral_y_copy, gnss_weak_prior_pose_copy, has_fresh_gnss_weak_prior_copy,
+                  param_copy, sensor_points_size, alignment)) {
+              if (observer_debug_pub != nullptr) {
+                std_msgs::msg::String debug_msg;
+                std::ostringstream payload;
+                payload << std::fixed << std::setprecision(6);
+                payload << "{\"stamp_sec\":" << stamp_sec
+                        << ",\"reason\":\"runtime_candidate_observer_debug\""
+                        << ",\"controls_output\":false"
+                        << ",\"candidate_count\":" << observer_alignments.size()
+                        << ",\"has_selected_candidate\":false"
+                        << ",\"selected_candidate_index\":null"
+                        << ",\"base_converged\":false"
+                        << ",\"base_rejection_does_not_block_publication\":true"
+                        << ",\"observer_error\":\"alignment_failed\"}";
+                debug_msg.data = payload.str();
+                observer_debug_pub->publish(debug_msg);
+              }
+              return;
+            }
+            observer_candidates.push_back(alignment.candidate);
+            observer_alignments.push_back(alignment);
+          }
+
+          RuntimeCandidateScoringOptions scoring_options =
+            make_runtime_scoring_options(param_copy);
+          scoring_options.enable_gnss_weak_prior =
+            param_copy.runtime_multistart.enable_gnss_weak_prior &&
+            has_fresh_gnss_weak_prior_copy;
+          if (observer_alignments.size() == 1) {
+            disable_runtime_selection_gates_for_single_start(scoring_options);
+          }
+          const RuntimeCandidateSelection observer_selection =
+            select_runtime_candidate(observer_candidates, scoring_options);
+          const bool uses_gnss_weak_prior = scoring_options.enable_gnss_weak_prior;
+          const char * gnss_gate_reason =
+            !param_copy.runtime_multistart.enable_gnss_weak_prior
+              ? "global_disabled"
+              : (has_fresh_gnss_weak_prior_copy ? "unconditional" : "no_fresh_gnss");
+
+          std_msgs::msg::String observer_msg;
+          std::ostringstream payload;
+          payload << std::fixed << std::setprecision(6);
+          payload << "{\"stamp_sec\":" << stamp_sec
+                  << ",\"reason\":\"runtime_candidate_observer\""
+                  << ",\"uses_gnss_or_gt\":false"
+                  << ",\"controls_output\":false"
+                  << ",\"base_output_candidate_index\":0"
+                  << ",\"has_fresh_gnss_weak_prior\":"
+                  << (has_fresh_gnss_weak_prior_copy ? "true" : "false")
+                  << ",\"uses_gnss_weak_prior\":" << (uses_gnss_weak_prior ? "true" : "false")
+                  << ",\"gnss_weak_prior_gate_reason\":\"" << gnss_gate_reason << "\""
+                  << ",\"candidate_count\":" << observer_alignments.size()
+                  << ",\"has_selected_candidate\":"
+                  << (observer_selection.has_selected_candidate ? "true" : "false")
+                  << ",\"selected_candidate_index\":";
+          if (observer_selection.has_selected_candidate) {
+            payload << observer_selection.selected_candidate_index;
+          } else {
+            payload << "null";
+          }
+          payload << ",\"candidates\":[";
+          for (std::size_t i = 0; i < observer_alignments.size(); ++i) {
+            const auto & alignment = observer_alignments[i];
+            const auto & candidate_score = observer_selection.candidate_scores[i];
+            const bool selected_by_observer =
+              observer_selection.has_selected_candidate &&
+              observer_selection.selected_candidate_index == alignment.index;
+            if (i > 0) {
+              payload << ",";
+            }
+            append_runtime_observer_candidate_json(
+              payload, alignment, candidate_score, selected_by_observer);
+          }
+          payload << "]}";
+          observer_msg.data = payload.str();
+          observer_pub->publish(observer_msg);
+
+          if (observer_debug_pub != nullptr) {
+            std_msgs::msg::String observer_debug_msg;
+            std::ostringstream debug_payload;
+            debug_payload << std::fixed << std::setprecision(6);
+            debug_payload << "{\"stamp_sec\":" << stamp_sec
+                          << ",\"reason\":\"runtime_candidate_observer_debug\""
+                          << ",\"controls_output\":false"
+                          << ",\"candidate_count\":" << observer_alignments.size()
+                          << ",\"has_selected_candidate\":"
+                          << (observer_selection.has_selected_candidate ? "true" : "false")
+                          << ",\"selected_candidate_index\":";
+            if (observer_selection.has_selected_candidate) {
+              debug_payload << observer_selection.selected_candidate_index;
+            } else {
+              debug_payload << "null";
+            }
+            debug_payload << ",\"base_converged\":"
+                          << (
+                               !observer_alignments.empty() &&
+                                   observer_alignments.front().candidate.converged
+                                 ? "true"
+                                 : "false")
+                          << ",\"base_rejection_does_not_block_publication\":true}";
+            observer_debug_msg.data = debug_payload.str();
+            observer_debug_pub->publish(observer_debug_msg);
+          }
+        })
+        .detach();
+    }
+  }
 
   // check each of point score
   const float lower_nvs = 1.0f;

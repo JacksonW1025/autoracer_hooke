@@ -54,7 +54,8 @@ class MapUpdateModule
 public:
   MapUpdateModule(
     rclcpp::Node * node, std::mutex * ndt_ptr_mutex, NdtPtrType & ndt_ptr,
-    HyperParameters::DynamicMapLoading param);
+    HyperParameters::DynamicMapLoading param, NdtPtrType * observer_ndt_ptr = nullptr,
+    std::mutex * observer_ndt_ptr_mutex = nullptr);
 
   bool out_of_map_range(const geometry_msgs::msg::Point & position);
 
@@ -85,6 +86,8 @@ private:
 
   NdtPtrType & ndt_ptr_;
   std::mutex * ndt_ptr_mutex_;
+  NdtPtrType * observer_ndt_ptr_;
+  std::mutex * observer_ndt_ptr_mutex_;
   rclcpp::Logger logger_;
   rclcpp::Clock::SharedPtr clock_;
 

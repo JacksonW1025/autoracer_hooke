@@ -66,10 +66,12 @@
 #endif
 
 #include <array>
+#include <atomic>
 #include <deque>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -105,6 +107,8 @@ private:
 
   void callback_regularization_pose(
     geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr pose_conv_msg_ptr);
+  void callback_gnss_weak_prior(
+    geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr pose_msg_ptr);
 
   void callback_sensor_points(
     sensor_msgs::msg::PointCloud2::ConstSharedPtr sensor_points_msg_in_sensor_frame);
@@ -165,6 +169,8 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sensor_points_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
     regularization_pose_sub_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+    gnss_weak_prior_sub_;
 
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr sensor_aligned_pose_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr no_ground_points_aligned_pose_pub_;
@@ -198,6 +204,8 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     ndt_monte_carlo_initial_pose_marker_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr runtime_multistart_debug_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr runtime_multistart_observer_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr runtime_multistart_observer_debug_pub_;
 
   rclcpp::Service<autoware_internal_localization_msgs::srv::PoseWithCovarianceStamped>::SharedPtr
     service_;
@@ -210,10 +218,12 @@ private:
   rclcpp::CallbackGroup::SharedPtr timer_callback_group_;
 
   std::shared_ptr<NormalDistributionsTransform> ndt_ptr_;
+  std::shared_ptr<NormalDistributionsTransform> runtime_observer_ndt_ptr_;
 
   Eigen::Matrix4f base_to_sensor_matrix_;
 
   std::mutex ndt_ptr_mtx_;
+  std::mutex runtime_observer_ndt_ptr_mtx_;
   std::unique_ptr<autoware::localization_util::SmartPoseBuffer> initial_pose_buffer_;
   rclcpp::Time latest_sensor_points_stamp_{0, 0, RCL_ROS_TIME};
   bool has_latest_sensor_points_stamp_{false};
@@ -223,6 +233,8 @@ private:
   std::optional<geometry_msgs::msg::Point> latest_ekf_position_ = std::nullopt;
 
   std::unique_ptr<autoware::localization_util::SmartPoseBuffer> regularization_pose_buffer_;
+  std::mutex gnss_weak_prior_mtx_;
+  std::optional<geometry_msgs::msg::PoseWithCovarianceStamped> latest_gnss_weak_prior_pose_;
 
   std::atomic<bool> is_activated_;
   std::unique_ptr<DiagnosticsInterface> diagnostics_scan_points_;
@@ -236,12 +248,15 @@ private:
   int runtime_rejected_scan_streak_{0};
   int runtime_recovery_stable_frames_{0};
   int runtime_scans_since_last_far_tier_{1000000};
+  int runtime_gnss_weak_prior_hold_remaining_scans_{0};
   bool runtime_recovery_active_{false};
+  std::atomic<bool> runtime_observer_worker_active_{false};
   double runtime_last_tier1_stamp_sec_{-1.0};
   double runtime_last_along_health_stamp_sec_{-1.0};
   double runtime_last_far_tier_stamp_sec_{-1.0};
   int64_t consecutive_scan_matching_failure_count_{0};
   int64_t scan_matching_failure_count_at_frame_start_{0};
+  std::vector<std::array<double, 3>> route_z_prior_samples_;
 
   HyperParameters param_;
 };

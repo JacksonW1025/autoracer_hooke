@@ -121,7 +121,8 @@ geometry_msgs::msg::PoseStamped EKFModule::get_current_pose(
 
   Pose current_ekf_pose;
   current_ekf_pose.header.frame_id = params_.pose_frame_id;
-  current_ekf_pose.header.stamp = current_time;
+  current_ekf_pose.header.stamp =
+    current_time + rclcpp::Duration::from_seconds(params_.output_time_offset_sec);
   current_ekf_pose.pose.position = autoware_utils_geometry::create_point(x, y, z);
   if (get_biased_yaw) {
     current_ekf_pose.pose.orientation =

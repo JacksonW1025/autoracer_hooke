@@ -83,6 +83,67 @@ TEST(RuntimeMultistartSelection, rejectsUnconvergedAndBelowThresholdCandidates)
   EXPECT_EQ(selection.candidate_scores[1].reject_reason, "score_below_threshold");
 }
 
+TEST(RuntimeMultistartSelection, RejectsCandidateOutsideWeakGnssPlausibilityGate)
+{
+  RuntimeCandidate candidate = make_candidate(0, 3.20, 0.0, 0.0, 0.8);
+  candidate.has_gnss_weak_prior = true;
+  candidate.gnss_weak_prior_distance_m = 12.0;
+  candidate.gnss_weak_prior_penalty = 2.88;
+
+  RuntimeCandidateScoringOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.gnss_weak_prior_max_distance_m = 10.0;
+
+  const RuntimeCandidateScore score = score_runtime_candidate(candidate, options);
+
+  EXPECT_EQ(score.reject_reason, "gnss_weak_prior_distance_too_large");
+}
+
+TEST(RuntimeMultistartSelection, AllowsWeakGnssPlausibilityGateWhenDisabled)
+{
+  RuntimeCandidate candidate = make_candidate(0, 3.20, 0.0, 0.0, 0.8);
+  candidate.has_gnss_weak_prior = true;
+  candidate.gnss_weak_prior_distance_m = 12.0;
+  candidate.gnss_weak_prior_penalty = 2.88;
+
+  RuntimeCandidateScoringOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.gnss_weak_prior_max_distance_m = 0.0;
+
+  const RuntimeCandidateScore score = score_runtime_candidate(candidate, options);
+
+  EXPECT_TRUE(score.reject_reason.empty());
+}
+
+TEST(RuntimeMultistartSelection, RejectsCandidateOutsideWeakGnssInnovationGate)
+{
+  RuntimeCandidate candidate = make_candidate(0, 3.20, 0.0, 0.0, 0.8);
+  candidate.has_gnss_weak_prior = true;
+  candidate.gnss_weak_prior_distance_m = 18.0;
+
+  RuntimeCandidateScoringOptions options;
+  options.enable_gnss_weak_prior = false;
+  options.gnss_weak_prior_innovation_gate_enable = true;
+  options.gnss_weak_prior_innovation_gate_m = 15.0;
+
+  const RuntimeCandidateScore score = score_runtime_candidate(candidate, options);
+
+  EXPECT_EQ(score.reject_reason, "gnss_weak_prior_innovation_too_large");
+}
+
+TEST(RuntimeMultistartSelection, InnovationGateIsDefaultOff)
+{
+  RuntimeCandidate candidate = make_candidate(0, 3.20, 0.0, 0.0, 0.8);
+  candidate.has_gnss_weak_prior = true;
+  candidate.gnss_weak_prior_distance_m = 18.0;
+
+  RuntimeCandidateScoringOptions options;
+
+  const RuntimeCandidateScore score = score_runtime_candidate(candidate, options);
+
+  EXPECT_TRUE(score.reject_reason.empty());
+}
+
 TEST(RuntimeMultistartSelection, rejectsCandidatesThatJumpTooFarFromPrior)
 {
   RuntimeCandidate near_basin = make_candidate(0, 3.1, 0.3, 1.0, 0.2);
@@ -216,6 +277,217 @@ TEST(RuntimeMultistartSelection, SingleStartOriginalSemanticsIgnoresRuntimeSelec
   EXPECT_EQ(selection.selected_candidate_index, 0U);
   ASSERT_EQ(selection.candidate_scores.size(), 1U);
   EXPECT_EQ(selection.candidate_scores[0].reject_reason, "");
+}
+
+TEST(RuntimeMultistartObserver, ObserverOnlyKeepsBaseOutputWhenCandidateSelectionFails)
+{
+  RuntimeCandidate base = make_candidate(0, 3.2, 0.1, 0.2, 0.2);
+  RuntimeCandidate rejected_observer_candidate = make_candidate(1, 3.8, 0.1, 0.2, 0.2);
+  rejected_observer_candidate.converged = false;
+
+  RuntimeCandidateScoringOptions options;
+  options.min_nearest_voxel_transformation_likelihood = 2.3;
+  options.max_initial_to_result_distance_m = 5.0;
+  options.max_iteration_num = 60;
+  const RuntimeCandidateSelection selection =
+    select_runtime_candidate({rejected_observer_candidate}, options);
+  ASSERT_FALSE(selection.has_selected_candidate);
+
+  const RuntimeOutputSelection output =
+    choose_runtime_output_candidate(false, {base, rejected_observer_candidate}, selection);
+
+  EXPECT_TRUE(output.has_output_candidate);
+  EXPECT_EQ(output.output_candidate_index, 0U);
+}
+
+TEST(RuntimeMultistartObserver, ObserverOnlyPreservesBaseOutputSemantics)
+{
+  RuntimeCandidate base = make_candidate(0, 3.2, 0.1, 0.2, 0.2);
+  base.converged = false;
+  RuntimeCandidate observer_candidate = make_candidate(1, 3.8, 0.1, 0.2, 0.2);
+
+  RuntimeCandidateSelection selection;
+  selection.has_selected_candidate = true;
+  selection.selected_candidate_index = observer_candidate.index;
+
+  const RuntimeOutputSelection output =
+    choose_runtime_output_candidate(false, {base, observer_candidate}, selection);
+
+  EXPECT_TRUE(output.has_output_candidate);
+  EXPECT_EQ(output.output_candidate_index, 0U);
+}
+
+TEST(RuntimeMultistartObserver, RuntimeControlStillRequiresSelectedCandidate)
+{
+  RuntimeCandidate base = make_candidate(0, 3.2, 0.1, 0.2, 0.2);
+  RuntimeCandidate rejected_candidate = make_candidate(1, 3.8, 0.1, 0.2, 0.2);
+  rejected_candidate.converged = false;
+
+  RuntimeCandidateSelection selection;
+  selection.has_selected_candidate = false;
+
+  const RuntimeOutputSelection output =
+    choose_runtime_output_candidate(true, {base, rejected_candidate}, selection);
+
+  EXPECT_FALSE(output.has_output_candidate);
+}
+
+TEST(RuntimeGnssWeakPriorGate, DisabledWhenGlobalSwitchIsOff)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.has_fresh_gnss_prior = true;
+  options.condition_enable = true;
+  options.rejected_scan_streak = 2;
+
+  const RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+
+  EXPECT_FALSE(decision.enable_weak_prior);
+  EXPECT_FALSE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "global_disabled");
+}
+
+TEST(RuntimeGnssWeakPriorGate, DisabledWhenGnssIsStale)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.condition_enable = true;
+  options.has_fresh_gnss_prior = false;
+  options.recovery_active = true;
+
+  const RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+
+  EXPECT_FALSE(decision.enable_weak_prior);
+  EXPECT_EQ(decision.reason, "no_fresh_gnss");
+}
+
+TEST(RuntimeGnssWeakPriorGate, PreservesLegacyUnconditionalMode)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.condition_enable = false;
+  options.has_fresh_gnss_prior = true;
+
+  const RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+
+  EXPECT_TRUE(decision.enable_weak_prior);
+  EXPECT_FALSE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "unconditional");
+}
+
+TEST(RuntimeGnssWeakPriorGate, EnablesOnlyForDegradedOrAmbiguousTracking)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.condition_enable = true;
+  options.has_fresh_gnss_prior = true;
+  options.base_candidate_converged = true;
+  options.healthy_base_passthrough_enable = true;
+
+  RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+  EXPECT_FALSE(decision.enable_weak_prior);
+  EXPECT_TRUE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "healthy_tracking");
+
+  options.rejected_scan_streak = 1;
+  decision = decide_runtime_gnss_weak_prior_gate(options);
+  EXPECT_TRUE(decision.enable_weak_prior);
+  EXPECT_FALSE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "rejected_scan_streak");
+
+  options.rejected_scan_streak = 0;
+  options.small_tier_ambiguous = true;
+  decision = decide_runtime_gnss_weak_prior_gate(options);
+  EXPECT_TRUE(decision.enable_weak_prior);
+  EXPECT_EQ(decision.reason, "small_tier_ambiguous");
+
+  options.small_tier_ambiguous = false;
+  options.base_localizability_along_variance_m2 = 2.5;
+  options.min_along_variance_m2 = 2.0;
+  decision = decide_runtime_gnss_weak_prior_gate(options);
+  EXPECT_TRUE(decision.enable_weak_prior);
+  EXPECT_EQ(decision.reason, "along_variance_high");
+}
+
+TEST(RuntimeGnssWeakPriorGate, BaseNotConvergedIsNotHealthyTracking)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.condition_enable = true;
+  options.has_fresh_gnss_prior = true;
+  options.base_candidate_converged = false;
+  options.healthy_base_passthrough_enable = true;
+
+  const RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+
+  EXPECT_TRUE(decision.enable_weak_prior);
+  EXPECT_FALSE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "base_not_converged");
+}
+
+TEST(RuntimeGnssWeakPriorGate, HoldKeepsWeakPriorEnabledAcrossHealthyFrames)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.condition_enable = true;
+  options.has_fresh_gnss_prior = true;
+  options.base_candidate_converged = true;
+  options.healthy_base_passthrough_enable = false;
+  options.weak_prior_hold_remaining_scans = 3;
+
+  const RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+
+  EXPECT_TRUE(decision.enable_weak_prior);
+  EXPECT_FALSE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "condition_hold");
+}
+
+TEST(RuntimeGnssWeakPriorGate, HoldDoesNotOverrideHealthyBasePassthrough)
+{
+  RuntimeGnssWeakPriorGateOptions options;
+  options.enable_gnss_weak_prior = true;
+  options.condition_enable = true;
+  options.has_fresh_gnss_prior = true;
+  options.base_candidate_converged = true;
+  options.healthy_base_passthrough_enable = true;
+  options.weak_prior_hold_remaining_scans = 3;
+
+  const RuntimeGnssWeakPriorGateDecision decision =
+    decide_runtime_gnss_weak_prior_gate(options);
+
+  EXPECT_FALSE(decision.enable_weak_prior);
+  EXPECT_TRUE(decision.healthy_base_passthrough);
+  EXPECT_EQ(decision.reason, "condition_hold_healthy_base_passthrough");
+}
+
+TEST(RuntimeMultistartSelection, EstimatesAlongSpreadFromRejectedCandidates)
+{
+  RuntimeCandidate first = make_candidate(0, 3.20, -1.6, 0.2, 0.8);
+  first.converged = false;
+  RuntimeCandidate second = make_candidate(1, 3.18, 1.6, 0.1, 0.7);
+  second.converged = false;
+  second.innovation_cross_m = 0.1;
+
+  RuntimeCandidateScoringOptions options;
+  options.min_nearest_voxel_transformation_likelihood = 2.3;
+  options.max_initial_to_result_distance_m = 5.0;
+  options.max_iteration_num = 60;
+
+  const RuntimeCandidateSelection selection = select_runtime_candidate({first, second}, options);
+  ASSERT_FALSE(selection.has_selected_candidate);
+
+  const RuntimeCandidateSpreadCovariance spread =
+    estimate_runtime_candidate_spread_covariance({first, second}, selection, options, 0.20);
+
+  EXPECT_TRUE(spread.ambiguous);
+  EXPECT_EQ(spread.contender_count, 2U);
+  EXPECT_GT(spread.along_variance_m2, 2.0);
+  EXPECT_LT(spread.cross_variance_m2, 0.01);
 }
 
 TEST(RuntimeMultistartSelection, KeepsBaseCandidateWhenRawScoreGainIsSmall)
@@ -665,6 +937,21 @@ TEST(RuntimeMultistartTiering, PeriodicallyRefreshesSmallTrackingTier)
   EXPECT_TRUE(should_refresh_tracking_tier1(20.0, 18.9, 1.0));
   EXPECT_FALSE(should_refresh_tracking_tier1(20.0, 19.5, 1.0));
   EXPECT_FALSE(should_refresh_tracking_tier1(20.0, 18.0, 0.0));
+}
+
+TEST(RuntimeMultistartLocalizability, ProjectsOutputCovarianceIntoPriorAxes)
+{
+  std::array<double, 36> covariance{};
+  covariance[0 + 6 * 0] = 9.0;
+  covariance[1 + 6 * 1] = 1.0;
+  covariance[0 + 6 * 1] = 0.5;
+  covariance[1 + 6 * 0] = 0.5;
+
+  const RuntimeOutputCovariance projected =
+    project_runtime_output_covariance(covariance, 1.0, 0.0, 0.0, 1.0);
+
+  EXPECT_DOUBLE_EQ(projected.along_variance_m2, 9.0);
+  EXPECT_DOUBLE_EQ(projected.cross_variance_m2, 1.0);
 }
 
 }  // namespace

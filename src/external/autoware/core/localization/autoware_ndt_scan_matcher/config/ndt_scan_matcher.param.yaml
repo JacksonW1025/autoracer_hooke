@@ -142,9 +142,17 @@
       # Radius of input LiDAR range (used for diagnostics of dynamic map loading)
       lidar_radius: 100.0
 
+      # Rebuild dynamic map from scan callback when replay/fast initial pose leaves the loaded map.
+      rebuild_on_scan_out_of_map: false
+
     runtime_multistart:
       enable: false
+      observer_enable: false
+      force_zero_offsets_only: false
+      fallback_to_base_on_rejection: false
       debug_topic: "/localization/ndt/runtime_multistart/decision"
+      observer_topic: "/localization/ndt/runtime_multistart/observer"
+      observer_debug_topic: "/localization/ndt/runtime_multistart/observer_debug"
       min_stamp_sec: 0.0
       trigger_initial_to_result_distance_m: 0.7
       trigger_yaw_delta_deg: 2.0
@@ -167,6 +175,17 @@
       initial_to_result_penalty_weight: 0.25
       covariance_condition_penalty_weight: 0.01
       base_candidate_raw_score_margin: 0.0
+      enable_gnss_weak_prior: false
+      gnss_weak_prior_topic: ""
+      gnss_weak_prior_sigma_m: 5.0
+      gnss_weak_prior_weight: 1.0
+      gnss_weak_prior_max_age_sec: 0.5
+      gnss_weak_prior_max_penalty: 8.0
+      gnss_weak_prior_max_distance_m: 0.0
+      gnss_weak_prior_innovation_gate_enable: false
+      gnss_weak_prior_innovation_gate_m: 0.0
+      gnss_weak_prior_seed_candidate_enable: false
+      gnss_weak_prior_seed_candidate_max_prior_distance_m: 20.0
       tier1_max_abs_along_m: 1.0
       tier1_max_abs_cross_m: 0.75
       tier1_max_abs_yaw_deg: 2.0

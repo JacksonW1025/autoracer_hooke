@@ -24,6 +24,8 @@ setup(
             "fixposition_seed_filter = autoracer_localization.fixposition_seed_filter:main",
             "fixposition_odom_to_seed_pose = "
             "autoracer_localization.fixposition_odom_to_seed_pose:main",
+            "gnss5m_weak_pose_bridge = "
+            "autoracer_localization.gnss5m_weak_pose_bridge:main",
             "ekf_feedback_gate = autoracer_localization.ekf_feedback_gate:main",
             "fixposition_startup_seed_gate = "
             "autoracer_localization.fixposition_startup_seed_gate:main",
@@ -35,6 +37,15 @@ setup(
             "autoracer_localization.startup_pose_initializer_once:main",
             "ndt_axis_seed_fuser = autoracer_localization.ndt_axis_seed_fuser:main",
             "ndt_initial_pose_predictor = autoracer_localization.ndt_initial_pose_predictor:main",
+            "pure_lidar_fixed_lag_tracker = "
+            "autoracer_localization.pure_lidar_fixed_lag_tracker:main",
+            "candidate_observer = autoracer_localization.candidate_observer:main",
+            "runtime_candidate_selector = "
+            "autoracer_localization.runtime_candidate_selector:main",
+            "route_progress_initial_pose_provider = "
+            "autoracer_localization.route_progress_initial_pose_provider:main",
+            "pure_lidar_axis_remapper = "
+            "autoracer_localization.pure_lidar_axis_remapper:main",
             "scan_accumulator = autoracer_localization.scan_accumulator:main",
             "ndt_startup_helper = autoracer_localization.ndt_startup_helper:main",
             "pose_tf_broadcaster = autoracer_localization.pose_tf_broadcaster:main",

@@ -64,15 +64,18 @@
       lidar_radius: 70.0
 
     runtime_multistart:
-      enable: true
+      enable: false
+      observer_enable: false
       debug_topic: "/localization/ndt/runtime_multistart/decision"
+      observer_topic: "/localization/ndt/runtime_multistart/observer"
+      observer_debug_topic: "/localization/ndt/runtime_multistart/observer_debug"
       min_stamp_sec: 0.0
       trigger_initial_to_result_distance_m: 0.7
       trigger_yaw_delta_deg: 2.0
       trigger_score_margin: 0.2
-      offset_along_m: [0.0]
-      offset_cross_m: [0.0]
-      offset_yaw_deg: [0.0]
+      offset_along_m: [-5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -3.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
+      offset_cross_m: [-2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, -2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, -2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, -2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, -2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, -2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0, -2.0, -2.0, -2.0, 0.0, 0.0, 0.0, 2.0, 2.0, 2.0]
+      offset_yaw_deg: [-3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0, -3.0, 0.0, 3.0]
       min_transform_probability: 0.0
       min_nearest_voxel_transformation_likelihood: 1.0
       max_initial_to_result_distance_m: 5.0

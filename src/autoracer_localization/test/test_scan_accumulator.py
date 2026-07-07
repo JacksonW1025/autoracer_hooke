@@ -4,6 +4,7 @@ from pathlib import Path
 from autoracer_localization.scan_accumulator import (
     PlanarOdomState,
     SlidingPointCloudAccumulator,
+    shape_condition_xy,
     transform_points_between_states,
 )
 
@@ -94,6 +95,19 @@ def test_sliding_accumulator_can_select_longer_history_per_publish():
     assert [point[0] for point in long_output] == [0.0, 1.0, 2.0, 3.0, 4.0]
 
 
+def test_shape_condition_identifies_degenerate_line_geometry():
+    line_points = [(float(index), 0.0, 0.0, 1.0) for index in range(6)]
+    box_points = [
+        (-1.0, -1.0, 0.0, 1.0),
+        (-1.0, 1.0, 0.0, 1.0),
+        (1.0, -1.0, 0.0, 1.0),
+        (1.0, 1.0, 0.0, 1.0),
+    ]
+
+    assert math.isinf(shape_condition_xy(line_points))
+    assert shape_condition_xy(box_points) == 1.0
+
+
 def test_scan_accumulator_uses_sensor_data_qos_for_pointcloud_io():
     source = Path(__file__).resolve().parents[1] / "autoracer_localization" / "scan_accumulator.py"
     text = source.read_text(encoding="utf-8")
@@ -101,3 +115,4 @@ def test_scan_accumulator_uses_sensor_data_qos_for_pointcloud_io():
     assert "qos_profile_sensor_data" in text
     assert "create_subscription(PointCloud2, input_topic, self._on_pointcloud, qos_profile_sensor_data)" in text
     assert "create_publisher(PointCloud2, output_topic, qos_profile_sensor_data)" in text
+    assert "adaptive_max_shape_condition" in text

@@ -2,26 +2,30 @@ import re
 from pathlib import Path
 
 
-LAUNCH = Path("src/autoracer_bringup/launch/carmaker_autoware_localization.launch.py")
-PACKAGE = Path("src/autoracer_bringup/package.xml")
-LOCALIZATION_SETUP = Path("src/autoracer_localization/setup.py")
-NDT_PARAMS = Path("src/autoracer_bringup/config/hooke2/ndt_scan_matcher.param.yaml")
-PROJECTOR_INFO = Path("src/autoracer_bringup/config/hooke2/carmaker_map_projector_info.yaml")
-POSE_INSTABILITY_PARAM = Path(
+AUTORACER_ROOT = Path(__file__).resolve().parents[3]
+
+LAUNCH = AUTORACER_ROOT / "src/autoracer_bringup/launch/carmaker_autoware_localization.launch.py"
+PACKAGE = AUTORACER_ROOT / "src/autoracer_bringup/package.xml"
+LOCALIZATION_SETUP = AUTORACER_ROOT / "src/autoracer_localization/setup.py"
+NDT_PARAMS = AUTORACER_ROOT / "src/autoracer_bringup/config/hooke2/ndt_scan_matcher.param.yaml"
+PROJECTOR_INFO = (
+    AUTORACER_ROOT / "src/autoracer_bringup/config/hooke2/carmaker_map_projector_info.yaml"
+)
+POSE_INSTABILITY_PARAM = AUTORACER_ROOT / (
     "src/autoracer_bringup/config/hooke2/pose_instability_detector_carmaker.param.yaml"
 )
-GNSS_POSER = Path(
+GNSS_POSER = AUTORACER_ROOT / (
     "src/external/autoware/core/sensing/autoware_gnss_poser/src/gnss_poser_node.cpp"
 )
-POSE_INSTABILITY_SOURCE = Path(
+POSE_INSTABILITY_SOURCE = AUTORACER_ROOT / (
     "src/external/autoware/universe/localization/autoware_pose_instability_detector/src/"
     "pose_instability_detector.cpp"
 )
-NDT_CORE = Path(
+NDT_CORE = AUTORACER_ROOT / (
     "src/external/autoware/core/localization/autoware_ndt_scan_matcher/src/"
     "ndt_scan_matcher_core.cpp"
 )
-NDT_HYPER_PARAMETERS = Path(
+NDT_HYPER_PARAMETERS = AUTORACER_ROOT / (
     "src/external/autoware/core/localization/autoware_ndt_scan_matcher/include/"
     "autoware/ndt_scan_matcher/hyper_parameters.hpp"
 )
@@ -150,6 +154,30 @@ def test_autoware_localization_launch_exposes_curve_yaw_ekf_controls():
     assert "ekf_pose_smoothing_steps, value_type=int" in text
 
 
+def test_autoware_localization_launch_can_power_pure_lidar_tracker_without_changing_baseline():
+    text = LAUNCH.read_text(encoding="utf-8")
+
+    assert 'DeclareLaunchArgument("enable_pure_lidar_fixed_lag_tracker", default_value="false")' in text
+    assert (
+        'DeclareLaunchArgument(\n'
+        '                "ndt_initial_pose_topic",\n'
+        '                default_value="/localization/pose_twist_fusion_filter/pose_with_covariance",'
+    ) in text
+    assert 'executable="pure_lidar_fixed_lag_tracker"' in text
+    assert "condition=IfCondition(enable_pure_lidar_fixed_lag_tracker)" in text
+    assert '"ekf_pose_with_covariance",\n                        ndt_initial_pose_topic,' in text
+    assert '"enable_scan_submap_residual": ParameterValue(' in text
+    assert re.search(
+        r"pure_lidar_tracker_enable_scan_submap_residual,\s*value_type=bool",
+        text,
+    )
+    assert '"enable_degenerate_along_remap": ParameterValue(' in text
+    assert re.search(
+        r"pure_lidar_tracker_enable_degenerate_along_remap,\s*value_type=bool",
+        text,
+    )
+
+
 def test_autoware_localization_defaults_feed_dense_scans_to_ndt():
     launch = LAUNCH.read_text(encoding="utf-8")
     ndt_params = NDT_PARAMS.read_text(encoding="utf-8")
@@ -212,7 +240,14 @@ def test_autoware_localization_launch_exposes_ndt_startup_align_controls():
     assert '"initial_pose_estimation.deterministic_offsets.along_m": [' in launch
     assert '"initial_pose_estimation.deterministic_offsets.cross_m": [' in launch
     assert '"initial_pose_estimation.deterministic_offsets.yaw_deg": [' in launch
+    assert "-6.0" in launch
+    assert "6.0" in launch
     assert "-4.0" in launch
+    assert "4.0" in launch
+    assert launch.count("# startup 5m GNSS bounded-search grid") == 1
+    assert launch.count("# along=-6") == 5
+    assert launch.count("# along=0") == 5
+    assert launch.count("# along=6") == 5
 
 
 def test_ndt_startup_align_can_seed_and_constrain_yaw_for_no_rtk_initialization():
@@ -247,12 +282,20 @@ def test_autoware_localization_launch_keeps_ndt_runtime_multistart_disabled_by_d
     ndt_params = NDT_PARAMS.read_text(encoding="utf-8")
 
     assert 'DeclareLaunchArgument("ndt_runtime_multistart_enable", default_value="false")' in text
+    assert 'DeclareLaunchArgument("ndt_runtime_multistart_observer_enable", default_value="false")' in text
     assert '"runtime_multistart.enable": ParameterValue(' in text
     assert "ndt_runtime_multistart_enable, value_type=bool" in text
+    assert '"runtime_multistart.observer_enable": ParameterValue(' in text
+    assert "ndt_runtime_multistart_observer_enable, value_type=bool" in text
     assert (
         '"runtime_multistart.debug_topic": "/localization/ndt/runtime_multistart/decision"'
         in text
     )
+    assert '"runtime_multistart.observer_topic": ndt_runtime_multistart_observer_topic' in text
+    assert (
+        '"runtime_multistart.observer_debug_topic": '
+        'ndt_runtime_multistart_observer_debug_topic'
+    ) in text
     assert '"runtime_multistart.min_total_score": 0.0' in text
     assert '"runtime_multistart.max_prior_innovation_m": 12.0' in text
     assert 'DeclareLaunchArgument("ndt_runtime_tracking_tier1_period_sec", default_value="1.0")' in text
@@ -264,6 +307,29 @@ def test_autoware_localization_launch_keeps_ndt_runtime_multistart_disabled_by_d
     assert 'DeclareLaunchArgument("ndt_runtime_raw_score_override_margin", default_value="0.0")' in text
     assert '"runtime_multistart.raw_score_override_margin": ParameterValue(' in text
     assert "ndt_runtime_raw_score_override_margin, value_type=float" in text
+    assert 'DeclareLaunchArgument("ndt_runtime_enable_gnss_weak_prior", default_value="false")' in text
+    assert '"runtime_multistart.enable_gnss_weak_prior": ParameterValue(' in text
+    assert "ndt_runtime_enable_gnss_weak_prior, value_type=bool" in text
+    assert (
+        'DeclareLaunchArgument(\n'
+        '                "ndt_runtime_gnss_weak_prior_topic",\n'
+        '                default_value="/sensing/gnss/pose_with_covariance",\n'
+        "            )"
+        in text
+    )
+    assert '"runtime_multistart.gnss_weak_prior_topic": ndt_runtime_gnss_weak_prior_topic' in text
+    assert 'DeclareLaunchArgument("ndt_runtime_gnss_weak_prior_sigma_m", default_value="5.0")' in text
+    assert '"runtime_multistart.gnss_weak_prior_sigma_m": ParameterValue(' in text
+    assert "ndt_runtime_gnss_weak_prior_sigma_m, value_type=float" in text
+    assert 'DeclareLaunchArgument("ndt_runtime_gnss_weak_prior_weight", default_value="1.0")' in text
+    assert '"runtime_multistart.gnss_weak_prior_weight": ParameterValue(' in text
+    assert "ndt_runtime_gnss_weak_prior_weight, value_type=float" in text
+    assert 'DeclareLaunchArgument("ndt_runtime_gnss_weak_prior_max_age_sec", default_value="0.5")' in text
+    assert '"runtime_multistart.gnss_weak_prior_max_age_sec": ParameterValue(' in text
+    assert "ndt_runtime_gnss_weak_prior_max_age_sec, value_type=float" in text
+    assert 'DeclareLaunchArgument("ndt_runtime_gnss_weak_prior_max_penalty", default_value="8.0")' in text
+    assert '"runtime_multistart.gnss_weak_prior_max_penalty": ParameterValue(' in text
+    assert "ndt_runtime_gnss_weak_prior_max_penalty, value_type=float" in text
     assert '"runtime_multistart.raw_score_override_max_total_score_drop": 0.75' in text
     assert '"runtime_multistart.raw_score_override_max_abs_along_m": 3.0' in text
     assert '"runtime_multistart.raw_score_override_max_abs_cross_m": 1.5' in text
@@ -272,6 +338,7 @@ def test_autoware_localization_launch_keeps_ndt_runtime_multistart_disabled_by_d
     assert "      innovation_cross_penalty_weight: 0.15" in ndt_params
     assert "      initial_to_result_penalty_weight: 0.1" in ndt_params
     assert "      tier1_max_abs_along_m: 2.0" in ndt_params
+    assert re.search(r"runtime_multistart:\s*\n\s+enable: false", ndt_params)
 
     offset_vectors = {}
     for key in ["offset_along_m", "offset_cross_m", "offset_yaw_deg"]:
@@ -306,6 +373,76 @@ def test_autoware_localization_launch_keeps_ndt_runtime_multistart_disabled_by_d
     assert 2.0 in offset_vectors["offset_yaw_deg"]
     assert -2.0 in offset_vectors["offset_yaw_deg"]
 
+    assert (
+        'DeclareLaunchArgument(\n'
+        '                "enable_runtime_candidate_selector_shadow", default_value="false"'
+    ) in text
+    assert (
+        'DeclareLaunchArgument(\n'
+        '                "enable_runtime_candidate_selector_gated_takeover", default_value="false"'
+    ) in text
+    assert 'DeclareLaunchArgument("enable_independent_candidate_observer", default_value="false")' in text
+    assert 'default_value="/localization/candidate_observer/candidates"' in text
+    assert 'default_value="/localization/candidate_observer/diagnostics"' in text
+    assert '"independent_candidate_observer_publish_min_period_sec"' in text
+    assert '"independent_candidate_observer_alignment_wall_delay_ms"' in text
+    assert '"independent_candidate_observer_include_unaligned_hypotheses"' in text
+    assert '"independent_ndt_candidate_observer_initial_pose_topic"' in text
+    assert '"independent_ndt_candidate_observer_points_topic"' in text
+    assert '"independent_ndt_candidate_observer_max_iterations"' in text
+    assert '"independent_ndt_candidate_observer_max_candidates_per_scan"' in text
+    assert '"independent_ndt_candidate_observer_scan_voxel_leaf_size_m"' in text
+    assert '"independent_ndt_candidate_observer_health_trigger_enable"' in text
+    assert '"independent_ndt_candidate_observer_health_i2r_m"' in text
+    assert '"independent_ndt_candidate_observer_health_min_nvtl"' in text
+    assert '"independent_ndt_candidate_observer_enable_gnss_weak_prior"' in text
+    assert '"independent_ndt_candidate_observer_gnss_weak_prior_sigma_m"' in text
+    assert '"independent_ndt_candidate_observer_offset_along_m"' in text
+    assert 'executable="candidate_observer"' in text
+    assert '"enable_independent_ndt_candidate_observer", default_value="false"' in text
+    assert 'executable="independent_candidate_observer_node"' in text
+    assert "condition=IfCondition(enable_independent_ndt_candidate_observer)" in text
+    assert 'prefix="ionice -c 3 nice -n 19"' in text
+    assert '"map_source": "pcd_tiles"' in text
+    assert '"points_topic": independent_ndt_candidate_observer_points_topic' in text
+    assert '"initial_pose_topic": independent_ndt_candidate_observer_initial_pose_topic' in text
+    assert '"enable_gnss_weak_prior": ParameterValue(' in text
+    assert '"gnss_weak_prior_sigma_m": ParameterValue(' in text
+    assert '"map_directory": localization_map_path' in text
+    assert '"map_topic": "/debug/loaded_pointcloud_map"' in text
+    assert '"map_tile_resolution_m": 20.0' in text
+    assert '"max_tiles_per_update": 180' in text
+    assert '"scan_voxel_leaf_size_m": ParameterValue(' in text
+    assert '"max_candidates_per_scan": ParameterValue(' in text
+    assert '"alignment_wall_delay_ms": ParameterValue(' in text
+    assert '"health_trigger_enable": ParameterValue(' in text
+    assert '"health_trigger_i2r_m": ParameterValue(' in text
+    assert '"health_trigger_max_iteration_count": ParameterValue(' in text
+    assert '"offset_along_m": ParameterValue(' in text
+    assert "independent_ndt_candidate_observer_offset_cross_m," in text
+    assert "value_type=str" in text
+    assert '"use_sim_time": False' in text
+    assert "condition=IfCondition(enable_independent_candidate_observer)" in text
+    assert '"runtime_candidate_selector_observer_topic"' in text
+    assert '"runtime_candidate_selector_stable_required_frames"' in text
+    assert '"runtime_candidate_selector_allow_index0_takeover"' in text
+    assert '"observer_topic": runtime_candidate_selector_observer_topic' in text
+    assert '"allow_index0_takeover": ParameterValue(' in text
+    assert 'executable="runtime_candidate_selector"' in text
+    assert '"/localization/selector_shadow/pose_with_covariance"' in text
+    assert '"/localization/selector_gated/pose_with_covariance"' in text
+
+
+def test_ndt_runtime_observer_does_not_modify_base_output_covariance():
+    core = NDT_CORE.read_text(encoding="utf-8")
+
+    assert "param_.runtime_multistart.enable && runtime_spread_covariance.ambiguous" in core
+    assert "if (runtime_spread_covariance.ambiguous)" not in core
+    assert (
+        "runtime_observer_only && !param_.runtime_multistart.force_zero_offsets_only"
+        in core
+    )
+
 
 def test_autoware_localization_launch_keeps_ndt_pose_source_without_continuous_gnss_fusion():
     text = LAUNCH.read_text(encoding="utf-8")
@@ -322,6 +459,16 @@ def test_autoware_localization_launch_keeps_ndt_pose_source_without_continuous_g
     assert (
         '"in_pose_with_covariance",\n'
         '                        "/localization/pose_estimator/pose_with_covariance",'
+        in text
+    ) or (
+        '"in_pose_with_covariance",\n'
+        '                        ekf_input_pose_topic,'
+        in text
+    )
+    assert (
+        'DeclareLaunchArgument(\n'
+        '                "ekf_input_pose_topic",\n'
+        '                default_value="/localization/pose_estimator/pose_with_covariance",'
         in text
     )
     assert '("gnss_pose_cov", "/sensing/gnss/pose_with_covariance")' in text

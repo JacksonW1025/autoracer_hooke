@@ -53,6 +53,7 @@ public:
       node->declare_parameter<double>("simple_1d_filter_parameters.roll_filter_proc_dev")),
     pitch_filter_proc_dev(
       node->declare_parameter<double>("simple_1d_filter_parameters.pitch_filter_proc_dev")),
+    output_time_offset_sec(node->declare_parameter<double>("misc.output_time_offset_sec", 0.0)),
     pose_no_update_count_threshold_warn(
       node->declare_parameter<int>("diagnostics.pose_no_update_count_threshold_warn")),
     pose_no_update_count_threshold_error(
@@ -94,6 +95,7 @@ public:
   const double z_filter_proc_dev;
   const double roll_filter_proc_dev;
   const double pitch_filter_proc_dev;
+  const double output_time_offset_sec;
   const size_t pose_no_update_count_threshold_warn;
   const size_t pose_no_update_count_threshold_error;
   const size_t twist_no_update_count_threshold_warn;
