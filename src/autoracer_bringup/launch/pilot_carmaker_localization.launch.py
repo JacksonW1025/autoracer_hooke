@@ -25,7 +25,13 @@ def _workspace_root():
 
 
 def generate_launch_description():
-    default_map_path = str(_workspace_root() / "maps" / "whale_map_20251107")
+    default_map_path = str(
+        _workspace_root().parent
+        / "SimProject_TianmenRace"
+        / "logs"
+        / "ndt_tiled_map_route271_20260602_031639"
+        / "tile20"
+    )
     map_path = LaunchConfiguration("localization_map_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
     input_pointcloud = LaunchConfiguration("input_pointcloud")
