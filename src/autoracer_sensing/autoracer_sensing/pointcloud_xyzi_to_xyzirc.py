@@ -76,7 +76,9 @@ class PointCloudXyziToXyzirc(Node):
         cloud.point_step = 16
         cloud.row_step = cloud.point_step * cloud.width
         cloud.data = out.tobytes()
-        cloud.is_dense = msg.is_dense
+        cloud.is_dense = bool(
+            np.isfinite(x).all() and np.isfinite(y).all() and np.isfinite(z).all()
+        )
         self._pub.publish(cloud)
 
     def _empty_output(self, msg: PointCloud2) -> PointCloud2:
@@ -89,7 +91,7 @@ class PointCloudXyziToXyzirc(Node):
         cloud.point_step = 16
         cloud.row_step = cloud.point_step * cloud.width
         cloud.data = b""
-        cloud.is_dense = msg.is_dense
+        cloud.is_dense = True
         return cloud
 
     def _read_field(self, msg: PointCloud2, fields, name: str, count: int) -> np.ndarray:
