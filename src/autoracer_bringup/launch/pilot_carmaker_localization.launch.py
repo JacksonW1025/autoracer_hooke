@@ -34,6 +34,7 @@ def generate_launch_description():
     )
     map_path = LaunchConfiguration("localization_map_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
+    raw_input_pointcloud = LaunchConfiguration("raw_input_pointcloud")
     input_pointcloud = LaunchConfiguration("input_pointcloud")
     initial_pose = LaunchConfiguration("initial_pose")
     localization_pointcloud_container_name = LaunchConfiguration(
@@ -155,6 +156,18 @@ def generate_launch_description():
                 }
             ],
         ),
+        Node(
+            package="autoracer_sensing",
+            executable="pointcloud_xyzi_to_xyzirc",
+            name="carmaker_pointcloud_xyzi_to_xyzirc",
+            output="screen",
+            parameters=[
+                {
+                    "input_topic": raw_input_pointcloud,
+                    "output_topic": input_pointcloud,
+                }
+            ],
+        ),
         IncludeLaunchDescription(
             AnyLaunchDescriptionSource(localization_launch),
             launch_arguments={
@@ -233,8 +246,12 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument("use_sim_time", default_value="true"),
             DeclareLaunchArgument(
-                "input_pointcloud",
+                "raw_input_pointcloud",
                 default_value="/sensing/lidar/concatenated/pointcloud",
+            ),
+            DeclareLaunchArgument(
+                "input_pointcloud",
+                default_value="/sensing/lidar/concatenated/pointcloud_xyzirc",
             ),
             DeclareLaunchArgument(
                 "localization_pointcloud_container_name",
