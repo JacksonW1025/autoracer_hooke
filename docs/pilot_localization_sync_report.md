@@ -91,7 +91,46 @@ Plan-specific launch constraints carried into implementation:
 
 To be filled after each phase commit.
 
+## Phase 1 archive
+
+Archive root:
+
+- `legacy_localization_experiments/20260707_pilot_sync_backup/`
+- `legacy_localization_experiments/COLCON_IGNORE`
+
+Archived launch files:
+
+- `src/autoracer_bringup/launch/carmaker_autoware_localization.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_a.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_b.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_b_ndt.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_c0_ndt.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_c0_ndt_no_rtk.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_c0_ndt_startup_only.launch.py`
+- `src/autoracer_bringup/launch/carmaker_stage_c0_pure_lidar.launch.py`
+
+Archived coupled bringup tests:
+
+- `src/autoracer_bringup/test/test_carmaker_autoware_localization_launch_contract.py`
+- `src/autoracer_bringup/test/test_carmaker_stage_b_launch_contract.py`
+- `src/autoracer_bringup/test/test_carmaker_stage_b_ndt_launch_contract.py`
+- `src/autoracer_bringup/test/test_carmaker_stage_c0_experiment_launch_contract.py`
+- `src/autoracer_bringup/test/test_carmaker_stage_c0_ndt_launch_contract.py`
+
+Archived modified algorithm packages before pilot replacement:
+
+- `src/external/autoware/core/localization/autoware_ndt_scan_matcher`
+- `src/external/autoware/core/localization/autoware_ekf_localizer`
+- `src/external/autoware/core/localization/autoware_pose_initializer`
+- `src/external/autoware/core/sensing/autoware_gnss_poser`
+- `src/external/autoware/universe/localization/autoware_pose_instability_detector`
+
+Phase 1 checks:
+
+- `find src/autoracer_bringup/launch -maxdepth 1 -type f -name 'carmaker*.launch.py'` produced no output.
+- `find src/autoracer_bringup/test -maxdepth 1 -type f -name 'test_carmaker*.py'` produced no output.
+- `colcon list --base-paths src --names-only | sort | uniq -d` produced no output.
+
 ## Verification summary
 
 To be filled after Phase 6/7.
-
