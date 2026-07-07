@@ -230,6 +230,70 @@ Phase 5 checks:
 - `/usr/bin/python3 -c "import xml.etree.ElementTree as ET; ET.parse('src/autoracer_bringup/package.xml')"` passed.
 - `rg` confirmed all added dependency names in `package.xml`.
 
+## Phase 6 build and static validation
+
+Package scan:
+
+- `colcon list --base-paths src --names-only | sort | uniq -d`: no output.
+- `colcon list --base-paths src --names-only | grep -E "stop_filter|twist2accel|tier4_localization_launch|automatic_pose_initializer"`:
+  - `autoware_automatic_pose_initializer`
+  - `autoware_stop_filter`
+  - `autoware_twist2accel`
+  - `tier4_localization_launch`
+
+Build:
+
+- Command: `source /opt/ros/humble/setup.bash && colcon build --symlink-install --packages-up-to autoracer_bringup`
+- First attempt failed because the pre-existing `build/autoware_ndt_scan_matcher` cache still referenced
+  archived experiment targets (`runtime_multistart_selection`, `ndt_validation`,
+  `independent_candidate_observer_node`). Source was already pilot-clean; the fix was to remove only
+  `build/autoware_ndt_scan_matcher` and `install/autoware_ndt_scan_matcher`.
+- Retried the same build command successfully.
+- Final summary: `104 packages finished [1min 24s]`.
+- Non-fatal warnings observed:
+  - colcon underlay override warning for selected Autoware packages already present in `/opt/ros/humble`;
+  - ament scoped header install deprecation warnings during packages rebuilt on the first attempt;
+  - `autoware_crop_box_filter`: pcap-related IO features disabled.
+
+Installed package prefix check:
+
+- `autoracer_bringup`: `install/autoracer_bringup`
+- `autoware_ndt_scan_matcher`: `install/autoware_ndt_scan_matcher`
+- `tier4_localization_launch`: `install/tier4_localization_launch`
+- `autoware_stop_filter`: `install/autoware_stop_filter`
+- `autoware_twist2accel`: `install/autoware_twist2accel`
+- `autoware_automatic_pose_initializer`: `install/autoware_automatic_pose_initializer`
+
+Pilot diff self-proof:
+
+- `diff -r -x __pycache__` returned empty for:
+  - `autoware_ndt_scan_matcher`
+  - `autoware_ekf_localizer`
+  - `autoware_pose_initializer`
+  - `autoware_gnss_poser`
+  - `autoware_pose_instability_detector`
+
+Static launch expansion:
+
+- Command: `source install/setup.bash && ros2 launch autoracer_bringup pilot_carmaker_localization.launch.py --print`
+- Result: exit code 0, no missing launch argument errors.
+- Humble `--print` prints Python `GroupAction` / `IncludeLaunchDescription` objects without recursively expanding nested XML content; therefore key wiring was checked directly against the wrapper plus copied pilot XML launch files.
+
+Key wiring checks:
+
+- NDT input: `/localization/util/downsample/pointcloud`
+  (`tier4_localization_launch/launch/pose_twist_estimator/ndt_scan_matcher.launch.xml`).
+- NDT initial pose: `/localization/pose_twist_fusion_filter/biased_pose_with_covariance`.
+- NDT map client: `/map/get_differential_pointcloud_map`.
+- EKF pose input: `/localization/pose_estimator/pose_with_covariance`.
+- EKF twist input: `/localization/twist_estimator/twist_with_covariance`.
+- stop_filter input: `/localization/pose_twist_fusion_filter/kinematic_state`.
+- stop_filter output: `/localization/kinematic_state`.
+- twist2accel uses explicit `twist2accel_param_path`.
+- gyro_odometer vehicle twist input: `/sensing/vehicle_velocity_converter/twist_with_covariance`.
+- gyro_odometer IMU input default: `/sensing/imu/imu_data`; wrapper relays `/fixposition/rawimu` to it.
+- Forbidden node list and `/carmaker/ground_truth/pose` were absent from the wrapper and copied `tier4_localization_launch` files.
+
 ## Verification summary
 
 To be filled after Phase 6/7.
