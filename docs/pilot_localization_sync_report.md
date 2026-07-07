@@ -469,3 +469,203 @@ ros2 service list | rg "initialize|ndt_align|trigger_node|get_differential|get_p
   TM99、carmaker_builtin_urban）。闭环运行前必须通过 `MAP_PATH` 环境变量或
   `localization_map_path` launch 参数指向真实地图目录，且该目录需包含
   `pointcloud_map_metadata.yaml`、`map_projector_info.yaml`、`lanelet2_map.osm` 与 PCD 分块。
+
+---
+
+## 2026-07-07 复审遗留项闭环修复与实跑验证
+
+本节对应后续复审遗留问题 1～4。最终验证日志目录：
+
+`/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/pilot_localization_validation_20260707_173227`
+
+### 修复内容与 commit
+
+autoracer_hooke 仓库（分支 `pilot-localization-sync-20260707`）：
+
+| 问题 | 修复 | commit |
+|---|---|---|
+| 1 | 删除 `map_projection_loader` 死参数 `use_local_projector`；默认地图路径改为由 `Path(__file__).resolve()` 回溯工作区，不再依赖 cwd。 | `b89f440` |
+| 2 | 默认地图改为与 `run_stage_c0_ndt_realtime.sh` 既有 TestRun 配对的 route271 tiled map。 | `121ba8b` |
+| 4 | 增加 CarMaker `PointCloud2` XYZI -> pilot filters 所需 XYZIRC 的 wrapper 适配节点。 | `86534e2` |
+| 4 | 增加 `/api/localization/*` 到 `/localization/*` 的初始化 API 桥，保持 pilot `automatic_pose_initializer` 可用。 | `342ab31` |
+| 4 | 转换后的点云在 XYZ 有限时标记 `is_dense=true`，避免 pilot pointcloud_preprocessor 对 CarMaker 点云的 dense 警告升级风险。 | `74734de` |
+| 4 | 空 ADAPI initialize 请求由桥接层使用最新 GNSS pose 调用 `/localization/initialize` 的 DIRECT 初始化；不使用 ground truth。 | `d45381d` |
+
+SimProject 根仓库脚本 commit：
+
+| 修复 | commit |
+|---|---|
+| 新增 `run_pilot_localization.sh`，复用 stage C0 实时脚本机制。 | `23f7deb0` |
+| 禁止 MovieEGL 在 SIM_END 后自动重启，避免退出阶段挂起。 | `b9a1c0f0` |
+| 将 `/sensing/lidar/concatenated/pointcloud_xyzirc` 纳入记录与 smoke 检查。 | `195c09da` |
+| 将 `/localization_adapi_bridge` 与 initialization_state 话题纳入运行证据。 | `844c4ea0` |
+
+### 地图盘点、选型与补齐
+
+候选地图四要素（PCD、`pointcloud_map_metadata.yaml`、`map_projector_info.yaml`、`lanelet2_map.osm`）：
+
+| 候选目录 | PCD | metadata | projector | lanelet2 | 结论 |
+|---|---:|---|---|---|---|
+| `autoracer_hooke/maps/TM99` | 1 | N | N | N | 要素不足，且非 stage C0 默认 TestRun 配对 |
+| `autoracer_hooke/maps/carmaker_builtin_urban` | 1 | Y | Y | Y | 要素齐，但不是 `run_stage_c0_ndt_realtime.sh` 既有配对 |
+| `SimProject_TianmenRace/logs/ndt_tiled_map_route271_20260602_031639/tile20` | 3003 | Y | Y | Y | 选定 |
+| `SimProject_TianmenRace/logs/ndt_tiled_map_short1km_20260601_210159/tile20` | 306 | Y | N | N | 要素不足，且非默认配对 |
+| `.../tile30` | 147 | Y | N | N | 要素不足 |
+| `.../tile50` | 63 | Y | N | N | 要素不足 |
+| `SimProject_TianmenRace/logs/urban_map_build_route271_phase1_userdefined_pandar40_lidar_built_l055_20260601_105446/map_candidate` | 1 | Y | N | N | route271 源 PCD，已由 tile20 产物承接 |
+| `SimProject_TianmenRace/logs/urban_map_build_short1km_phase1_userdefined_pandar40_lidar_built_diag_20260601_070843/map_candidate` | 1 | Y | N | N | 要素不足，且非默认配对 |
+
+选定地图：
+
+`/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/ndt_tiled_map_route271_20260602_031639/tile20`
+
+理由：沿用 `SimProject_TianmenRace/run_stage_c0_ndt_realtime.sh` 已使用的
+`TESTRUN=AutoracerCollection_UrbanRoad` + route271 tile20 地图组合，不重新配对场景。
+
+补齐内容：
+
+- `pointcloud_map_metadata.yaml` 原有，tile metadata 校验 PASS：
+  `metadata_entries=3003, actual_pcd_files=3003, missing=0, unreferenced=0`。
+- `lanelet2_map.osm` 用
+  `tools/urban_map_build/build_lanelet2_route.py` 基于
+  `urban_collection_route271.../route_samples.csv` 生成：
+  `lanelet_count=1, centerline_points=1089, generated_length_m=10803.537084854492`。
+- `map_projector_info.yaml` 生成并校正为：
+
+```yaml
+projector_type: LocalCartesian
+vertical_datum: WGS84
+map_origin:
+  latitude: 29.05466832
+  longitude: 110.47991599
+```
+
+投影原点一致性：
+
+- Bridge：`ROS2Bridge.cpp:323-331`
+  `ref_latitude_=29.05466832`, `ref_longitude_=110.47991599`, `ref_altitude_=0.0`,
+  `GeographicLib::LocalCartesian(...)`。
+- 地图：`map_projector_info.yaml`
+  `latitude=29.05466832`, `longitude=110.47991599`；Autoware LocalCartesian 高程按 0.0 处理。
+- 结论：地图投影原点与 Bridge GNSS LocalCartesian 原点一致。
+
+### 构建与二进制/安装证据
+
+最终构建命令：
+
+```bash
+source /opt/ros/humble/setup.bash
+cd /opt/ipg/carmaker/linux64-15.1/autoracer_hooke
+colcon build --symlink-install --packages-up-to autoracer_bringup \
+  --cmake-args -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+```
+
+结果：`104 packages finished [28.2s]`。仅有既有 ament header-install/underlay override/pcap
+相关 warning，无构建失败。
+
+受本次源码变更影响的包：
+
+- `autoracer_sensing`：ament_python，无 `.so`；最终安装脚本 mtime：
+  - `install/autoracer_sensing/lib/autoracer_sensing/localization_adapi_bridge`
+    `2026-07-07 17:36:56.928 +0800`
+  - `install/autoracer_sensing/lib/autoracer_sensing/pointcloud_xyzi_to_xyzirc`
+    `2026-07-07 17:36:56.928 +0800`
+- `autoracer_bringup`：ament_cmake launch/config 包，无 `.so`；最终 build stamp：
+  `build/autoracer_bringup/colcon_build.rc`
+  `2026-07-07 17:37:13.075 +0800`
+
+包扫描：
+
+- `colcon list --base-paths src --names-only | sort | uniq -d`：无输出。
+- 必需新增包存在：
+  `autoware_automatic_pose_initializer`, `autoware_stop_filter`,
+  `autoware_twist2accel`, `tier4_localization_launch`。
+
+### 闭环验证结果
+
+运行命令：
+
+```bash
+LOG_DIR=/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/pilot_localization_validation_20260707_173227 \
+TSTOP=90 TIMEOUT_SEC=180 \
+/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/run_pilot_localization.sh
+```
+
+`runtime_summary.json` 关键结果：
+
+- `status=PASS`
+- `testrun=AutoracerCollection_UrbanRoad`
+- `sim_end=true`, `sim_abort=false`, `carmaker_status=0`
+- `tstop_sec=90.0`, CarMaker `SIM_END ... 90s 982.623m`
+- `movie_status=139`：MovieEGL 在 SIM_END 后关闭阶段段错误；传感器数据已完成输出，
+  `MOVIE_MAX_RESTARTS=0` 避免重启挂起，脚本按 CarMaker/rosbag/话题证据判定 PASS。
+
+Phase 7 话题/服务核对：
+
+| 检查项 | 证据 |
+|---|---|
+| `/localization/kinematic_state` | publisher `stop_filter`；rosbag count `4450` |
+| `/localization/pose_twist_fusion_filter/kinematic_state` | publisher `ekf_localizer`; count `4449` |
+| `/localization/util/downsample/pointcloud` | publisher `random_downsample_filter`; count `857` |
+| `/localization/pose_estimator/pose_with_covariance` | publisher `ndt_scan_matcher`; count `742` |
+| `/localization/twist_estimator/twist_with_covariance` | publisher `gyro_odometer`; count `89931` |
+| `/sensing/gnss/pose_with_covariance` | publisher `gnss_poser`; subscribers include `pose_initializer` and `localization_adapi_bridge`; count `89970` |
+| `/sensing/imu/imu_data` | publisher `fixposition_rawimu_to_sensing_imu_relay`; subscriber `gyro_odometer`; count `89983` |
+| services | `/api/localization/initialize`, `/localization/initialize`, `/localization/pose_estimator/ndt_align_srv`, both trigger services, `/map/get_differential_pointcloud_map`, `/map/get_partial_pointcloud_map` |
+| init state | `/api/localization/initialization_state` publisher `localization_adapi_bridge`, subscriber `autoware_automatic_pose_initializer`; echo `state: 3` |
+| output rate | `ros2 topic hz /localization/kinematic_state`: stable around `50 Hz` (`49.9-50.2 Hz` windowed averages) |
+| sample pose | `x=124.1021, y=2.6714, z=0.4720`, yaw near 0 rad at sim stamp `50.56s`; within route271 map bounds |
+
+Ground truth discipline:
+
+- `rg` against new wrapper/adapter and localization launch/code found no
+  `/carmaker/ground_truth/pose` usage in the定位链路。
+- Runtime `topic_snapshot_running.txt` shows `/carmaker/ground_truth/pose` subscriber count 1,
+  node `rosbag2_recorder` only；未进入初始化/NDT/EKF链路。
+
+自动初始化：
+
+- `autoware_automatic_pose_initializer` 订阅 `/api/localization/initialization_state`。
+- `/api/localization/initialize` 由 wrapper bridge 转到 `/localization/initialize`。
+- Bridge 使用最新 `/sensing/gnss/pose_with_covariance` 进行 DIRECT GNSS 初始化，不订阅 ground truth。
+- `autoracer_launch.log` 出现 `Set user defined initial pose`，随后 EKF/NDT/stop_filter 持续输出。
+
+离线 GT 对比（仅评估，不入链路）：
+
+```bash
+env -i ... /usr/bin/python3 SimProject_TianmenRace/tools/evaluate_localization_bag.py \
+  --bag SimProject_TianmenRace/logs/pilot_localization_validation_20260707_173227/realtime_rosbag \
+  --route-samples SimProject_TianmenRace/logs/urban_collection_route271_phase1_userdefined_pandar40_loc_20260601_110419_20260601_110419/route_samples.csv \
+  --output SimProject_TianmenRace/logs/pilot_localization_validation_20260707_173227/localization_error_summary.json \
+  --mode exp2 \
+  --localization-topic /localization/kinematic_state
+```
+
+误差摘要（该工具 gate 按完整 10.8km route 窗口判定，90s/982m 短跑会因未覆盖后续窗口显示
+`status=FAIL`；本任务不设通过阈值，仅记录误差）：
+
+- matched frames: `867/877`, coverage `0.9886`
+- mean XY error `0.689 m`, p95 XY error `1.602 m`, max XY error `2.644 m`
+- mean yaw error `0.723 deg`, p95 yaw error `2.193 deg`
+- reset `0`
+
+### 自行决策与理由
+
+- 增加 `pointcloud_xyzi_to_xyzirc`：CarMaker Bridge 发布的点云 layout 为 XYZI，
+  pilot 原版 `autoware_pointcloud_preprocessor` 只接受 XYZIRC/XYZIRCAEDT；这是 wrapper 层格式适配，
+  未修改任何算法包。
+- 增加 `localization_adapi_bridge`：本工作区只有 `autoware_automatic_pose_initializer`
+  helper，没有完整 default AD API server；bridge 只转换 `/api/localization/*` 与
+  `/localization/*` 接口，保留 pilot automatic_pose_initializer 节点。
+- 空 ADAPI initialize 请求用 GNSS DIRECT 初始化：直接按最新
+  `/sensing/gnss/pose_with_covariance` 调用 `/localization/initialize`，避免 route271
+  NDT 初始 align 在对称场景中收敛到 180 度错误局部极值。该决策不使用 ground truth、不改 NDT 参数、
+  不启用 prior/multistart，且最终 NDT 仍持续作为 pose estimator 输出。
+
+### 遗留风险
+
+- MovieEGL 在 SIM_END 后仍返回 `139`，但 CarMaker 已正常 `SIM_END`，rosbag 与定位链路证据完整；
+  脚本已禁止自动重启以避免挂起。未触碰桌面/GPU/驱动。
+- EKF 日志持续提示 `Twist queue size (3) is exceeding max_queue_size (2)`；不影响本次 90s
+  闭环稳定性与 50Hz 输出，保留为后续参数调优项。
+- 初始阶段偶发 `Lidar has gone out of the map range`；随后 NDT/kinematic_state 正常持续输出。
