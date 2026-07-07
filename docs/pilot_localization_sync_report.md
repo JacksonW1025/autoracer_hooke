@@ -157,6 +157,32 @@ Phase 2 checks:
 - `colcon list --base-paths src --names-only | grep -E "stop_filter|twist2accel|tier4_localization_launch|automatic_pose_initializer"` found all four required names.
 - `diff -r -x __pycache__` against pilot returned empty for all five replaced packages.
 
+## Phase 3 pilot localization parameters
+
+Copied from `pilot-auto.x1/src/autoware/launcher/autoware_launch/config/localization` to
+`src/autoracer_bringup/config/pilot_compatible/localization`:
+
+- `ekf_localizer.param.yaml`
+- `stop_filter.param.yaml`
+- `twist2accel.param.yaml`
+- `pose_initializer.param.yaml`
+- `localization_error_monitor.param.yaml`
+- `pose_instability_detector.param.yaml`
+- `eagleye_config.param.yaml`
+- `ar_tag_based_localizer.param.yaml`
+- `ndt_scan_matcher/ndt_scan_matcher.param.yaml`
+- `ndt_scan_matcher/pointcloud_preprocessor/crop_box_filter_measurement_range.param.yaml`
+- `ndt_scan_matcher/pointcloud_preprocessor/voxel_grid_filter.param.yaml`
+- `ndt_scan_matcher/pointcloud_preprocessor/random_downsample_filter.param.yaml`
+- `lidar_marker_localizer/lidar_marker_localizer.param.yaml`
+- `lidar_marker_localizer/pointcloud_preprocessor/crop_box_filter_measurement_range.param.yaml`
+- `lidar_marker_localizer/pointcloud_preprocessor/ring_filter.param.yaml`
+
+Phase 3 checks:
+
+- `cmp -s` matched every copied file against the pilot source file.
+- `ndt_scan_matcher.param.yaml` contains `ndt.regularization.enable: false`.
+
 ## Verification summary
 
 To be filled after Phase 6/7.
