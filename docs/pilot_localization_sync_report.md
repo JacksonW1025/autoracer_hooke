@@ -131,6 +131,32 @@ Phase 1 checks:
 - `find src/autoracer_bringup/test -maxdepth 1 -type f -name 'test_carmaker*.py'` produced no output.
 - `colcon list --base-paths src --names-only | sort | uniq -d` produced no output.
 
+## Phase 2 pilot package sync
+
+Replaced by byte-for-byte pilot copies:
+
+- `src/external/autoware/core/localization/autoware_ndt_scan_matcher`
+- `src/external/autoware/core/localization/autoware_ekf_localizer`
+- `src/external/autoware/core/localization/autoware_pose_initializer`
+- `src/external/autoware/core/sensing/autoware_gnss_poser`
+- `src/external/autoware/universe/localization/autoware_pose_instability_detector`
+
+Added missing pilot packages:
+
+- `src/external/autoware/core/localization/autoware_stop_filter`
+- `src/external/autoware/core/localization/autoware_twist2accel`
+- `src/external/autoware/core/common/autoware_signal_processing`
+- `src/external/autoware/universe/system/autoware_default_adapi_helpers/autoware_automatic_pose_initializer`
+- `src/external/autoware/core/api/autoware_adapi_specs`
+- `src/external/autoware/universe/common/autoware_component_interface_utils`
+- `src/external/autoware/launcher/tier4_universe_launch/tier4_localization_launch`
+
+Phase 2 checks:
+
+- `colcon list --base-paths src --names-only | sort | uniq -d` produced no output.
+- `colcon list --base-paths src --names-only | grep -E "stop_filter|twist2accel|tier4_localization_launch|automatic_pose_initializer"` found all four required names.
+- `diff -r -x __pycache__` against pilot returned empty for all five replaced packages.
+
 ## Verification summary
 
 To be filled after Phase 6/7.
