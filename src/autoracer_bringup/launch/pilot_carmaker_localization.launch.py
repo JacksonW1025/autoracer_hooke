@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -17,8 +17,15 @@ def _localization_param(*parts):
     return _pkg_file("autoracer_bringup", "config", "pilot_compatible", "localization", *parts)
 
 
+def _workspace_root():
+    for parent in Path(__file__).resolve().parents:
+        if parent.name == "autoracer_hooke":
+            return parent
+    raise RuntimeError("failed to locate autoracer_hooke workspace from launch file path")
+
+
 def generate_launch_description():
-    default_map_path = os.path.join(os.getcwd(), "maps", "whale_map_20251107")
+    default_map_path = str(_workspace_root() / "maps" / "whale_map_20251107")
     map_path = LaunchConfiguration("localization_map_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
     input_pointcloud = LaunchConfiguration("input_pointcloud")
@@ -58,7 +65,6 @@ def generate_launch_description():
                 {
                     "map_projector_info_path": map_projector_info,
                     "lanelet2_map_path": lanelet2_map,
-                    "use_local_projector": False,
                 }
             ],
         ),
