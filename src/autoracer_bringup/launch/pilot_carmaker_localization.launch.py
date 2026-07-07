@@ -168,6 +168,12 @@ def generate_launch_description():
                 }
             ],
         ),
+        Node(
+            package="autoracer_sensing",
+            executable="localization_adapi_bridge",
+            name="localization_adapi_bridge",
+            output="screen",
+        ),
         IncludeLaunchDescription(
             AnyLaunchDescriptionSource(localization_launch),
             launch_arguments={
