@@ -474,6 +474,10 @@ ros2 service list | rg "initialize|ndt_align|trigger_node|get_differential|get_p
 
 ## 2026-07-07 复审遗留项闭环修复与实跑验证
 
+> 注意：本节记录的是 `d45381d` 时期的跑通验证版，其中 ADAPI 空请求被 bridge 转为
+> DIRECT GNSS 初始化。该口径已被下一节 "ADAPI AUTO 语义复审修正与最终验证" 废弃，
+> 不再作为 pilot-compatible 最终验收结论。
+
 本节对应后续复审遗留问题 1～4。最终验证日志目录：
 
 `/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/pilot_localization_validation_20260707_173227`
@@ -669,3 +673,186 @@ env -i ... /usr/bin/python3 SimProject_TianmenRace/tools/evaluate_localization_b
 - EKF 日志持续提示 `Twist queue size (3) is exceeding max_queue_size (2)`；不影响本次 90s
   闭环稳定性与 50Hz 输出，保留为后续参数调优项。
 - 初始阶段偶发 `Lidar has gone out of the map range`；随后 NDT/kinematic_state 正常持续输出。
+
+---
+
+## 2026-07-07 ADAPI AUTO 语义复审修正与最终验证
+
+本节修正后续源码 review 指出的阻塞问题：上一节中 `d45381d` 的
+"空 ADAPI initialize -> bridge 取 GNSS -> `/localization/initialize` DIRECT" 行为会绕过
+pilot 实车链路的 `GNSS seed -> NDT align -> /initialpose3d` 初始化路径。该 DIRECT 验证结果
+仅保留为历史对比，不再作为 pilot-compatible 最终验收口径。
+
+最终验证日志目录：
+
+`/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/pilot_localization_validation_20260707_182906_auto_final`
+
+### 修复内容与 commit
+
+autoracer_hooke 仓库：
+
+| 问题 | 修复 | commit |
+|---|---|---|
+| ADAPI 初始化语义错误 | `localization_adapi_bridge.py` 删除 GNSS 订阅/缓存和 DIRECT 分支；`/api/localization/initialize` 始终转为 `/localization/initialize` `method=AUTO`，`pose_with_covariance=list(request.pose)`，与 pilot default AD API 语义一致。 | `0b17fe8` |
+| wrapper 误导性死参数 | 删除 `pointcloud_map_loader` 的 `enable_differential_load` 参数；该服务由 `autoware_map_loader` 无条件创建，仍保留 `/map/get_differential_pointcloud_map` remap 与运行验证。 | `0b17fe8` |
+
+SimProject 根仓库：
+
+| 问题 | 修复 | commit |
+|---|---|---|
+| pilot 一键脚本 summary 继承旧 stage C0 注释 | `run_pilot_localization.sh` 显式设置 `LOG_DIR` 并在底层脚本退出后改写 `runtime_summary.json` notes，避免 `ndt_axis_seed_fuser` 旧说明污染 pilot 验证结果。 | `033d5310` |
+
+### 地图与投影原点
+
+地图选择沿用上一节盘点结论，未重新配对：
+
+- TestRun：`AutoracerCollection_UrbanRoad`
+- 地图：
+  `/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/ndt_tiled_map_route271_20260602_031639/tile20`
+- 四要素：3003 个 PCD 分块、`pointcloud_map_metadata.yaml`、`map_projector_info.yaml`、
+  `lanelet2_map.osm` 均存在。
+- 投影原点：
+  - Bridge `ROS2Bridge.cpp`: `ref_latitude_=29.05466832`,
+    `ref_longitude_=110.47991599`, `ref_altitude_=0.0`, LocalCartesian。
+  - 地图 `map_projector_info.yaml`: `projector_type=LocalCartesian`,
+    `latitude=29.05466832`, `longitude=110.47991599`。
+  - 结论：地图原点与 Bridge GNSS LocalCartesian 原点一致。
+
+### 构建、扫描与安装产物证据
+
+源码变更涉及 `autoracer_sensing` 与 `autoracer_bringup`，均已按工作区约定 Release 重建。
+
+```bash
+source /opt/ros/humble/setup.bash
+cd /opt/ipg/carmaker/linux64-15.1/autoracer_hooke
+colcon build --symlink-install --packages-select autoracer_sensing autoracer_bringup \
+  --cmake-args -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+# Summary: 2 packages finished [3.00s]
+
+colcon build --symlink-install --packages-up-to autoracer_bringup \
+  --cmake-args -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+# Summary: 104 packages finished [9.91s]
+```
+
+安装/构建时间证据（本次源码包无 `.so`，以 Python entrypoint 与 colcon stamp 为准）：
+
+```text
+2026-07-07 18:24:04.7146084280 install/autoracer_sensing/lib/autoracer_sensing/localization_adapi_bridge
+2026-07-07 18:24:04.7146084280 install/autoracer_sensing/lib/autoracer_sensing/pointcloud_xyzi_to_xyzirc
+2026-07-07 18:24:04.7886090880 build/autoracer_sensing/colcon_build.rc
+2026-07-07 18:24:07.7336353580 build/autoracer_bringup/colcon_build.rc
+```
+
+扫描与静态展开：
+
+- `colcon list --base-paths src --names-only | sort | uniq -d`：无输出。
+- 必需包存在：
+  `autoware_automatic_pose_initializer`, `autoware_stop_filter`,
+  `autoware_twist2accel`, `tier4_localization_launch`。
+- `ros2 launch autoracer_bringup pilot_carmaker_localization.launch.py --print`：exit 0，
+  输出 LaunchDescription object tree，无缺参报错。
+- 针对最终 wrapper/bridge 的禁用项搜索无命中：
+  `/carmaker/ground_truth/pose`, `ground_truth_initialpose_once`,
+  `diagnostic_pose_reinitializer`, `ndt_axis_seed_fuser`, `runtime_multistart`,
+  `weak_prior`, `route-z`, `map-z`, `DIRECT`, `gnss_pose_topic`,
+  `enable_differential_load`, `use_local_projector`。
+
+### 最终闭环命令与运行结果
+
+运行命令：
+
+```bash
+LOG_DIR=/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/logs/pilot_localization_validation_20260707_182906_auto_final \
+TSTOP=90 TIMEOUT_SEC=180 \
+/opt/ipg/carmaker/linux64-15.1/SimProject_TianmenRace/run_pilot_localization.sh
+```
+
+`runtime_summary.json`：
+
+- `status=PASS`
+- `testrun=AutoracerCollection_UrbanRoad`
+- `sim_end=true`, `sim_abort=false`, `carmaker_status=0`
+- `tstop_sec=90.0`, bag duration `93.118562509s`
+- 关键 topic counts：
+  - `/localization/kinematic_state`: `4319`
+  - `/localization/pose_twist_fusion_filter/kinematic_state`: `4321`
+  - `/localization/util/downsample/pointcloud`: `856`
+  - `/localization/pose_estimator/pose_with_covariance`: `53`
+  - `/localization/twist_estimator/twist_with_covariance`: `89950`
+  - `/sensing/gnss/pose_with_covariance`: `89970`
+  - `/sensing/imu/imu_data`: `89987`
+
+Phase 7 topic/service 核对：
+
+| 检查项 | 最终证据 |
+|---|---|
+| `/localization/kinematic_state` | publisher `stop_filter`; subscriber 包含 `twist2accel`, `pose_instability_detector`, `localization_error_monitor` |
+| `/localization/pose_twist_fusion_filter/kinematic_state` | publisher `ekf_localizer`; subscriber `stop_filter` |
+| `/localization/util/downsample/pointcloud` | publisher `random_downsample_filter`; subscriber `ndt_scan_matcher` |
+| `/localization/pose_estimator/pose_with_covariance` | publisher `ndt_scan_matcher`; subscriber `ekf_localizer` |
+| `/localization/twist_estimator/twist_with_covariance` | publisher `gyro_odometer`; subscribers `ekf_localizer`, `twist2accel`, `pose_instability_detector` |
+| `/sensing/gnss/pose_with_covariance` | publisher `gnss_poser`; subscriber `pose_initializer`（另有 rosbag recorder） |
+| `/sensing/imu/imu_data` | publisher `fixposition_rawimu_to_sensing_imu_relay`; subscriber `gyro_odometer` |
+| services | `/api/localization/initialize`, `/localization/initialize`, `/localization/pose_estimator/ndt_align_srv`, `/localization/pose_estimator/trigger_node`, `/localization/pose_twist_fusion_filter/trigger_node`, `/map/get_differential_pointcloud_map`, `/map/get_partial_pointcloud_map` |
+| output rate | `ros2 topic hz /localization/kinematic_state`: windowed averages `49.29`～`50.02 Hz` |
+| sample pose | sim stamp `27.4s`, `frame_id=map`, `x=-352.010878`, `y=84.850257`, `z=0.345386`; yaw already接近反向解（见误差评估） |
+
+严格 AUTO 初始化证据：
+
+```text
+autoware_pose_initializer_node: Call align server.
+autoware_pose_initializer_node: align server succeeded.
+```
+
+反证：
+
+- `autoracer_launch.log` 无 `Set user defined initial pose`。
+- `localization_adapi_bridge` 不再订阅 `/sensing/gnss/pose_with_covariance`，运行期
+  `/sensing/gnss/pose_with_covariance` 的非 rosbag subscriber 是 `pose_initializer`。
+- 运行期 `/carmaker/ground_truth/pose` subscriber 只有 `rosbag2_recorder`；该话题仅用于离线评估。
+
+### 离线 GT 评估结果
+
+评估命令：
+
+```bash
+env -i ... /usr/bin/python3 SimProject_TianmenRace/tools/evaluate_localization_bag.py \
+  --bag SimProject_TianmenRace/logs/pilot_localization_validation_20260707_182906_auto_final/realtime_rosbag \
+  --route-samples SimProject_TianmenRace/logs/urban_collection_route271_phase1_userdefined_pandar40_loc_20260601_110419_20260601_110419/route_samples.csv \
+  --output SimProject_TianmenRace/logs/pilot_localization_validation_20260707_182906_auto_final/localization_error_summary.json \
+  --mode exp2 \
+  --localization-topic /localization/kinematic_state
+```
+
+结果：链路闭环运行 PASS，但定位正确性 gate FAIL。
+
+- aggregate `status=FAIL`
+- matched frames `849/882`, coverage `0.962585`
+- mean XY error `552.541 m`
+- p95 XY error `893.574 m`
+- max XY error `925.489 m`
+- mean yaw error `173.020 deg`
+- p95 yaw error `178.119 deg`
+- reset `0`
+
+结论：严格 pilot AUTO 语义恢复后，`automatic_pose_initializer -> /api/localization/initialize
+-> /localization/initialize(AUTO) -> pose_initializer GNSS seed -> ndt_align_srv` 路径可执行，
+EKF/NDT/stop_filter 可持续输出且无 reset 循环；但 NDT 初始 align 在当前 route271/CarMaker
+点云条件下落入约 180 度错误 basin，随后大量 `Score is below the threshold`，定位误差不合格。
+
+### 当前验收判断与遗留事项
+
+- 严格实车 ADAPI 初始化语义：已修复，通过源码与运行日志验证。
+- 链路结构、topic/service、构建、包扫描：通过。
+- 实时闭环稳定性：脚本 smoke PASS，90s 内 `/localization/kinematic_state` 持续约 50Hz 输出，
+  `reset=0`。
+- 定位精度：不通过；原因是严格 AUTO/NDT align 初始解约 180 度反向。
+
+后续不得再通过 DIRECT GNSS 初始化规避该问题。建议单独立项分析：
+
+1. NDT align 初始请求中的 GNSS seed 姿态是否被使用、是否与 `/fixposition/autoware_orientation`
+   一致；
+2. route271 起点局部几何是否具有 180 度对称 basin；
+3. CarMaker XYZI -> XYZIRC shim 中 `channel=0`, `return_type=1`, `intensity uint8` 对初始 align
+   的影响；
+4. 地图构建点云密度、起点附近局部地图裁剪/partial load 与首帧 LiDAR FOV 的可观测性。
