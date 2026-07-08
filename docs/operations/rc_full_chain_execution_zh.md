@@ -17,6 +17,7 @@
 ```text
 架构/Launch 差距审计
   -> 车端传感器和 TF
+  -> 车端 Foxglove Bridge 实时监控
   -> 建图 bag 录制
   -> 工作机 bag 检查和 Foxglove 查看
   -> Super-LIO 生成 PCD
@@ -36,6 +37,7 @@
 | 车辆参数和接口事实 | `docs/reference/calibration_zh.md`、`docs/reference/interfaces_and_topics_zh.md` | 车辆尺寸、轮径、轴距、外参、topic 契约 | RC 参数和 Autoware-facing topic 有唯一来源 | 已建立，实测后补标定值 |
 | 车端传感器启动 | `./scripts/rc/rc_start_sensors.sh` | 点云、IMU、TF | `/sensing/lidar/concatenated/pointcloud`、`/imu/data_raw`、`/imu/data`、`/tf_static` 可用 | 待车端 live 验证 |
 | 传感器输入检查 | `./scripts/check_mapping_inputs.sh` | 输入检查日志 | 点云 frame、字段、频率和 IMU/TF 满足建图输入 | 待车端 live 验证 |
+| 车端实时监控 | `ros2 launch foxglove_bridge foxglove_bridge_launch.xml` | Foxglove WebSocket | 客户端能连接 `ws://<vehicle-ip>:8765/` 并看到 live topic；不要求客户端安装 ROS | 车端 bridge 已验证可监听，104 端口连通已验证 |
 | 建图 bag 录制 | `./scripts/rc/rc_capture_mapping_bag.sh` 或 start/stop bag 脚本 | 原始 bag | 必录 topic 完整，时间戳连续，原始 bag 不覆盖 | 待录制 |
 | 工作机 bag 查看 | `rc_mapping_ws/view_bag_foxglove.sh` | 人工检查结论 | Foxglove 可看到点云、IMU、TF 时间轴；异常先回到采集阶段 | 工具入口已规划，待实包验证 |
 | Bag 结构检查 | `rc_mapping_ws/inspect_bag_topics.sh` | checked bag 或检查报告 | 建图必录 topic、消息类型、频率通过检查 | 待实包验证 |

@@ -1,6 +1,6 @@
 # RC 建图到 Autoware 回灌流程
 
-用途：定义可重复的 RC 建图工作流：车端采集 bag，工作机用 Foxglove 检查 bag，用 Super-LIO 建图并打包 Autoware 地图，再回灌车端验证。非用途：不承载车端运行态 Autoware/RViz 配置。
+用途：定义可重复的 RC 建图工作流：车端采集 bag，工作机用 Foxglove 检查 bag，用 Super-LIO 建图并打包 Autoware 地图，再回灌车端验证；现场需要时，也可用 Foxglove Bridge 实时查看车端 ROS 2 topic。非用途：不承载车端运行态 Autoware/RViz 配置。
 
 全链路进度、缺口和上下游依赖以 `docs/operations/rc_full_chain_execution_zh.md` 为准；本文件只写建图和地图回灌流程。
 
@@ -198,6 +198,48 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_mapping_bag.sh
 建图必录 topic：`/sensing/lidar/concatenated/pointcloud`、`/imu/data_raw`、`/imu/data`、`/tf`、`/tf_static`、`/rosout`。
 
 诊断可选 topic：`/vehicle/status/velocity_status`、`/vehicle/status/steering_status`、`/vehicle/status/gear_status`、`/autoracer/vehicle_interface/state`。
+
+## 车端实时 Foxglove 监控
+
+实时监控用于现场查看车端正在发布的点云、IMU、TF 和诊断 topic；它不替代 ROS bag 录制，也不是 Autoware 运行界面。客户端机器只需要安装 Foxglove Studio，不需要 ROS/Autoware 环境。
+
+车端首次准备 Foxglove Bridge：
+
+```bash
+source /opt/ros/humble/setup.bash
+sudo apt install ros-$ROS_DISTRO-foxglove-bridge
+```
+
+启动传感器后，在车端另开终端启动 bridge：
+
+```bash
+source /opt/ros/humble/setup.bash
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+```
+
+默认会监听 `0.0.0.0:8765`。车端确认端口：
+
+```bash
+ss -tulpen | grep 8765
+```
+
+客户端打开 Foxglove Studio，选择 Foxglove WebSocket，连接：
+
+```text
+ws://<vehicle-ip>:8765/
+```
+
+当前现场树莓派常用地址是 `192.168.1.136`，但实际连接地址以车端 `ip -br addr` 输出为准。104 笔记本只作为 Foxglove 客户端，不需要预设连接参数；也可以手动输入：
+
+```text
+ws://192.168.1.136:8765/
+```
+
+需要停止实时监控时，在运行 bridge 的终端按 `Ctrl-C`。如果 bridge 是后台启动的，先确认进程再停止：
+
+```bash
+pgrep -af 'foxglove_bridge|ros2 launch foxglove_bridge'
+```
 
 ## 工作机检查与建图
 
