@@ -136,6 +136,23 @@ def test_track_launch_allows_subsystem_isolation_for_vehicle_debug():
     assert "IMU_BAUDRATE" in run_script.read_text()
 
 
+def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
+    defaults_text = (ROOT / "defaults.env").read_text()
+    assert 'SERIAL_PORT:=}' in defaults_text
+    assert 'IMU_SERIAL_PORT:=/dev/ttyUSB0' in defaults_text
+
+    operator_files = [
+        ROOT / "README.md",
+        ROOT / "docs" / "operations" / "rc_runbook_zh.md",
+        ROOT / "src" / "autoracer_bringup" / "launch" / "track.launch.py",
+        ROOT / "src" / "autoracer_bringup" / "launch" / "track_rc_p0.launch.py",
+        ROOT / "src" / "autoracer_bringup" / "launch" / "vehicle.launch.py",
+        ROOT / "src" / "autoracer_bringup" / "launch" / "bench_verification.launch.py",
+    ]
+    for path in operator_files:
+        assert "/dev/ttyACM0" not in path.read_text(), path
+
+
 def test_rc_autoware_rviz_exposes_runtime_navigation_tools():
     rviz_text = (
         ROOT / "src" / "autoracer_bringup" / "rviz" / "rc_autoware.rviz"

@@ -211,7 +211,7 @@ def generate_launch_description():
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
             DeclareLaunchArgument("fixposition_speed_topic", default_value="/fixposition/speed"),
-            DeclareLaunchArgument("imu_serial_port", default_value="/dev/autoracer_imu"),
+            DeclareLaunchArgument("imu_serial_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("imu_baudrate", default_value="115200"),
             DeclareLaunchArgument("imu_frame_id", default_value="imu_link"),
             DeclareLaunchArgument("imu_raw_topic", default_value="/imu/data_raw"),

@@ -176,7 +176,7 @@ MAP_PATH=/path/to/map ./scripts/rc/rc_start_autoware.sh
 Low-speed vehicle run after calibration and bench validation:
 
 ```bash
-MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyACM0 ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
+MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
 ./scripts/request_autonomous_mode.sh
 ```
 
@@ -205,8 +205,10 @@ Hooke2 CAN transport:
 Default serial parameters:
 
 ```text
-SERIAL_PORT=/dev/ttyACM0
+SERIAL_PORT=/dev/<actual_chassis_tty>
 SERIAL_BAUDRATE=115200
+IMU_SERIAL_PORT=/dev/ttyUSB0
+IMU_BAUDRATE=115200
 WHEEL_BASE_M=0.6
 MAX_STEER_RAD=0.262
 MAX_SPEED_MPS=3.0

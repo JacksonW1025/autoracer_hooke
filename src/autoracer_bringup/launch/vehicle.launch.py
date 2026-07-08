@@ -13,7 +13,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
-            DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0"),
+            DeclareLaunchArgument("serial_port", default_value=""),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
             DeclareLaunchArgument("max_speed_mps", default_value="3.0"),

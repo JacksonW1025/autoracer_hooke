@@ -109,7 +109,7 @@ MAP_PATH=/path/to/map ./scripts/rc/rc_start_autoware.sh
 低速使能前必须完成标定检查：
 
 ```bash
-MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyACM0 ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
+MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
 ./scripts/request_autonomous_mode.sh
 ```
 

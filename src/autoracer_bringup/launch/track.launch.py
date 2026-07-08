@@ -98,7 +98,7 @@ def generate_launch_description():
             DeclareLaunchArgument("control_lookahead_gain", default_value="1.0"),
             DeclareLaunchArgument("control_goal_tolerance_m", default_value="0.35"),
             DeclareLaunchArgument("control_max_steer_rate_radps", default_value="1.5"),
-            DeclareLaunchArgument("serial_port", default_value="/dev/ttyACM0"),
+            DeclareLaunchArgument("serial_port", default_value=""),
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
             DeclareLaunchArgument("max_steer_rad", default_value="0.262"),
@@ -153,7 +153,7 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
-            DeclareLaunchArgument("imu_serial_port", default_value="/dev/autoracer_imu"),
+            DeclareLaunchArgument("imu_serial_port", default_value="/dev/ttyUSB0"),
             DeclareLaunchArgument("imu_baudrate", default_value="115200"),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
