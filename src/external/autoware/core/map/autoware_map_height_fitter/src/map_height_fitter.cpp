@@ -17,7 +17,11 @@
 #include <autoware/lanelet2_utils/conversion.hpp>
 #include <autoware/qos_utils/qos_compatibility.hpp>
 #include <autoware_lanelet2_extension/utility/query.hpp>
+#if __has_include(<tf2_ros/transform_listener.hpp>)
 #include <tf2_ros/transform_listener.hpp>
+#else
+#include <tf2_ros/transform_listener.h>
+#endif
 
 #include <autoware_map_msgs/msg/lanelet_map_bin.hpp>
 #include <autoware_map_msgs/srv/get_partial_point_cloud_map.hpp>

@@ -18,7 +18,11 @@
 #define MANAGED_TRANSFORM_BUFFER__MANAGED_TRANSFORM_BUFFER_PROVIDER_HPP_
 
 #include <rclcpp/rclcpp.hpp>
+#if __has_include(<tf2_ros/buffer.hpp>)
 #include <tf2_ros/buffer.hpp>
+#else
+#include <tf2_ros/buffer.h>
+#endif
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
