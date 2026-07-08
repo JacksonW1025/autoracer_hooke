@@ -4,7 +4,6 @@ set -euo pipefail
 IFACE="${LIDAR_IFACE:-eth0}"
 HOST_IP="${LIDAR_HOST_IP:-192.168.1.102}"
 SENSOR_IP="${LIDAR_SENSOR_IP:-192.168.1.200}"
-STALE_HOST_IPS="${LIDAR_STALE_HOST_IPS:-}"
 
 usage() {
   cat <<EOF
@@ -55,13 +54,6 @@ clear_lidar_link() {
     [[ -n "$addr" ]] || continue
     ip addr del "$addr" dev "$IFACE" 2>/dev/null || true
   done < <(matching_addrs "$HOST_IP")
-  for stale_ip in $STALE_HOST_IPS; do
-    [[ "$stale_ip" != "$HOST_IP" ]] || continue
-    while IFS= read -r addr; do
-      [[ -n "$addr" ]] || continue
-      ip addr del "$addr" dev "$IFACE" 2>/dev/null || true
-    done < <(matching_addrs "$stale_ip")
-  done
 }
 
 if [[ "${1:-}" == "--clear" ]]; then
