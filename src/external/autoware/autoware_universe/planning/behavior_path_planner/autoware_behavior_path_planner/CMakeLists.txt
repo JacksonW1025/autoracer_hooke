@@ -10,7 +10,6 @@ find_package(magic_enum CONFIG REQUIRED)
 ament_auto_add_library(${PROJECT_NAME}_lib SHARED
   src/planner_manager.cpp
   src/behavior_path_planner_node.cpp
-  src/test_utils.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_lib SYSTEM PUBLIC
@@ -38,6 +37,7 @@ if(BUILD_TESTING)
 
   ament_add_ros_isolated_gtest(test_${PROJECT_NAME}_node_interface
     test/test_${PROJECT_NAME}_node_interface.cpp
+    src/test_utils.cpp
   )
 
   target_link_libraries(test_${PROJECT_NAME}_node_interface

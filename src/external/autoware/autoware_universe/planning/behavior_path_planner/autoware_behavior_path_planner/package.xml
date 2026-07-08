@@ -51,7 +51,6 @@
   <depend>autoware_perception_msgs</depend>
   <depend>autoware_planning_factor_interface</depend>
   <depend>autoware_planning_msgs</depend>
-  <depend>autoware_planning_test_manager</depend>
   <depend>autoware_signal_processing</depend>
   <depend>autoware_utils</depend>
   <depend>autoware_vehicle_info_utils</depend>
@@ -74,6 +73,8 @@
 
   <test_depend>ament_cmake_ros</test_depend>
   <test_depend>ament_lint_auto</test_depend>
+  <test_depend>autoware_planning_test_manager</test_depend>
+  <test_depend>autoware_test_utils</test_depend>
   <test_depend>autoware_lint_common</test_depend>
 
   <export>
