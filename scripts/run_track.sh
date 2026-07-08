@@ -31,7 +31,6 @@ LAUNCH_ARGS=(
   control_lookahead_gain:="${CONTROL_LOOKAHEAD_GAIN}"
   control_goal_tolerance_m:="${CONTROL_GOAL_TOLERANCE_M}"
   control_max_steer_rate_radps:="${CONTROL_MAX_STEER_RATE_RADPS}"
-  serial_port:="${SERIAL_PORT}"
   serial_baudrate:="${SERIAL_BAUDRATE}"
   imu_serial_port:="${IMU_SERIAL_PORT}"
   imu_baudrate:="${IMU_BAUDRATE}"
@@ -69,6 +68,9 @@ LAUNCH_ARGS=(
 )
 if [[ -n "${LIDAR_HOST_IP:-}" ]]; then
   LAUNCH_ARGS+=(lidar_host_ip:="${LIDAR_HOST_IP}")
+fi
+if [[ -n "${SERIAL_PORT:-}" ]]; then
+  LAUNCH_ARGS+=(serial_port:="${SERIAL_PORT}")
 fi
 
 ros2 launch autoracer_bringup track.launch.py \

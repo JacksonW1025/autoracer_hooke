@@ -138,8 +138,11 @@ def test_track_launch_allows_subsystem_isolation_for_vehicle_debug():
 
 def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
     defaults_text = (ROOT / "defaults.env").read_text()
+    run_script_text = (ROOT / "scripts" / "run_track.sh").read_text()
     assert 'SERIAL_PORT:=}' in defaults_text
     assert 'IMU_SERIAL_PORT:=/dev/ttyUSB0' in defaults_text
+    assert 'if [[ -n "${SERIAL_PORT:-}" ]]' in run_script_text
+    assert 'LAUNCH_ARGS+=(serial_port:="${SERIAL_PORT}")' in run_script_text
 
     operator_files = [
         ROOT / "README.md",
