@@ -83,6 +83,8 @@ Install the desktop/build dependencies before building those packages:
 
 ```bash
 sudo apt install -y \
+  libpng++-dev \
+  libpng-dev \
   nlohmann-json3-dev \
   ros-humble-autoware-motion-utils \
   ros-humble-rviz-2d-overlay-msgs \
