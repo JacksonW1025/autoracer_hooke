@@ -21,14 +21,14 @@ if(BUILD_TESTING)
   target_link_libraries(test_${PROJECT_NAME}
     ${PROJECT_NAME}
   )
-endif()
 
-add_executable(collision_benchmark
-  benchmarks/collision_checker_benchmark.cpp
-)
-target_link_libraries(collision_benchmark
-  ${PROJECT_NAME}
-)
+  add_executable(collision_benchmark
+    benchmarks/collision_checker_benchmark.cpp
+  )
+  target_link_libraries(collision_benchmark
+    ${PROJECT_NAME}
+  )
+endif()
 
 ament_auto_package(
   INSTALL_TO_SHARE
