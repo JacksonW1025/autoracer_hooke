@@ -29,12 +29,24 @@ PACKAGES=(
   lslidar_msgs
   lslidar_driver
   autoware_launch
+  tier4_autoware_api_launch
+  tier4_map_launch
+  tier4_planning_launch
+  tier4_control_launch
+  tier4_system_launch
   tier4_vehicle_launch
   tier4_sensing_launch
   autoware_adapi_v1_msgs
+  autoware_adapi_version_msgs
+  autoware_adapi_specs
+  autoware_adapi_adaptors
+  autoware_default_adapi
+  autoware_default_adapi_universe
+  autoware_evaluation_adapter
   autoware_component_interface_specs
   autoware_control_msgs
   autoware_geography_utils
+  autoware_global_parameter_loader
   autoware_internal_debug_msgs
   autoware_internal_localization_msgs
   autoware_lanelet2_extension
@@ -52,6 +64,8 @@ PACKAGES=(
   tier4_vehicle_msgs
   tier4_api_utils
   autoware_vehicle_info_utils
+  autoware_lanelet2_map_visualizer
+  autoware_map_tf_generator
   autoware_map_projection_loader
   autoware_map_loader
   autoware_ndt_scan_matcher
@@ -65,6 +79,15 @@ PACKAGES=(
   tier4_state_rviz_plugin
   tier4_vehicle_rviz_plugin
   tier4_planning_factor_rviz_plugin
+  autoware_motion_velocity_obstacle_stop_module
+  autoware_motion_velocity_obstacle_slow_down_module
+  autoware_motion_velocity_obstacle_cruise_module
+  autoware_motion_velocity_out_of_lane_module
+  autoware_motion_velocity_obstacle_velocity_limiter_module
+  autoware_motion_velocity_dynamic_obstacle_stop_module
+  autoware_motion_velocity_run_out_module
+  autoware_motion_velocity_boundary_departure_prevention_module
+  autoware_motion_velocity_road_user_stop_module
   fixposition_driver_msgs
   fixposition_driver_lib
   rtcm_msgs
@@ -75,6 +98,8 @@ PACKAGES=(
 
 OVERRIDE_PACKAGES=(
   autoware_adapi_v1_msgs
+  autoware_adapi_version_msgs
+  autoware_global_parameter_loader
   autoware_internal_planning_msgs
   autoware_lanelet2_extension
   autoware_map_msgs

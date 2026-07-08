@@ -71,6 +71,8 @@ copy_from_pilot_repo() {
     "src/external/autoware/core/localization/autoware_ndt_scan_matcher"
   copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_loader" \
     "src/external/autoware/core/map/autoware_map_loader"
+  copy_dir "${pilot_repo}/src/autoware/core/map/autoware_lanelet2_map_visualizer" \
+    "src/external/autoware/core/map/autoware_lanelet2_map_visualizer"
   copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_projection_loader" \
     "src/external/autoware/core/map/autoware_map_projection_loader"
   copy_dir "${pilot_repo}/src/autoware/core/sensing/autoware_gnss_poser" \
@@ -83,6 +85,8 @@ copy_from_pilot_repo() {
     "src/external/autoware/autoware_universe/system/autoware_default_adapi_universe"
   copy_dir "${pilot_repo}/src/autoware/universe/evaluator/autoware_evaluation_adapter" \
     "src/external/autoware/autoware_universe/evaluator/autoware_evaluation_adapter"
+  copy_dir "${pilot_repo}/src/autoware/universe/map/autoware_map_tf_generator" \
+    "src/external/autoware/autoware_universe/map/autoware_map_tf_generator"
   copy_dir "${pilot_repo}/src/autoware/universe/common/tier4_api_utils" \
     "src/external/autoware/universe/common/tier4_api_utils"
   copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_control_mode_rviz_plugin" \
