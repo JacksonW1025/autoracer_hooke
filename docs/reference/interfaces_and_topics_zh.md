@@ -41,7 +41,7 @@ Hooke uses Hesai Pandar through `nebula_hesai`. The default parameter file is `s
 
 The RC profile uses Leishen C32 through `lslidar_driver` with the legacy C32 network settings: `device_ip=192.168.1.200`, `msop_port=2368`, `difop_port=2369`. It publishes directly to `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
 
-The underlying helper uses `192.168.1.120/32` on the LiDAR-facing Ethernet link and a host route to `192.168.1.200/32`, keeping the normal LAN/WiFi route separate. The current ARM vehicle host is temporary; do not encode it as the architecture boundary.
+The underlying helper uses `192.168.1.102/32` on the LiDAR-facing Ethernet link and a host route to `192.168.1.200/32`, keeping the normal LAN/WiFi route separate. The current ARM vehicle host is temporary; do not encode it as the architecture boundary.
 
 Do not use Nav2 `/scan` localization as an RC replacement for this point cloud contract.
 

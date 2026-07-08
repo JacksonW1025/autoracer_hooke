@@ -102,7 +102,7 @@ def generate_launch_description():
             DeclareLaunchArgument("serial_baudrate", default_value="115200"),
             DeclareLaunchArgument("wheel_base_m", default_value="0.6"),
             DeclareLaunchArgument("max_steer_rad", default_value="0.262"),
-            DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
+            DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.102"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.200"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
             DeclareLaunchArgument("lidar_driver", default_value="lslidar_c32"),

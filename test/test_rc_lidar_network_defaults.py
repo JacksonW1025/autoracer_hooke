@@ -3,8 +3,8 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RC_LIDAR_HOST_IP = "192.168.1.120"
-FORBIDDEN_LIDAR_HOST_IP = ".".join(("192", "168", "1", str(100 + 2)))
+RC_LIDAR_HOST_IP = "192.168.1.102"
+OBSOLETE_LIDAR_HOST_IP = ".".join(("192", "168", "1", str(100 + 20)))
 
 
 def read(relative_path: str) -> str:
@@ -22,7 +22,7 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
         assert expected in read(relative_path)
 
 
-def test_rc_user_docs_do_not_recommend_conflicting_host_address():
+def test_rc_user_docs_do_not_recommend_obsolete_host_address():
     canonical_link_docs = [
         "README.md",
         "docs/reference/interfaces_and_topics_zh.md",
@@ -46,7 +46,7 @@ def test_rc_user_docs_do_not_recommend_conflicting_host_address():
 
     for relative_path in current_user_docs:
         content = read(relative_path)
-        assert FORBIDDEN_LIDAR_HOST_IP not in content
+        assert OBSOLETE_LIDAR_HOST_IP not in content
 
 
 def test_repo_does_not_carry_obsolete_lidar_host_address():
@@ -55,7 +55,7 @@ def test_repo_does_not_carry_obsolete_lidar_host_address():
         cwd=ROOT,
         text=True,
     ).splitlines()
-    forbidden = FORBIDDEN_LIDAR_HOST_IP.encode()
+    forbidden = OBSOLETE_LIDAR_HOST_IP.encode()
 
     offenders = []
     for relative_path in tracked_files:

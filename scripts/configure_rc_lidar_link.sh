@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IFACE="${LIDAR_IFACE:-eth0}"
-HOST_IP="${LIDAR_HOST_IP:-192.168.1.120}"
+HOST_IP="${LIDAR_HOST_IP:-192.168.1.102}"
 SENSOR_IP="${LIDAR_SENSOR_IP:-192.168.1.200}"
 STALE_HOST_IPS="${LIDAR_STALE_HOST_IPS:-}"
 
@@ -13,7 +13,7 @@ Usage:
 
 Environment:
   LIDAR_IFACE      network interface connected to the C32 LiDAR, default: eth0
-  LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.120
+  LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.102
   LIDAR_SENSOR_IP  C32 LiDAR address, default: 192.168.1.200
 
 This script uses a /32 host address plus a /32 route to the LiDAR so WiFi keeps

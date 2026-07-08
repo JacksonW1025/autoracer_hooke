@@ -208,13 +208,13 @@ WHEEL_BASE_M=0.6
 MAX_STEER_RAD=0.262
 MAX_SPEED_MPS=3.0
 LIDAR_DRIVER=lslidar_c32
-LIDAR_HOST_IP=192.168.1.120
+LIDAR_HOST_IP=192.168.1.102
 LIDAR_SENSOR_IP=192.168.1.200
 ```
 
 On the vehicle host, configure the C32 Ethernet link with
 `sudo -E ./scripts/rc/rc_configure_lidar.sh`. It assigns
-`192.168.1.120/32` on `eth0` plus a host route to `192.168.1.200/32`, keeping
+`192.168.1.102/32` on `eth0` plus a host route to `192.168.1.200/32`, keeping
 WiFi as the normal `192.168.1.0/24` route.
 
 Runtime validation for the Autoware stack is ARM-side. The x86 development machine is

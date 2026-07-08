@@ -52,7 +52,7 @@ def generate_launch_description():
                     "autoracer_bringup", "config", "rc", "lslidar_cx.yaml"
                 ),
             ),
-            DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
+            DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.102"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.200"),
             DeclareLaunchArgument("lidar_data_port", default_value="2368"),
             DeclareLaunchArgument("lidar_sensor_model", default_value="C32"),
