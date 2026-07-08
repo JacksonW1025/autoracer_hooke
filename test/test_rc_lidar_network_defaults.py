@@ -21,6 +21,10 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
     for relative_path, expected in expected_defaults.items():
         assert expected in read(relative_path)
 
+    link_script = read("scripts/configure_rc_lidar_link.sh")
+    assert "LIDAR_IFACE:-enP8p1s0" in link_script
+    assert "default: eth0" not in link_script
+
 
 def test_rc_user_docs_do_not_recommend_obsolete_host_address():
     canonical_link_docs = [

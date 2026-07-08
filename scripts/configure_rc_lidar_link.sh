@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IFACE="${LIDAR_IFACE:-eth0}"
+IFACE="${LIDAR_IFACE:-enP8p1s0}"
 HOST_IP="${LIDAR_HOST_IP:-192.168.1.102}"
 SENSOR_IP="${LIDAR_SENSOR_IP:-192.168.1.200}"
 
@@ -11,7 +11,7 @@ Usage:
   sudo -E $0 [--clear]
 
 Environment:
-  LIDAR_IFACE      network interface connected to the C32 LiDAR, default: eth0
+  LIDAR_IFACE      network interface connected to the C32 LiDAR, default: enP8p1s0
   LIDAR_HOST_IP    host-side LiDAR address, default: 192.168.1.102
   LIDAR_SENSOR_IP  C32 LiDAR address, default: 192.168.1.200
 
