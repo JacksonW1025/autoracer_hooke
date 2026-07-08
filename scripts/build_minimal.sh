@@ -75,6 +75,10 @@ OVERRIDE_PACKAGES=(
   autoware_perception_msgs
   autoware_planning_msgs
   autoware_utils_geometry
+  autoware_utils_math
+  autoware_utils_system
+  autoware_utils_visualization
+  autoware_vehicle_msgs
 )
 
 colcon build --symlink-install \

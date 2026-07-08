@@ -33,5 +33,22 @@ PACKAGES_SELECT=(
   autoracer_bringup
 )
 
-colcon build --symlink-install "${COLCON_WORKER_ARGS[@]}" --packages-up-to "${PACKAGES_UP_TO[@]}"
+OVERRIDE_PACKAGES=(
+  autoware_adapi_v1_msgs
+  autoware_internal_planning_msgs
+  autoware_lanelet2_extension
+  autoware_map_msgs
+  autoware_perception_msgs
+  autoware_planning_msgs
+  autoware_utils_geometry
+  autoware_utils_math
+  autoware_utils_system
+  autoware_utils_visualization
+  autoware_vehicle_msgs
+)
+
+colcon build --symlink-install \
+  "${COLCON_WORKER_ARGS[@]}" \
+  --packages-up-to "${PACKAGES_UP_TO[@]}" \
+  --allow-overriding "${OVERRIDE_PACKAGES[@]}"
 colcon build --symlink-install "${COLCON_WORKER_ARGS[@]}" --packages-select "${PACKAGES_SELECT[@]}"
