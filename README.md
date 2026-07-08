@@ -87,6 +87,7 @@ sudo apt install -y \
   libpng-dev \
   nlohmann-json3-dev \
   ros-humble-autoware-motion-utils \
+  ros-humble-foxglove-bridge \
   ros-humble-rviz-2d-overlay-msgs \
   ros-humble-rviz-2d-overlay-plugins
 ```

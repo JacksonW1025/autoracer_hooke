@@ -27,6 +27,7 @@ patterns=(
   "[r]un_track.sh"
   "[r]viz2"
   "[r]obot_state_publisher"
+  "[s]tatic_transform_publisher"
   "[l]slidar_driver_node"
   "[p]ointcloud_voxel_filter"
   "[h]ipnuc_imu/lib/hipnuc_imu/talker"
