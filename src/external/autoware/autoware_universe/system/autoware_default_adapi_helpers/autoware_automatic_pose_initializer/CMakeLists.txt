@@ -3,6 +3,7 @@ project(autoware_automatic_pose_initializer)
 
 find_package(autoware_cmake REQUIRED)
 autoware_package()
+ament_auto_find_build_dependencies()
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
   src/automatic_pose_initializer.cpp
