@@ -79,6 +79,7 @@ PACKAGES=(
   tier4_state_rviz_plugin
   tier4_vehicle_rviz_plugin
   tier4_planning_factor_rviz_plugin
+  autoware_behavior_velocity_rtc_interface
   autoware_behavior_velocity_crosswalk_module
   autoware_behavior_velocity_walkway_module
   autoware_behavior_velocity_traffic_light_module
