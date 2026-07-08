@@ -8,6 +8,7 @@ DOCS = ROOT / "docs"
 FORMAL_DOCS = [
     DOCS / "README_zh.md",
     DOCS / "architecture" / "platform_and_stack_zh.md",
+    DOCS / "architecture" / "official_launch_structure_zh.md",
     DOCS / "architecture" / "official_migration_zh.md",
     DOCS / "architecture" / "runtime_alignment_audit_zh.md",
     DOCS / "operations" / "rc_full_chain_execution_zh.md",
@@ -76,6 +77,30 @@ def test_runtime_audit_records_pointcloud_filter_contract():
     assert "pointcloud_voxel_filter" in text
     assert "/sensing/lidar/concatenated/pointcloud" in text
     assert "/sensing/lidar/filtered/pointcloud" in text
+    assert "official localization 默认消费 `/sensing/lidar/concatenated/pointcloud`" in text
+
+
+def test_official_launch_structure_doc_explains_old_and_new_boundaries():
+    text = read(DOCS / "architecture" / "official_launch_structure_zh.md")
+    required_terms = [
+        "旧结构图",
+        "官方结构图",
+        "autoracer_bringup/track.launch.py",
+        "autoware_launch/autoware.launch.xml",
+        "vehicle_model:=autoracer_hooke",
+        "sensor_model:=autoracer_hooke_sensor_kit",
+        "autoracer_hooke_description",
+        "autoracer_hooke_launch",
+        "autoracer_hooke_sensor_kit_description",
+        "autoracer_hooke_sensor_kit_launch",
+        "command_gate -> rc_serial_interface",
+        "旧链路已从本分支移除",
+    ]
+    for term in required_terms:
+        assert term in text
+    assert text.count("```mermaid") >= 2
+    assert "旧 `run_track.sh` 路径保留" not in text
+    assert "旧链路回退" not in text
 
 
 def test_full_chain_doc_preserves_audit_to_runtime_order():
@@ -94,6 +119,8 @@ def test_full_chain_doc_preserves_audit_to_runtime_order():
     ]
     for term in required_terms:
         assert term in text
+    assert "没有 Lanelet2 地图时只验证 localization-only" not in text
+    assert "完整官方地图目录" in text
 
 
 def test_full_chain_implementation_plan_has_engineering_gates():

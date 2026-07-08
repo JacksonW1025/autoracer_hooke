@@ -13,9 +13,8 @@ Environment:
   MAP_PATH       required map directory
   LAUNCH_RVIZ    default: true
 
-Starts sensing + NDT localization only. Planning, control, safety, and vehicle
-interface are disabled. If map_projector_info.yaml is absent, the map projection
-loader is disabled for PCD-only localization checks.
+Starts official sensing + map + localization only. Planning, perception,
+control, API, and vehicle interface are disabled for PCD/localization checks.
 EOF
 }
 
@@ -36,15 +35,19 @@ if [[ -z "${MAP_PATH:-}" ]]; then
   exit 1
 fi
 
-export LAUNCH_PLANNING="${LAUNCH_PLANNING:-false}"
-export LAUNCH_CONTROL="${LAUNCH_CONTROL:-false}"
-export LAUNCH_SAFETY="${LAUNCH_SAFETY:-false}"
-export LAUNCH_VEHICLE="${LAUNCH_VEHICLE:-false}"
+export LAUNCH_VEHICLE="${LAUNCH_VEHICLE:-true}"
+export LAUNCH_VEHICLE_INTERFACE=false
+export LAUNCH_SENSING="${LAUNCH_SENSING:-true}"
+export LAUNCH_SENSING_DRIVER="${LAUNCH_SENSING_DRIVER:-true}"
+export LAUNCH_MAP="${LAUNCH_MAP:-true}"
+export LAUNCH_SYSTEM="${LAUNCH_SYSTEM:-false}"
+export LAUNCH_SYSTEM_MONITOR="${LAUNCH_SYSTEM_MONITOR:-false}"
+export LAUNCH_LOCALIZATION="${LAUNCH_LOCALIZATION:-true}"
+export LAUNCH_PERCEPTION="${LAUNCH_PERCEPTION:-false}"
+export LAUNCH_PLANNING=false
+export LAUNCH_CONTROL=false
+export LAUNCH_API=false
 export LAUNCH_RVIZ="${LAUNCH_RVIZ:-true}"
 export ENABLE_DRIVE_COMMANDS="${ENABLE_DRIVE_COMMANDS:-false}"
 
-if [[ ! -f "${MAP_PATH}/map_projector_info.yaml" ]]; then
-  export LAUNCH_MAP_PROJECTION_LOADER="${LAUNCH_MAP_PROJECTION_LOADER:-false}"
-fi
-
-exec ./scripts/run_track.sh
+exec ./scripts/run_official_autoware.sh

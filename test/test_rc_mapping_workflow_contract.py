@@ -16,8 +16,9 @@ def test_vehicle_mapping_scripts_exist_and_record_required_topics():
     record_text = record_script.read_text()
     for topic in (
         "/sensing/lidar/concatenated/pointcloud",
-        "/imu/data_raw",
-        "/imu/data",
+        "/sensing/lidar/filtered/pointcloud",
+        "/sensing/imu/imu_data_raw",
+        "/sensing/imu/imu_data",
         "/tf",
         "/tf_static",
         "/rosout",
@@ -30,7 +31,8 @@ def test_vehicle_mapping_scripts_exist_and_record_required_topics():
     check_text = check_script.read_text()
     assert "ring" in check_text
     assert "time" in check_text
-    assert "/imu/data" in check_text
+    assert "/sensing/lidar/filtered/pointcloud" in check_text
+    assert "/sensing/imu/imu_data" in check_text
 
     rc_dir = ROOT / "scripts" / "rc"
     public_scripts = {
@@ -50,107 +52,101 @@ def test_vehicle_mapping_scripts_exist_and_record_required_topics():
     capture_text = (rc_dir / "rc_capture_mapping_bag.sh").read_text()
     assert "check_mapping_inputs.sh" in capture_text
     assert "record_mapping_bag.sh" in capture_text
+    assert "rc_start_sensors.sh" in capture_text
     assert "kill -INT" in capture_text
     assert "ros2 bag info" in capture_text
     assert capture_text.count("scripts/ros_env.sh") >= 1
     assert "rc_start_mapping_bag.sh" in capture_text
+    assert "run_track.sh" not in capture_text
 
     start_bag_text = (rc_dir / "rc_start_mapping_bag.sh").read_text()
     stop_bag_text = (rc_dir / "rc_stop_mapping_bag.sh").read_text()
     assert "check_mapping_inputs.sh" in start_bag_text
     assert "record_mapping_bag.sh" in start_bag_text
+    assert "rc_start_sensors.sh" in start_bag_text
     assert "mapping_bag.env" in start_bag_text
+    assert "run_track.sh" not in start_bag_text
     assert "kill -INT" in stop_bag_text
     assert "ros2 bag info" in stop_bag_text
 
-    assert "LAUNCH_LOCALIZATION=false" in (rc_dir / "rc_start_sensors.sh").read_text()
-    assert "LAUNCH_MAP_PROJECTION_LOADER" in (rc_dir / "rc_start_localization.sh").read_text()
-    assert "pkill" in (rc_dir / "rc_stop.sh").read_text()
+    sensor_start_text = (rc_dir / "rc_start_sensors.sh").read_text()
+    assert "run_official_autoware.sh" in sensor_start_text
+    for setting in (
+        "LAUNCH_MAP=false",
+        "LAUNCH_LOCALIZATION=false",
+        "LAUNCH_PLANNING=false",
+        "LAUNCH_CONTROL=false",
+        "LAUNCH_API=false",
+        "LAUNCH_VEHICLE_INTERFACE=false",
+    ):
+        assert setting in sensor_start_text
+
+    localization_start_text = (rc_dir / "rc_start_localization.sh").read_text()
+    assert "run_official_autoware.sh" in localization_start_text
+    assert "LAUNCH_PLANNING=false" in localization_start_text
+    assert "LAUNCH_CONTROL=false" in localization_start_text
+    assert "LAUNCH_API=false" in localization_start_text
+    assert "LAUNCH_VEHICLE_INTERFACE=false" in localization_start_text
+    stop_text = (rc_dir / "rc_stop.sh").read_text()
+    assert "pkill" in stop_text
+    assert "component_container" in stop_text
 
 
-def test_rc_bringup_exposes_hipnuc_imu_arguments():
-    track_launch = ROOT / "src" / "autoracer_bringup" / "launch" / "track_rc_p0.launch.py"
-    sensing_launch = ROOT / "src" / "autoracer_bringup" / "launch" / "sensing.launch.py"
+def test_official_sensor_kit_exposes_hipnuc_imu_arguments():
+    sensing_launch = (
+        ROOT
+        / "src"
+        / "autoracer_hooke_sensor_kit_launch"
+        / "launch"
+        / "sensing.launch.xml"
+    )
     setup_py = ROOT / "src" / "autoracer_sensing" / "setup.py"
 
-    assert "launch_imu" in track_launch.read_text()
     sensing_text = sensing_launch.read_text()
+    assert "launch_imu" in sensing_text
     assert "hipnuc_imu" in sensing_text
     assert "imu_filter_madgwick" in sensing_text
-    assert "/imu/data_raw" in sensing_text
-    assert "/imu/data" in sensing_text
+    assert "/sensing/imu/imu_data_raw" in sensing_text
+    assert "/sensing/imu/imu_data" in sensing_text
     assert "pointcloud_voxel_filter" in sensing_text
     assert "pointcloud_voxel_filter" in setup_py.read_text()
 
 
-def test_track_launch_allows_subsystem_isolation_for_vehicle_debug():
-    track_launch = ROOT / "src" / "autoracer_bringup" / "launch" / "track.launch.py"
-    rc_launch = ROOT / "src" / "autoracer_bringup" / "launch" / "track_rc_p0.launch.py"
-    localization_launch = ROOT / "src" / "autoracer_bringup" / "launch" / "localization.launch.py"
-    run_script = ROOT / "scripts" / "run_track.sh"
+def test_official_branch_removes_legacy_track_entrypoints():
+    removed_entrypoints = [
+        ROOT / "scripts" / "run_track.sh",
+        ROOT / "src" / "autoracer_bringup" / "launch" / "track.launch.py",
+        ROOT / "src" / "autoracer_bringup" / "launch" / "track_rc_p0.launch.py",
+    ]
+    for path in removed_entrypoints:
+        assert not path.exists(), f"legacy formal entrypoint should be removed: {path}"
 
-    track_text = track_launch.read_text()
-    for argument in ("launch_planning", "launch_control", "launch_safety"):
-        assert f'DeclareLaunchArgument("{argument}"' in track_text
-        assert f"IfCondition({argument})" in track_text
-        assert argument in rc_launch.read_text()
-        assert argument.upper() in run_script.read_text()
-
-    assert "launch_map_projection_loader" in localization_launch.read_text()
-    assert "launch_map_projection_loader" in track_text
-    rc_text = rc_launch.read_text()
-    assert "launch_map_projection_loader" in rc_text
-    assert '"manual_seed_require_input_pose": manual_seed_require_input_pose' in rc_text
-    assert '"manual_seed_require_input_pose": "true"' not in rc_text
-    assert '"ndt_param_file": ndt_param_file' in track_text
-    assert '"ndt_param_file": ndt_param_file' in rc_text
-    assert '"ndt_initial_pose_stamp_offset_sec": ndt_initial_pose_stamp_offset_sec' in track_text
-    assert '"ndt_initial_pose_stamp_offset_sec": ndt_initial_pose_stamp_offset_sec' in rc_text
-    assert '"input_pointcloud": localization_pointcloud_topic' in track_text
-    assert "launch_pointcloud_filter" in track_text
-    assert 'DeclareLaunchArgument("launch_pointcloud_filter", default_value="true")' in rc_text
-    assert 'default_value="/sensing/lidar/filtered/pointcloud"' in rc_text
-    assert "config\", \"rc\", \"ndt_scan_matcher.param.yaml" in rc_text
-    assert 'DeclareLaunchArgument("ndt_initial_pose_stamp_offset_sec", default_value="-0.10")' in rc_text
-    assert "rc_autoware.rviz" in track_text
-    assert "rc_autoware.rviz" in rc_text
-    assert "rc_sensor_extrinsics.yaml" in track_text
-    assert 'DeclareLaunchArgument("launch_fixposition", default_value="false")' in track_text
-    assert 'DeclareLaunchArgument("launch_manual_seed", default_value="true")' in track_text
-    assert 'default_value="/sensing/lidar/filtered/pointcloud"' in track_text
-    assert "config\", \"rc\", \"lslidar_cx.yaml" in track_text
-    assert "config\", \"rc\", \"ndt_scan_matcher.param.yaml" in track_text
-    localization_text = localization_launch.read_text()
-    assert 'DeclareLaunchArgument("wheel_base_m", default_value="0.6")' in localization_text
-    assert 'DeclareLaunchArgument("launch_fixposition_seed", default_value="false")' in localization_text
-    assert 'DeclareLaunchArgument("launch_manual_seed", default_value="true")' in localization_text
-    assert 'default_value="/sensing/lidar/filtered/pointcloud"' in localization_text
-    assert "config\",\n            \"rc\"" in localization_text
-    assert "NDT_PARAM_FILE" in run_script.read_text()
-    assert "NDT_INITIAL_POSE_STAMP_OFFSET_SEC" in run_script.read_text()
-    assert "LAUNCH_POINTCLOUD_FILTER" in run_script.read_text()
-    assert "LOCALIZATION_POINTCLOUD_TOPIC" in run_script.read_text()
-    assert "LAUNCH_MAP_PROJECTION_LOADER" in run_script.read_text()
-    assert "LAUNCH_IMU" in run_script.read_text()
-    assert "IMU_SERIAL_PORT" in run_script.read_text()
-    assert "IMU_BAUDRATE" in run_script.read_text()
+    run_official_text = (ROOT / "scripts" / "run_official_autoware.sh").read_text()
+    for setting in (
+        "LAUNCH_VEHICLE",
+        "LAUNCH_SENSING",
+        "LAUNCH_LOCALIZATION",
+        "LAUNCH_PLANNING",
+        "LAUNCH_CONTROL",
+        "LAUNCH_API",
+        "LAUNCH_VEHICLE_INTERFACE",
+    ):
+        assert setting in run_official_text
+    assert "ros2 launch autoware_launch autoware.launch.xml" in run_official_text
 
 
 def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
     defaults_text = (ROOT / "defaults.env").read_text()
-    run_script_text = (ROOT / "scripts" / "run_track.sh").read_text()
+    run_script_text = (ROOT / "scripts" / "run_official_autoware.sh").read_text()
     assert 'SERIAL_PORT:=}' in defaults_text
     assert 'IMU_SERIAL_PORT:=/dev/ttyUSB0' in defaults_text
-    assert 'if [[ -n "${SERIAL_PORT:-}" ]]' in run_script_text
-    assert 'LAUNCH_ARGS+=(serial_port:="${SERIAL_PORT}")' in run_script_text
+    assert "SERIAL_PORT is required when LAUNCH_VEHICLE_INTERFACE=true" in run_script_text
 
     operator_files = [
         ROOT / "README.md",
         ROOT / "docs" / "operations" / "rc_runbook_zh.md",
-        ROOT / "src" / "autoracer_bringup" / "launch" / "track.launch.py",
-        ROOT / "src" / "autoracer_bringup" / "launch" / "track_rc_p0.launch.py",
-        ROOT / "src" / "autoracer_bringup" / "launch" / "vehicle.launch.py",
-        ROOT / "src" / "autoracer_bringup" / "launch" / "bench_verification.launch.py",
+        ROOT / "src" / "autoracer_hooke_launch" / "launch" / "vehicle_interface.launch.xml",
+        ROOT / "scripts" / "run_official_autoware.sh",
     ]
     for path in operator_files:
         assert "/dev/ttyACM0" not in path.read_text(), path

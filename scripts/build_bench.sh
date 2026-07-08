@@ -29,8 +29,13 @@ PACKAGES_UP_TO=(
 )
 
 PACKAGES_SELECT=(
-  autoracer_description
-  autoracer_bringup
+  autoracer_hooke_description
+  autoracer_hooke_launch
+  autoracer_hooke_sensor_kit_description
+  autoracer_hooke_sensor_kit_launch
+  autoware_launch
+  tier4_vehicle_launch
+  tier4_sensing_launch
 )
 
 OVERRIDE_PACKAGES=(

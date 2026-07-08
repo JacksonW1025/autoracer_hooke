@@ -42,8 +42,9 @@ BAG_DISCOVERY_POLL_MS="${BAG_DISCOVERY_POLL_MS:-100}"
 
 topics=(
   /sensing/lidar/concatenated/pointcloud
-  /imu/data_raw
-  /imu/data
+  /sensing/lidar/filtered/pointcloud
+  /sensing/imu/imu_data_raw
+  /sensing/imu/imu_data
   /tf
   /tf_static
   /rosout

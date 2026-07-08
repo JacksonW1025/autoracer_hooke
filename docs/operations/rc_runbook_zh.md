@@ -36,7 +36,7 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_sensors.sh
 
 - C32 输出 `/sensing/lidar/concatenated/pointcloud`。
 - 点云 frame 为 `lidar_top`。
-- Hipnuc IMU 输出 `/imu/data_raw` 和 `/imu/data`。
+- Hipnuc IMU 输出 `/sensing/imu/imu_data_raw` 和 `/sensing/imu/imu_data`。
 - `base_link -> lidar_top` 和 `base_link -> imu_link` 可查。
 - RC 第一版外参可用 legacy 值，实车后必须复核。
 
@@ -62,7 +62,7 @@ lanelet2_map.osm
 map_projector_info.yaml
 ```
 
-只有 PCD 时只能做 localization-only。
+official localization-only 也需要完整地图目录；缺少 Lanelet2 或 projector 资产时先补齐地图，不声明车端 localization 已可验证。
 
 ## 5. Localization
 
@@ -126,7 +126,7 @@ MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMAND
 3. 配置 LiDAR 网口。
 4. 启动 sensors，跑 `check_mapping_inputs.sh`。
 5. 设置 `MAP_PATH`。
-6. 启动 track，保持 `ENABLE_DRIVE_COMMANDS=false`。
+6. 启动 official Autoware wrapper，保持 `ENABLE_DRIVE_COMMANDS=false`。
 7. 给 `/initialpose`，确认 NDT 和 TF。
 8. 给短 `/goal_pose`，确认 trajectory 和 raw control。
 9. 架空或低速场地设置 `ENABLE_DRIVE_COMMANDS=true`。

@@ -20,6 +20,7 @@ docs/
     image.png
     platform_and_stack_zh.md
     runtime_alignment_audit_zh.md
+    official_launch_structure_zh.md
     official_migration_zh.md
   operations/
     rc_full_chain_execution_zh.md
@@ -41,6 +42,7 @@ docs/
 | `architecture/platform_and_stack_zh.md` | Hooke/RC 架构图、共享 upper stack、平台差异边界。 |
 | `architecture/image.png` | 架构图静态预览，用于汇报；不作为事实源。 |
 | `architecture/runtime_alignment_audit_zh.md` | 架构模块到 launch、node、topic、参数的前置审计。 |
+| `architecture/official_launch_structure_zh.md` | 旧自定义 launch 链路与官方 launch/profile 结构差异说明。 |
 | `architecture/official_migration_zh.md` | 后续官方 Autoware 迁移评估，不作为当前 RC 主链路。 |
 | `operations/rc_full_chain_execution_zh.md` | 全链路执行总控，记录阶段、入口、产物、通过标准和缺口。 |
 | `operations/rc_runbook_zh.md` | 上车运行步骤。 |

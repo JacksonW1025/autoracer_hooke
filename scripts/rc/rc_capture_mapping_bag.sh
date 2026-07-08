@@ -56,15 +56,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "[rc-capture] starting sensors, log: ${SENSOR_LOG}"
-setsid env \
-  LAUNCH_LOCALIZATION=false \
-  LAUNCH_PLANNING=false \
-  LAUNCH_CONTROL=false \
-  LAUNCH_SAFETY=false \
-  LAUNCH_VEHICLE=false \
-  LAUNCH_RVIZ=false \
-  ENABLE_DRIVE_COMMANDS=false \
-  ./scripts/run_track.sh >"$SENSOR_LOG" 2>&1 &
+setsid env ./scripts/rc/rc_start_sensors.sh >"$SENSOR_LOG" 2>&1 &
 SENSOR_PID=$!
 
 sleep "$SENSOR_WARMUP_SEC"

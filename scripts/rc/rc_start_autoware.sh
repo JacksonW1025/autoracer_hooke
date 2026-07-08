@@ -12,10 +12,10 @@ Usage:
 Environment:
   MAP_PATH                required Autoware map directory
   ENABLE_DRIVE_COMMANDS   default: false
-  LAUNCH_RVIZ             default: true
+  LAUNCH_RVIZ             default: false
 
-Starts the RC Autoware chain with sensing, localization, planning, control,
-safety gate, vehicle interface, and Autoware RViz.
+Starts the official Autoware launch path with the autoracer_hooke vehicle,
+autoracer_hooke_sensor_kit sensors, safety gate, and RC serial interface.
 EOF
 }
 
@@ -36,7 +36,7 @@ if [[ -z "${MAP_PATH:-}" ]]; then
   exit 1
 fi
 
-export LAUNCH_RVIZ="${LAUNCH_RVIZ:-true}"
+export LAUNCH_RVIZ="${LAUNCH_RVIZ:-false}"
 export ENABLE_DRIVE_COMMANDS="${ENABLE_DRIVE_COMMANDS:-false}"
 
-exec ./scripts/run_track.sh
+exec ./scripts/run_official_autoware.sh

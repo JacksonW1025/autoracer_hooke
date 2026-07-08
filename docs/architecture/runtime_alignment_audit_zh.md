@@ -6,10 +6,10 @@
 
 ## 审计结论
 
-- 当前 shared upper stack 由 `autoracer_planning`、`autoracer_control`、`autoracer_safety` 组成。
-- RC 默认 sensing profile 使用 C32、Hipnuc IMU、pointcloud filter、manual seed、NDT、UART adapter。
+- 当前分支的正式入口改为官方 `autoware_launch`；本仓库提供 RC vehicle profile 和 sensor-kit profile。
+- RC 默认 sensing profile 使用 C32、Hipnuc IMU 和 pointcloud filter；UART adapter 通过 official vehicle profile 接入。
 - Hooke profile 使用 Hesai/Nebula、Fixposition seed、NDT、Hooke2 CAN adapter。
-- 当前 shared launch 默认让 NDT 消费 `/sensing/lidar/filtered/pointcloud`；`/sensing/lidar/concatenated/pointcloud` 是 LiDAR driver 输出和建图录包输入。
+- 当前 official localization 默认消费 `/sensing/lidar/concatenated/pointcloud`；`/sensing/lidar/filtered/pointcloud` 是本仓库 sensor-kit profile 的降采样输出，保留给建图录包、诊断和后续可选预处理。
 
 ## 差异处理原则
 
@@ -21,18 +21,18 @@
 
 | 架构图模块 | launch / script | package / executable | 关键输入 | 关键输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| RC entrypoint | `scripts/rc/rc_start_autoware.sh` | `scripts/run_track.sh` | `MAP_PATH` | `track.launch.py` | 已映射 |
-| RC sensing | `src/autoracer_bringup/launch/sensing.launch.py` | `lslidar_driver/lslidar_driver_node` | C32 UDP | `/sensing/lidar/concatenated/pointcloud` | 已映射 |
-| RC pointcloud filter | `src/autoracer_bringup/launch/sensing.launch.py` | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 已映射 |
-| RC IMU raw | `src/autoracer_bringup/launch/sensing.launch.py` | `hipnuc_imu/talker` | serial | `/imu/data_raw` | 已映射 |
-| RC IMU filtered | `src/autoracer_bringup/launch/sensing.launch.py` | `imu_filter_madgwick/imu_filter_madgwick_node` | `/imu/data_raw` | `/imu/data` | 已映射 |
-| RC manual seed | `src/autoracer_bringup/launch/localization.launch.py` | `autoracer_localization/manual_seed_pose_publisher` | `/initialpose` | `/localization/fixposition/seed_pose` | 已映射 |
-| RC NDT input | `src/autoracer_bringup/launch/localization.launch.py` | `autoware_ndt_scan_matcher` | `/sensing/lidar/filtered/pointcloud` + `/localization/ndt_initial_pose` | `/localization/pose_with_covariance` | 已映射 |
-| RC kinematic state | `src/autoracer_bringup/launch/localization.launch.py` | `autoracer_localization/kinematic_state_publisher` | NDT pose + `/vehicle/status/*` | `/localization/kinematic_state` | 已映射 |
-| Shared planning | `src/autoracer_planning/launch/planning.launch.py` | `autoracer_planning/lanelet_route_planner` | map + localization pose + goal | `/planning/trajectory` | 已映射 |
-| Shared control | `src/autoracer_control/launch/control.launch.py` | `autoracer_control/pure_pursuit_controller` | trajectory + pose + velocity | `/autoracer/control/raw_control_cmd` | 已映射 |
-| Shared gate | `src/autoracer_safety/launch/safety.launch.py` | `autoracer_safety/command_gate` | raw control + localization | `/control/command/control_cmd`, `/control/command/gear_cmd` | 已映射 |
-| RC adapter | `src/autoracer_bringup/launch/vehicle.launch.py` | `autoracer_vehicle_interface/rc_serial_interface` | `/control/command/*` | UART + `/vehicle/status/*` | 已映射 |
+| RC entrypoint | `scripts/rc/rc_start_autoware.sh` | `scripts/run_official_autoware.sh` | `MAP_PATH` | `autoware_launch/autoware.launch.xml` | 已映射 |
+| RC vehicle description / TF | `tier4_vehicle_launch` + `autoracer_hooke_description` | `robot_state_publisher` | vehicle/sensor xacro | `/tf_static` | 已映射 |
+| RC sensing | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `lslidar_driver/lslidar_driver_node` | C32 UDP | `/sensing/lidar/concatenated/pointcloud` | 已映射 |
+| RC pointcloud filter | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 已映射 |
+| RC IMU raw | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `hipnuc_imu/talker` | serial | `/sensing/imu/imu_data_raw` | 已映射 |
+| RC IMU filtered | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `imu_filter_madgwick/imu_filter_madgwick_node` | `/sensing/imu/imu_data_raw` | `/sensing/imu/imu_data` | 已映射 |
+| RC localization | `autoware_launch` localization component | official localization packages | map + `/sensing/lidar/concatenated/pointcloud` + initial pose | `/localization/pose_with_covariance` | 待车端验证 |
+| RC kinematic state | official localization/control surface | Autoware components | localization + `/vehicle/status/*` | `/localization/kinematic_state` | 待车端验证 |
+| Official planning | `autoware_launch` planning component | official Autoware planning packages | map + localization + route/goal | `/planning/trajectory` and official planning surface | 待车端验证 |
+| Official control | `autoware_launch` control component | official Autoware control packages | trajectory + kinematic state + vehicle info | `/control/command/control_cmd` | 待车端验证 |
+| Vehicle gate | `autoracer_hooke_launch/launch/vehicle_interface.launch.xml` | `autoracer_safety/command_gate` | `/control/command/control_cmd` | `/autoracer/control/safe_control_cmd` | RC adapter 前保留 |
+| RC adapter | `autoracer_hooke_launch/launch/vehicle_interface.launch.xml` | `autoracer_safety/command_gate` -> `autoracer_vehicle_interface/rc_serial_interface` | `/control/command/*` | UART + `/vehicle/status/*` | 已映射 |
 
 ## Hooke Launch 链路
 
@@ -42,7 +42,7 @@
 | Hooke pointcloud filter | `src/autoracer_bringup/launch/sensing.launch.py` | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 已映射到 shared launch |
 | Hooke Fixposition | `src/autoracer_bringup/launch/sensing.launch.py` | `fixposition_driver_ros2/fixposition_driver_ros2_exec` | Fixposition stream | `/fixposition/*` | 已映射到 conditional launch |
 | Hooke seed | `src/autoracer_bringup/launch/localization.launch.py` | `autoware_gnss_poser` + `fixposition_seed_filter` | `/fixposition/fix`, `/fixposition/autoware_orientation` | `/localization/fixposition/seed_pose` | 已映射到 conditional launch |
-| Hooke NDT | `src/autoracer_bringup/launch/localization.launch.py` | `autoware_ndt_scan_matcher` | `/sensing/lidar/filtered/pointcloud` + seed + map | `/localization/pose_with_covariance` | 已映射到 shared launch |
+| Hooke NDT | 历史 `autoracer_bringup` localization launch | `autoware_ndt_scan_matcher` | filtered pointcloud + seed + map | `/localization/pose_with_covariance` | 历史链路，当前 official 分支不作为正式入口 |
 | Hooke upper stack | planning/control/safety launch files | local shared packages | localization + map + trajectory | gated control command | 与 RC 共享 |
 | Hooke adapter | `src/hooke2_vehicle/vehicle_launcher/hooke2_launch/launch/vehicle_interface.launch.xml` | `hooke2_interface` + SocketCAN | `/control/command/*` | CAN + `/vehicle/status/*` | 已映射到 Hooke2 launch |
 
@@ -50,12 +50,12 @@
 
 | 脚本 | 目的 | 强制输入 | 默认关闭项 | 默认开启项 |
 | --- | --- | --- | --- | --- |
-| `scripts/rc/rc_start_sensors.sh` | 传感器和 TF 输入检查、建图录包准备 | 无 | localization、planning、control、safety、vehicle、RViz、drive commands | sensing |
-| `scripts/rc/rc_start_localization.sh` | PCD/localization-only 验证 | `MAP_PATH` | planning、control、safety、vehicle、drive commands | sensing、localization、RViz |
-| `scripts/rc/rc_start_autoware.sh` | 完整 RC Autoware 链路启动 | `MAP_PATH` | drive commands | sensing、localization、planning、control、safety、vehicle、RViz |
+| `scripts/rc/rc_start_sensors.sh` | 传感器和 TF 输入检查、建图录包准备 | 无 | map、localization、perception、planning、control、API、vehicle interface、RViz、drive commands | vehicle description、sensing driver |
+| `scripts/rc/rc_start_localization.sh` | official map localization-only 验证 | `MAP_PATH` | perception、planning、control、API、vehicle interface、drive commands | vehicle description、sensing、map、localization、RViz |
+| `scripts/rc/rc_start_autoware.sh` | 完整 RC Autoware 链路启动 | `MAP_PATH` | drive commands | sensing、localization、planning、control、API、vehicle description、vehicle interface |
 
 ## 审计后续
 
-1. Hooke profile 的真实部署入口如果不走当前 shared `track.launch.py`，需要补充对应启动文件并更新 Hooke 表格。
+1. Hooke profile 的真实部署入口需要继续贴合官方 vehicle/sensor profile 约定，不能恢复本仓库自定义总控。
 2. 如果后续关闭 `pointcloud_voxel_filter`，需要同步更新 NDT input topic、架构图和接口契约。
 3. 运行静态测试防止旧文档结构回退。

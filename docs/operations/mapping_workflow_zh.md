@@ -63,8 +63,8 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_sensors.sh
 
 ```text
 [mapping-check] OK topic data: /sensing/lidar/concatenated/pointcloud
-[mapping-check] OK topic data: /imu/data_raw
-[mapping-check] OK topic data: /imu/data
+[mapping-check] OK topic data: /sensing/imu/imu_data_raw
+[mapping-check] OK topic data: /sensing/imu/imu_data
 [mapping-check] OK topic data: /tf_static
 [mapping-check] OK pointcloud fields: x y z intensity ring time
 [mapping-check] mapping inputs look usable
@@ -129,8 +129,9 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 \
 
 ```text
 /sensing/lidar/concatenated/pointcloud
-/imu/data_raw
-/imu/data
+/sensing/lidar/filtered/pointcloud
+/sensing/imu/imu_data_raw
+/sensing/imu/imu_data
 /tf
 /tf_static
 /rosout
@@ -140,8 +141,8 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 \
 
 ```text
 /sensing/lidar/concatenated/pointcloud
-/imu/data_raw
-/imu/data
+/sensing/imu/imu_data_raw
+/sensing/imu/imu_data
 /tf_static
 /rosout
 ```
@@ -195,7 +196,7 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_mapping_bag.sh
 ./scripts/rc/rc_stop_mapping_bag.sh
 ```
 
-建图必录 topic：`/sensing/lidar/concatenated/pointcloud`、`/imu/data_raw`、`/imu/data`、`/tf`、`/tf_static`、`/rosout`。
+建图必录 topic：`/sensing/lidar/concatenated/pointcloud`、`/sensing/lidar/filtered/pointcloud`、`/sensing/imu/imu_data_raw`、`/sensing/imu/imu_data`、`/tf`、`/tf_static`、`/rosout`。
 
 诊断可选 topic：`/vehicle/status/velocity_status`、`/vehicle/status/steering_status`、`/vehicle/status/gear_status`、`/autoracer/vehicle_interface/state`。
 
@@ -274,7 +275,7 @@ Foxglove 只属于建图工作流，用来快速查看录下来的 ROS bag 是�
 ./run_mapping_pipeline.sh /home/milesli/Desktop/RC/rc_mapping_data/bags/raw/<bag> <run_id>
 ```
 
-带 `<map_name>` 时，pipeline 会继续打包 localization-only 地图：
+带 `<map_name>` 时，pipeline 会继续打包官方 Autoware 地图目录：
 
 ```bash
 ./run_mapping_pipeline.sh /home/milesli/Desktop/RC/rc_mapping_data/bags/raw/<bag> <run_id> <map_name>
@@ -300,13 +301,7 @@ Foxglove 只属于建图工作流，用来快速查看录下来的 ROS bag 是�
 ./package_autoware_map.sh <run_id> <map_name> /path/to/lanelet2_map.osm /path/to/map_projector_info.yaml
 ```
 
-只有点云地图、暂时没有 Lanelet/projector 资产时，只能做 NDT/localization-only 验证：
-
-```bash
-LOCALIZATION_ONLY=true ./package_autoware_map.sh <run_id> <map_name>
-```
-
-没有 `lanelet2_map.osm` 时，只做 localization/NDT 验证，不声明规划导航完成。
+官方 `autoware_launch` 的 map component 会加载 `lanelet2_map.osm` 和 `map_projector_info.yaml`。只有点云地图、暂时没有 Lanelet/projector 资产时，先补齐地图资产，不在车端声明 localization-only 已可验证。
 
 ## 回灌和验证
 
@@ -322,7 +317,7 @@ VEHICLE_HOST=user@host ./sync_map_to_vehicle.sh <map_name>
 2. 启动 localization-only。
 3. RViz 发布 `/initialpose`。
 4. 确认 NDT pose 和 `map -> base_link` TF。
-5. OSM 到位后再启动完整 track 链路。
+5. 低速前再启动完整 official Autoware 链路。
 6. 底盘供电后做低速 dynamic check。
 
 ## 缺口与验证口径

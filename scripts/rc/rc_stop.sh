@@ -23,11 +23,14 @@ if [[ $# -gt 0 ]]; then
 fi
 
 patterns=(
-  "[r]os2 launch autoracer_bringup track.launch.py"
-  "[r]un_track.sh"
+  "[r]os2 launch autoware_launch autoware.launch.xml"
+  "[r]un_official_autoware.sh"
   "[r]viz2"
   "[r]obot_state_publisher"
   "[s]tatic_transform_publisher"
+  "[c]omponent_container"
+  "[c]omponent_container_mt"
+  "[p]ointcloud_container"
   "[l]slidar_driver_node"
   "[p]ointcloud_voxel_filter"
   "[h]ipnuc_imu/lib/hipnuc_imu/talker"
@@ -56,5 +59,5 @@ done
 sleep "${STOP_WAIT_SEC:-1}"
 
 ps -eo pid,comm,args |
-  grep -E "lslidar|pointcloud|hipnuc|IMU_publisher|imu_filter|run_track|track.launch|ndt|map_loader|lanelet|pure_pursuit|command_gate|rc_serial|rviz2|robot_state|rosbag" |
+  grep -E "component_container|lslidar|pointcloud|hipnuc|IMU_publisher|imu_filter|run_official_autoware|autoware.launch|ndt|map_loader|lanelet|pure_pursuit|command_gate|rc_serial|rviz2|robot_state|rosbag" |
   grep -v grep || true

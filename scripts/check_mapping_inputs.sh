@@ -10,8 +10,9 @@ Usage:
 
 Environment:
   LIDAR_TOPIC                   default: /sensing/lidar/concatenated/pointcloud
-  IMU_RAW_TOPIC                 default: /imu/data_raw
-  IMU_TOPIC                     default: /imu/data
+  FILTERED_LIDAR_TOPIC          default: /sensing/lidar/filtered/pointcloud
+  IMU_RAW_TOPIC                 default: /sensing/imu/imu_data_raw
+  IMU_TOPIC                     default: /sensing/imu/imu_data
   TF_STATIC_TOPIC               default: /tf_static
   TOPIC_DISCOVERY_TIMEOUT_SEC   default: 20
   CHECK_TIMEOUT_SEC             default: 8
@@ -38,13 +39,15 @@ source "${ROOT_DIR}/scripts/ros_env.sh"
 CHECK_TIMEOUT_SEC="${CHECK_TIMEOUT_SEC:-8}"
 TOPIC_DISCOVERY_TIMEOUT_SEC="${TOPIC_DISCOVERY_TIMEOUT_SEC:-20}"
 LIDAR_TOPIC="${LIDAR_TOPIC:-/sensing/lidar/concatenated/pointcloud}"
-IMU_RAW_TOPIC="${IMU_RAW_TOPIC:-/imu/data_raw}"
-IMU_TOPIC="${IMU_TOPIC:-/imu/data}"
+FILTERED_LIDAR_TOPIC="${FILTERED_LIDAR_TOPIC:-/sensing/lidar/filtered/pointcloud}"
+IMU_RAW_TOPIC="${IMU_RAW_TOPIC:-/sensing/imu/imu_data_raw}"
+IMU_TOPIC="${IMU_TOPIC:-/sensing/imu/imu_data}"
 TF_STATIC_TOPIC="${TF_STATIC_TOPIC:-/tf_static}"
 
 export CHECK_TIMEOUT_SEC
 export TOPIC_DISCOVERY_TIMEOUT_SEC
 export LIDAR_TOPIC
+export FILTERED_LIDAR_TOPIC
 export IMU_RAW_TOPIC
 export IMU_TOPIC
 export TF_STATIC_TOPIC
@@ -64,12 +67,14 @@ from tf2_msgs.msg import TFMessage
 check_timeout = float(os.environ["CHECK_TIMEOUT_SEC"])
 discovery_timeout = float(os.environ["TOPIC_DISCOVERY_TIMEOUT_SEC"])
 lidar_topic = os.environ["LIDAR_TOPIC"]
+filtered_lidar_topic = os.environ["FILTERED_LIDAR_TOPIC"]
 imu_raw_topic = os.environ["IMU_RAW_TOPIC"]
 imu_topic = os.environ["IMU_TOPIC"]
 tf_static_topic = os.environ["TF_STATIC_TOPIC"]
 
 counts = {
     lidar_topic: 0,
+    filtered_lidar_topic: 0,
     imu_raw_topic: 0,
     imu_topic: 0,
     tf_static_topic: 0,
@@ -93,6 +98,10 @@ def on_pointcloud(msg):
         pointcloud_fields = [field.name for field in msg.fields]
 
 
+def on_filtered_pointcloud(_msg):
+    mark(filtered_lidar_topic)
+
+
 def on_imu_raw(_msg):
     mark(imu_raw_topic)
 
@@ -111,6 +120,9 @@ tf_static_qos = QoSProfile(depth=1)
 tf_static_qos.durability = DurabilityPolicy.TRANSIENT_LOCAL
 
 node.create_subscription(PointCloud2, lidar_topic, on_pointcloud, qos_profile_sensor_data)
+node.create_subscription(
+    PointCloud2, filtered_lidar_topic, on_filtered_pointcloud, qos_profile_sensor_data
+)
 node.create_subscription(Imu, imu_raw_topic, on_imu_raw, qos_profile_sensor_data)
 node.create_subscription(Imu, imu_topic, on_imu, qos_profile_sensor_data)
 node.create_subscription(TFMessage, tf_static_topic, on_tf_static, tf_static_qos)
@@ -126,7 +138,7 @@ while time.monotonic() < sample_deadline:
     rclpy.spin_once(node, timeout_sec=0.2)
 
 failures = 0
-for topic in (lidar_topic, imu_raw_topic, imu_topic, tf_static_topic):
+for topic in (lidar_topic, filtered_lidar_topic, imu_raw_topic, imu_topic, tf_static_topic):
     if counts[topic] > 0:
         print(f"[mapping-check] OK topic data: {topic} ({counts[topic]} msg)")
     else:
@@ -148,7 +160,7 @@ else:
     else:
         print("[mapping-check] OK pointcloud fields: x y z intensity ring time")
 
-for topic in (lidar_topic, imu_raw_topic, imu_topic):
+for topic in (lidar_topic, filtered_lidar_topic, imu_raw_topic, imu_topic):
     elapsed = max(last_stamp.get(topic, 0.0) - first_stamp.get(topic, 0.0), 1e-6)
     rate = (counts[topic] - 1) / elapsed if counts[topic] > 1 else 0.0
     print(f"[mapping-check] rate {topic}: {rate:.2f} Hz")

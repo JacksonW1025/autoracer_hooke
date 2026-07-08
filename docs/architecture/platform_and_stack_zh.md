@@ -96,7 +96,7 @@ flowchart LR
   subgraph R_Localization["Localization"]
     R_PC["/sensing/lidar/concatenated/pointcloud"]
     R_Filter["pointcloud_voxel_filter\n/sensing/lidar/filtered/pointcloud"]
-    R_ImuTopic["/imu/data_raw\n/imu/data"]
+    R_ImuTopic["/sensing/imu/imu_data_raw\n/sensing/imu/imu_data"]
     R_Seed["manual_seed_pose_publisher\n/localization/fixposition/seed_pose"]
     R_NDT["autoware_ndt_scan_matcher"]
     R_Pose["/localization/pose_with_covariance"]

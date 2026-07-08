@@ -1,0 +1,4 @@
+/**:
+  ros__parameters:
+    vehicle_model_type: "IDEAL_STEER_VEL"
+    initialize_source: "INITIAL_POSE_TOPIC"

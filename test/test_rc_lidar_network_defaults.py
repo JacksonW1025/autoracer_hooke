@@ -25,7 +25,7 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
     assert "LIDAR_IFACE:-enP8p1s0" in link_script
     assert "default: eth0" not in link_script
 
-    run_script = read("scripts/run_track.sh")
+    run_script = read("scripts/run_official_autoware.sh")
     assert "require_lidar_link_ready" in run_script
     assert "LIDAR_LINK_WAIT_SEC" in run_script
     assert "ip route get" in run_script
@@ -77,6 +77,8 @@ def test_repo_does_not_carry_obsolete_lidar_host_address():
     offenders = []
     for relative_path in tracked_files:
         path = ROOT / relative_path
+        if not path.exists():
+            continue
         if forbidden in path.read_bytes():
             offenders.append(relative_path)
 

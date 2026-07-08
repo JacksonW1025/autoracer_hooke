@@ -35,11 +35,12 @@ names. Pass those at launch time through environment variables such as
 
 ```text
 autoracer.repos            Dependency manifest for selected external packages.
-defaults.env               Runtime defaults used by scripts/run_track.sh.
+defaults.env               Runtime defaults shared by official RC wrappers.
 docs/                      Bringup and calibration notes.
 maps/                      Local map directory placeholder.
 scripts/                   Import, build, run, and smoke-test helpers.
-src/autoracer_bringup      Top-level launches and Hooke2 configuration.
+src/autoracer_bringup      Legacy config/RViz assets that have not moved yet.
+src/autoracer_hooke_*      Official Autoware vehicle and sensor-kit profiles.
 src/autoracer_description  Hooke2/RC frames, URDFs, and static TF launch.
 src/autoracer_localization Localization helper nodes.
 src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
@@ -144,7 +145,7 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_mapping_bag.sh
 ./scripts/rc/rc_stop_mapping_bag.sh
 ```
 
-Start localization-only against a PCD-only map:
+Start localization-only against a complete official Autoware map directory:
 
 ```bash
 MAP_PATH=/home/milesli/autoracer_maps/<map_name> \
@@ -152,7 +153,7 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 \
 ./scripts/rc/rc_start_localization.sh
 ```
 
-Prepare a map directory containing:
+Prepare a map directory containing all official map files:
 
 ```text
 lanelet2_map.osm
@@ -161,16 +162,34 @@ pointcloud_map_metadata.yaml
 map_projector_info.yaml
 ```
 
-Dry run, without sending effective drive commands. Autoware startup uses the
-runtime visualization config `rc_autoware.rviz`; this is separate from the
-mapping-workstation Foxglove bag viewer. The RViz config shows map, TF, C32
-pointclouds, NDT pose, kinematic state, planning path, and route markers, and
-provides RViz tools for `/initialpose` and `/goal_pose`. The RC profile waits
-for a map-frame `/initialpose` from RViz/ROS before publishing the NDT seed, so
-it will not inject a fake `0,0,0` initial pose by default:
+Official Autoware startup should use `autoware_launch` with the RC vehicle and
+sensor kit packages. Keep RViz disabled on the vehicle computer unless the
+machine is attached to a display; use Foxglove or a workstation for normal
+visualization:
+
+Official-path build prerequisites on a fresh machine:
 
 ```bash
-MAP_PATH=/path/to/map ./scripts/rc/rc_start_autoware.sh
+sudo apt install ros-humble-xacro libprotobuf-dev protobuf-compiler libpcap-dev
+```
+
+```bash
+ros2 launch autoware_launch autoware.launch.xml \
+  map_path:=/path/to/map \
+  vehicle_model:=autoracer_hooke \
+  sensor_model:=autoracer_hooke_sensor_kit \
+  launch_vehicle_interface:=false \
+  launch_perception:=false \
+  rviz:=false
+```
+
+The operator wrapper uses that same official launch path. Leave the chassis
+interface disabled for map/replay checks, or set a real chassis serial device
+for vehicle runs. Drive commands remain disabled unless
+`ENABLE_DRIVE_COMMANDS=true` is set:
+
+```bash
+MAP_PATH=/path/to/map LAUNCH_VEHICLE_INTERFACE=false ./scripts/rc/rc_start_autoware.sh
 ```
 
 Low-speed vehicle run after calibration and bench validation:
@@ -212,7 +231,6 @@ IMU_BAUDRATE=115200
 WHEEL_BASE_M=0.6
 MAX_STEER_RAD=0.262
 MAX_SPEED_MPS=3.0
-LIDAR_DRIVER=lslidar_c32
 LIDAR_HOST_IP=192.168.1.102
 LIDAR_SENSOR_IP=192.168.1.200
 ```
@@ -221,6 +239,10 @@ On the vehicle host, configure the C32 Ethernet link with
 `sudo -E ./scripts/rc/rc_configure_lidar.sh`. It assigns
 `192.168.1.102/32` on `enP8p1s0` plus a host route to `192.168.1.200/32`, keeping
 WiFi as the normal `192.168.1.0/24` route.
+
+This branch does not keep the old `scripts/run_track.sh` or
+`autoracer_bringup/track*.launch.py` runtime fallback. Roll back by switching to
+the previous branch, not by launching a compatibility path inside this branch.
 
 Runtime validation for the Autoware stack is ARM-side. The x86 development machine is
 used for mapping tools, scripts, static checks, and map packaging; it is not required to

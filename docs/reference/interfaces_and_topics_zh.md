@@ -7,7 +7,7 @@
 | Topic | 类型 | 生产者 | 消费者 | 语义 |
 | --- | --- | --- | --- | --- |
 | `/sensing/lidar/concatenated/pointcloud` | `sensor_msgs/msg/PointCloud2` | Hooke Hesai/Nebula 或 RC C32/lslidar | pointcloud filter、建图录包 | LiDAR driver 输出，frame 为 `lidar_top`。 |
-| `/sensing/lidar/filtered/pointcloud` | `sensor_msgs/msg/PointCloud2` | `pointcloud_voxel_filter` | NDT | 当前 shared launch 默认运行态定位点云输入。 |
+| `/sensing/lidar/filtered/pointcloud` | `sensor_msgs/msg/PointCloud2` | `pointcloud_voxel_filter` | 建图录包、诊断、后续可选预处理输入 | 当前 official localization 默认不消费该 topic。 |
 | `/localization/fixposition/seed_pose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | Hooke Fixposition seed 或 RC manual seed | NDT initial pose predictor、NDT regularization input | 名字带 Fixposition，但语义是 localization seed。 |
 | `/localization/ndt_initial_pose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | `ndt_initial_pose_predictor` | NDT scan matcher | NDT 启动/重定位初始位姿。 |
 | `/localization/pose_with_covariance` | `geometry_msgs/msg/PoseWithCovarianceStamped` | NDT scan matcher | planner、control、gate、kinematic publisher | map frame 定位输出。 |
@@ -29,17 +29,17 @@ LiDAR driver output contract:
 /sensing/lidar/concatenated/pointcloud  sensor_msgs/msg/PointCloud2
 ```
 
-Current runtime localization input when `pointcloud_voxel_filter` is enabled:
+Filtered pointcloud output for mapping bag capture and diagnosis:
 
 ```text
 /sensing/lidar/filtered/pointcloud  sensor_msgs/msg/PointCloud2
 ```
 
-Mapping bag capture keeps `/sensing/lidar/concatenated/pointcloud` as the source topic. NDT runtime may consume the filtered topic through `localization_pointcloud_topic`.
+Mapping bag capture keeps both `/sensing/lidar/concatenated/pointcloud` and `/sensing/lidar/filtered/pointcloud`; offline mapping can choose either raw driver output or filtered diagnostic output. Current official localization uses the upstream default input topic, so runtime localization consumes the official default concatenated topic unless a later profile explicitly overrides it.
 
 Hooke uses Hesai Pandar through `nebula_hesai`. The default parameter file is `src/autoracer_bringup/config/hooke2/lidar_top.param.yaml`; the historical live configuration used Nebula's `Pandar40P` model and `lidar_top` frame.
 
-The RC profile uses Leishen C32 through `lslidar_driver` with the legacy C32 network settings: `device_ip=192.168.1.200`, `msop_port=2368`, `difop_port=2369`. It publishes directly to `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
+The RC official sensor-kit profile uses Leishen C32 through `lslidar_driver` with `src/autoracer_hooke_sensor_kit_launch/config/lslidar_cx.yaml`: `device_ip=192.168.1.200`, `msop_port=2368`, `difop_port=2369`. It publishes directly to `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
 
 The underlying helper uses `192.168.1.102/32` on the LiDAR-facing Ethernet link and a host route to `192.168.1.200/32`, keeping the normal LAN/WiFi route separate. The current ARM vehicle host is temporary; do not encode it as the architecture boundary.
 

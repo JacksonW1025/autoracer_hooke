@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>autoracer_hooke_sensor_kit_launch</name>
+  <version>0.1.0</version>
+  <description>Official Autoware sensor kit launch adapter for the Autoracer Hooke RC platform.</description>
+  <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>autoracer_sensing</exec_depend>
+  <exec_depend>hipnuc_imu</exec_depend>
+  <exec_depend>imu_filter_madgwick</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>lslidar_driver</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

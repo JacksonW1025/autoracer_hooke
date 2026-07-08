@@ -10,7 +10,7 @@
 - RC 不新增独立上层算法；差异收敛在 sensing/profile、车辆参数、外参、地图资产生产和 vehicle adapter。
 - 固化脚本只服务长期全流程；一次性排查命令不升格为正式脚本。
 - x86 工作机负责 bag 检查、Super-LIO 建图、地图打包和静态检查；ARM 车端主机负责传感器、定位、upper stack、vehicle adapter 和实车验证。
-- 没有 Lanelet2 地图时只验证 localization-only；没有底盘动力时只验证节点、topic、TF 和零速输出。
+- official localization-only 也需要完整官方地图目录；没有底盘动力时只验证节点、topic、TF 和零速输出。
 
 ## 总链路
 
@@ -35,14 +35,14 @@
 | --- | --- | --- | --- | --- |
 | 差距审计 | `docs/architecture/runtime_alignment_audit_zh.md` | Hooke/RC 模块、launch、topic、平台差异表 | 允许差异和实现缺口分清；NDT 输入、adapter 边界、shared upper stack 无歧义 | 已建立，后续随 launch 变化维护 |
 | 车辆参数和接口事实 | `docs/reference/calibration_zh.md`、`docs/reference/interfaces_and_topics_zh.md` | 车辆尺寸、轮径、轴距、外参、topic 契约 | RC 参数和 Autoware-facing topic 有唯一来源 | 已建立，实测后补标定值 |
-| 车端传感器启动 | `./scripts/rc/rc_start_sensors.sh` | 点云、IMU、TF | `/sensing/lidar/concatenated/pointcloud`、`/imu/data_raw`、`/imu/data`、`/tf_static` 可用 | 待车端 live 验证 |
+| 车端传感器启动 | `./scripts/rc/rc_start_sensors.sh` | 点云、IMU、TF | `/sensing/lidar/concatenated/pointcloud`、`/sensing/lidar/filtered/pointcloud`、`/sensing/imu/imu_data_raw`、`/sensing/imu/imu_data`、`/tf_static` 可用 | 待车端 live 验证 |
 | 传感器输入检查 | `./scripts/check_mapping_inputs.sh` | 输入检查日志 | 点云 frame、字段、频率和 IMU/TF 满足建图输入 | 待车端 live 验证 |
 | 车端实时监控 | `ros2 launch foxglove_bridge foxglove_bridge_launch.xml` | Foxglove WebSocket | 客户端能连接 `ws://<vehicle-ip>:8765/` 并看到 live topic；不要求客户端安装 ROS | 车端 bridge 已验证可监听，104 端口连通已验证 |
 | 建图 bag 录制 | `./scripts/rc/rc_capture_mapping_bag.sh` 或 start/stop bag 脚本 | 原始 bag | 必录 topic 完整，时间戳连续，原始 bag 不覆盖 | 待录制 |
 | 工作机 bag 查看 | `rc_mapping_ws/view_bag_foxglove.sh` | 人工检查结论 | Foxglove 可看到点云、IMU、TF 时间轴；异常先回到采集阶段 | 工具入口已规划，待实包验证 |
 | Bag 结构检查 | `rc_mapping_ws/inspect_bag_topics.sh` | checked bag 或检查报告 | 建图必录 topic、消息类型、频率通过检查 | 待实包验证 |
 | Super-LIO 建图 | `rc_mapping_ws/run_mapping_pipeline.sh <bag> <run_id>` | `runs/<run_id>/`、PCD、日志、报告 | 离线 replay 不崩溃；运动 bag 能输出有效 PCD | 待运动 bag |
-| Autoware 地图打包 | `rc_mapping_ws/package_autoware_map.sh` | `autoware_maps/<map_name>/` | PCD metadata、Lanelet2、projector 文件齐全；localization-only 地图不得冒充导航地图 | 待地图资产 |
+| Autoware 地图打包 | `rc_mapping_ws/package_autoware_map.sh` | `autoware_maps/<map_name>/` | PCD metadata、Lanelet2、projector 文件齐全；localization-only 也使用完整官方地图目录 | 待地图资产 |
 | 地图回灌 | `rc_mapping_ws/sync_map_to_vehicle.sh <map_name>` | 车端地图目录 | `MAP_PATH` 指向可加载地图目录 | 待地图资产 |
 | Localization-only | `./scripts/rc/rc_start_localization.sh` | NDT pose、`map -> base_link` TF | `/initialpose` 后 `/localization/pose_with_covariance` 和 `/localization/kinematic_state` 稳定 | 待地图和车端验证 |
 | Full Autoware dry-run | `./scripts/rc/rc_start_autoware.sh` | trajectory、raw control、gated command | `ENABLE_DRIVE_COMMANDS=false` 时 upper stack 连通且底盘输出保持安全禁用 | 待地图和车端验证 |

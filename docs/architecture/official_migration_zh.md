@@ -1,6 +1,8 @@
 # 官方 Autoware 迁移评估备忘
 
-用途：记录当前本地 upper stack 与官方 Autoware Core/Universe planning/control/gate 的差异、迁移前提和风险。非用途：不作为当前 RC 主链路，不指导 RC 单独替换上层算法。
+用途：记录本地 upper stack 与官方 Autoware Core/Universe planning/control/gate 的差异、迁移前提和风险。非用途：不作为当前 RC 主链路，不指导 RC 单独替换上层算法。
+
+说明：当前分支已经把启动框架切到官方 `autoware_launch` + vehicle/sensor profile。本文只讨论是否继续替换 planning/control/gate 算法，不再定义旧 launcher 回退方式。
 
 ## 使用前提
 
@@ -11,9 +13,11 @@
 - Hooke 和 RC 都同意作为共同 upper stack 迁移，不做 RC 单独替换。
 - 迁移候选来自当前 `autoracer.repos` pin，不能混拉最新版。
 
-## 当前共同实现
+## 历史本地 upper stack
 
-| 层 | 当前实现 | 说明 |
+当前 official runtime 由 `autoware_launch` 启动官方 planning/control 组件。下面这些本地包是旧链路里的共享 upper stack，用于解释算法差异和后续替换评估，不是当前分支的正式启动路径。
+
+| 层 | 本地实现 | 说明 |
 | --- | --- | --- |
 | Planning | `autoracer_planning/lanelet_route_planner.py` | 直接从 OSM 和 `/goal_pose` 生成 `/planning/trajectory`。 |
 | Control | `autoracer_control/pure_pursuit_controller.py` | 消费 `/planning/trajectory`、定位 pose、vehicle velocity，输出 raw control。 |
@@ -34,6 +38,6 @@
 
 - 先验证当前 upper stack，再讨论替换。
 - 若替换，Hooke/RC 共同替换；RC 分支不得单独切换上层算法。
-- 先做 isolated launch 和构建闭包，不直接改默认 `track.launch.py`。
+- 先在官方 profile 下做 isolated launch 和构建闭包，不恢复本仓库自定义总控。
 - 官方 gate 属于安全边界，缺少 operation mode、engage、heartbeat 时不能设为默认。
-- 当前本地 upper stack 在 official-chain 完成 ARM 侧验证前必须保留为回退。
+- 若需要旧本地 upper stack 回退，应切回旧分支；不要在当前 official 分支保留双入口。
