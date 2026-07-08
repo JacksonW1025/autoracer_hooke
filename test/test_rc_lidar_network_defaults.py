@@ -30,6 +30,12 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
     assert "LIDAR_LINK_WAIT_SEC" in run_script
     assert "ip route get" in run_script
     assert "/sys/class/net/${LIDAR_IFACE}/carrier" in run_script
+    assert (
+        "if lidar_route_ready && lidar_carrier_ready; then\n"
+        "    return 0\n"
+        "  fi\n\n"
+        "  try_configure_lidar_link"
+    ) in run_script
     assert "sudo -E ./scripts/rc/rc_configure_lidar.sh" in run_script
 
 

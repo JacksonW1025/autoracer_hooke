@@ -59,6 +59,10 @@ require_lidar_link_ready() {
     return 0
   fi
 
+  if lidar_route_ready && lidar_carrier_ready; then
+    return 0
+  fi
+
   try_configure_lidar_link
 
   local deadline=$((SECONDS + ${LIDAR_LINK_WAIT_SEC:-20}))
