@@ -25,6 +25,13 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
     assert "LIDAR_IFACE:-enP8p1s0" in link_script
     assert "default: eth0" not in link_script
 
+    run_script = read("scripts/run_track.sh")
+    assert "require_lidar_link_ready" in run_script
+    assert "LIDAR_LINK_WAIT_SEC" in run_script
+    assert "ip route get" in run_script
+    assert "/sys/class/net/${LIDAR_IFACE}/carrier" in run_script
+    assert "sudo -E ./scripts/rc/rc_configure_lidar.sh" in run_script
+
 
 def test_rc_user_docs_do_not_recommend_obsolete_host_address():
     canonical_link_docs = [

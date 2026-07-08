@@ -14,6 +14,78 @@ if [[ -f "$ROOT_DIR/defaults.env" ]]; then
   set +a
 fi
 
+is_true() {
+  case "${1,,}" in
+    1 | true | yes | on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+lidar_route_ready() {
+  local route
+  route="$(ip route get "$LIDAR_SENSOR_IP" 2>/dev/null || true)"
+  [[ "$route" == *" dev ${LIDAR_IFACE} "* && "$route" == *" src ${LIDAR_HOST_IP} "* ]]
+}
+
+lidar_carrier_ready() {
+  [[ -r "/sys/class/net/${LIDAR_IFACE}/carrier" ]] || return 1
+  [[ "$(cat "/sys/class/net/${LIDAR_IFACE}/carrier")" == "1" ]]
+}
+
+try_configure_lidar_link() {
+  if ! is_true "${RC_AUTO_CONFIGURE_LIDAR_LINK:-true}"; then
+    return 0
+  fi
+
+  if [[ "$EUID" -eq 0 ]]; then
+    ./scripts/rc/rc_configure_lidar.sh
+    return 0
+  fi
+
+  if sudo -n true 2>/dev/null; then
+    sudo -n -E ./scripts/rc/rc_configure_lidar.sh
+    return 0
+  fi
+
+  echo "[rc-lidar] sudo is not available non-interactively." >&2
+  echo "[rc-lidar] If the link is not ready, run: sudo -E ./scripts/rc/rc_configure_lidar.sh" >&2
+}
+
+require_lidar_link_ready() {
+  if ! is_true "${RC_REQUIRE_LIDAR_LINK:-true}"; then
+    return 0
+  fi
+  if ! is_true "${LAUNCH_SENSING}" || [[ "${LIDAR_DRIVER}" != "lslidar_c32" ]]; then
+    return 0
+  fi
+
+  try_configure_lidar_link
+
+  local deadline=$((SECONDS + ${LIDAR_LINK_WAIT_SEC:-20}))
+  while (( SECONDS <= deadline )); do
+    if lidar_route_ready && lidar_carrier_ready; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "ERROR: C32 LiDAR link is not ready." >&2
+  echo "Expected ${LIDAR_IFACE} ${LIDAR_HOST_IP}/32 with route to ${LIDAR_SENSOR_IP}/32." >&2
+  echo "Run: sudo -E ./scripts/rc/rc_configure_lidar.sh" >&2
+  echo "Then check LiDAR power/cable if carrier is still 0/down." >&2
+  ip -brief addr show dev "$LIDAR_IFACE" >&2 || true
+  ip route get "$LIDAR_SENSOR_IP" >&2 || true
+  if [[ -r "/sys/class/net/${LIDAR_IFACE}/carrier" ]]; then
+    echo "carrier=$(cat "/sys/class/net/${LIDAR_IFACE}/carrier")" >&2
+  fi
+  if [[ -r "/sys/class/net/${LIDAR_IFACE}/operstate" ]]; then
+    echo "operstate=$(cat "/sys/class/net/${LIDAR_IFACE}/operstate")" >&2
+  fi
+  exit 1
+}
+
+require_lidar_link_ready
+
 LAUNCH_ARGS=(
   map_path:="${MAP_PATH}"
   launch_sensing:="${LAUNCH_SENSING}"
