@@ -79,6 +79,15 @@ PACKAGES=(
   tier4_state_rviz_plugin
   tier4_vehicle_rviz_plugin
   tier4_planning_factor_rviz_plugin
+  autoware_behavior_velocity_crosswalk_module
+  autoware_behavior_velocity_walkway_module
+  autoware_behavior_velocity_traffic_light_module
+  autoware_behavior_velocity_intersection_module
+  autoware_behavior_velocity_blind_spot_module
+  autoware_behavior_velocity_detection_area_module
+  autoware_behavior_velocity_virtual_traffic_light_module
+  autoware_behavior_velocity_no_stopping_area_module
+  autoware_behavior_velocity_stop_line_module
   autoware_motion_velocity_obstacle_stop_module
   autoware_motion_velocity_obstacle_slow_down_module
   autoware_motion_velocity_obstacle_cruise_module
