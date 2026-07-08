@@ -45,6 +45,14 @@ copy_from_pilot_repo() {
     "src/external/autoware/tier4_autoware_msgs"
   copy_dir "${pilot_repo}/src/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs" \
     "src/external/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs"
+  copy_dir "${pilot_repo}/src/autoware/autoware_adapi_msgs/autoware_adapi_version_msgs" \
+    "src/external/autoware/autoware_adapi_msgs/autoware_adapi_version_msgs"
+  copy_dir "${pilot_repo}/src/autoware/core/api/autoware_default_adapi" \
+    "src/external/autoware/core/api/autoware_default_adapi"
+  copy_dir "${pilot_repo}/src/autoware/core/api/autoware_adapi_adaptors" \
+    "src/external/autoware/core/api/autoware_adapi_adaptors"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_global_parameter_loader" \
+    "src/external/autoware/core/common/autoware_global_parameter_loader"
   copy_dir "${pilot_repo}/src/autoware/core/common/autoware_vehicle_info_utils" \
     "src/external/autoware/core/common/autoware_vehicle_info_utils"
   copy_dir "${pilot_repo}/src/autoware/core/common/autoware_agnocast_wrapper" \
@@ -71,6 +79,10 @@ copy_from_pilot_repo() {
     "src/external/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension"
   copy_dir "${pilot_repo}/src/autoware/autoware_rviz_plugins" \
     "src/external/autoware/autoware_rviz_plugins"
+  copy_dir "${pilot_repo}/src/autoware/universe/system/autoware_default_adapi_universe" \
+    "src/external/autoware/autoware_universe/system/autoware_default_adapi_universe"
+  copy_dir "${pilot_repo}/src/autoware/universe/evaluator/autoware_evaluation_adapter" \
+    "src/external/autoware/autoware_universe/evaluator/autoware_evaluation_adapter"
   copy_dir "${pilot_repo}/src/autoware/universe/common/tier4_api_utils" \
     "src/external/autoware/universe/common/tier4_api_utils"
   copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_control_mode_rviz_plugin" \
