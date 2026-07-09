@@ -10,10 +10,10 @@ RC 不是新自动驾驶栈。RC 是 Hooke `main` 共享 upper stack 的缩比�
 
 当前目标：
 
-- 保持 Hooke/RC 共享 `localization -> planning -> control -> gate`。
+- 保持 Hooke/RC 共享 `localization -> official Autoware planning/control -> gate`。
 - 在 RC 上跑通这套 upper stack，验证接口、消息字段、时序和控制行为。
 - 传感器、初始位姿来源、车辆参数、外参、vehicle adapter 按平台配置。
-- 是否迁移官方 Autoware planning/control/gate，等 RC 实测后再作为 Hooke/RC 共同任务评估。
+- 自研 planning/control 候选只能作为显式替换项进入同一接口，不作为当前分支的默认启动路径。
 
 ## 必须一致
 
@@ -22,7 +22,7 @@ RC 不是新自动驾驶栈。RC 是 Hooke `main` 共享 upper stack 的缩比�
 | Autoware 依赖 | 使用同一组 `autoracer.repos` pin，不给 RC 单独混拉版本。 |
 | 地图契约 | `pointcloud_map.pcd`、`pointcloud_map_metadata.yaml`、`lanelet2_map.osm`、`map_projector_info.yaml`。 |
 | 定位主链路 | 点云地图 + NDT + seed pose；RC 不退回 AMCL/slam_toolbox。 |
-| Upper stack | Hooke/RC 使用同一套 planning/control/gate。 |
+| Upper stack | Hooke/RC 默认使用同一套 official Autoware planning/control + 本地 gate 边界。 |
 | Topic 语义 | `/sensing/*`、`/localization/*`、`/planning/*`、`/control/command/*`、`/vehicle/status/*` 的消息类型、单位、字段含义一致。 |
 | 车辆模型 | Ackermann 运动学、前轮转角、纵向速度、gear/control mode 语义一致。 |
 
@@ -55,13 +55,13 @@ flowchart LR
     H_State["/localization/kinematic_state"]
   end
 
-  subgraph Upper["Shared upper stack"]
-    Planner["autoracer_planning\nlanelet_route_planner"]
+  subgraph Upper["Shared official Autoware upper stack"]
+    Planner["official Autoware planning\nroute + behavior + motion"]
     Traj["/planning/trajectory"]
-    Ctrl["autoracer_control\npure_pursuit_controller"]
-    Raw["/autoracer/control/raw_control_cmd"]
+    Ctrl["official Autoware control"]
+    Cmd["/control/command/control_cmd"]
     Gate["autoracer_safety\ncommand_gate"]
-    Cmd["/control/command/control_cmd\n/control/command/gear_cmd"]
+    Safe["/autoracer/control/safe_control_cmd"]
   end
 
   subgraph H_Chassis["Hooke vehicle adapter"]
@@ -74,9 +74,10 @@ flowchart LR
   H_Lidar --> H_PC --> H_Filter --> H_NDT
   H_Fix --> H_Seed --> H_NDT
   H_Map --> H_NDT
-  H_NDT --> H_Pose --> Planner --> Traj --> Ctrl --> Raw --> Gate --> Cmd
-  H_NDT --> H_State --> Ctrl
-  Cmd --> HookeIf --> CAN --> HookeChassis
+  H_NDT --> H_Pose --> Planner --> Traj --> Ctrl --> Cmd --> Gate --> Safe
+  H_NDT --> H_State --> Planner
+  H_State --> Ctrl
+  Safe --> HookeIf --> CAN --> HookeChassis
   HookeChassis --> CAN --> HookeIf --> H_Status
   H_Status --> H_State
   H_Status --> Ctrl
@@ -103,13 +104,13 @@ flowchart LR
     R_State["/localization/kinematic_state"]
   end
 
-  subgraph Upper2["Shared upper stack"]
-    Planner2["autoracer_planning\nlanelet_route_planner"]
+  subgraph Upper2["Shared official Autoware upper stack"]
+    Planner2["official Autoware planning\nroute + behavior + motion"]
     Traj2["/planning/trajectory"]
-    Ctrl2["autoracer_control\npure_pursuit_controller"]
-    Raw2["/autoracer/control/raw_control_cmd"]
+    Ctrl2["official Autoware control"]
+    Cmd2["/control/command/control_cmd"]
     Gate2["autoracer_safety\ncommand_gate"]
-    Cmd2["/control/command/control_cmd\n/control/command/gear_cmd"]
+    Safe2["/autoracer/control/safe_control_cmd"]
   end
 
   subgraph R_Chassis["RC vehicle adapter"]
@@ -124,28 +125,30 @@ flowchart LR
   R_ImuTopic -.-> R_NDT
   R_SeedSrc --> R_Seed --> R_NDT
   R_Map --> R_NDT
-  R_NDT --> R_Pose --> Planner2 --> Traj2 --> Ctrl2 --> Raw2 --> Gate2 --> Cmd2
-  R_NDT --> R_State --> Ctrl2
-  Cmd2 --> Serial --> UART --> STM32
+  R_NDT --> R_Pose --> Planner2 --> Traj2 --> Ctrl2 --> Cmd2 --> Gate2 --> Safe2
+  R_NDT --> R_State --> Planner2
+  R_State --> Ctrl2
+  Safe2 --> Serial --> UART --> STM32
   STM32 --> Serial --> R_Status
   R_Status --> R_State
   R_Status --> Ctrl2
 ```
 
-两张图的中间 `Shared upper stack` 必须保持一致。RC 与 Hooke 的差异只允许出现在 sensing/profile、seed 来源、vehicle profile、map asset 生产流程和 vehicle adapter。
+两张图的中间 `Shared official Autoware upper stack` 必须保持一致。RC 与 Hooke 的差异只允许出现在 sensing/profile、seed 来源、vehicle profile、map asset 生产流程和 vehicle adapter。
 
 ## 当前共享模块
 
 | 模块 | 当前实现 | 保留原因 |
 | --- | --- | --- |
-| Planning | `autoracer_planning/lanelet_route_planner.py` | Hooke/RC 共享当前 planner；先验证能否跨平台工作。 |
-| Control | `autoracer_control/pure_pursuit_controller.py` | Hooke/RC 共享当前 controller；RC 只调整车辆参数和底盘反馈。 |
-| Gate | `autoracer_safety/command_gate.py` | Hooke/RC 共享当前 gate；RC 不单独替换安全语义。 |
+| Planning/Control | `autoware_launch` 启动的官方 planning/control 组件 | 当前分支默认贴近官方结构，先验证官方接口闭环。 |
+| Gate | `autoracer_safety/command_gate.py` | 保留在官方 control 和车端 adapter 之间，默认禁用实车输出并做限幅/超时保护。 |
+| Local candidates | `autoracer_planning`、`autoracer_control` | 自研 planning/control 候选；只能显式接入同一 topic/message/frame 合约，不作为隐藏总控或默认链路。 |
 
 ## 灰区规则
 
-- `/localization/kinematic_state` 当前是过渡状态输出；必须满足 Autoware frame、单位、速度语义。
-- `autoracer_planning`、`autoracer_control`、`autoracer_safety` 是共享 upper stack，不是 RC 专用包。
+- `/localization/kinematic_state` 是 official Autoware planning/control 的关键输入之一；必须满足 Autoware frame、单位、速度语义。
+- 自研 planning/control 候选若要启用，必须在 official profile/launch 层显式替换，并保留 `/planning/*`、`/control/command/*` 和 `/vehicle/status/*` 合约。
+- `autoracer_safety` 是共享 gate 边界，不是 RC 专用包。
 - C32 点云字段不兼容时做字段适配，不改定位算法。
 - STM32 deadband、PWM、最小输出速度属于 adapter/firmware 事实，不反推上层算法。
 - 现场 IP、账号、密码、本机串口名不进仓库。
@@ -154,7 +157,7 @@ flowchart LR
 
 - 不把 Nav2 的 AMCL、slam_toolbox、`/scan`、`/wheel_odom`、`/chassis_state`、`/ackermann_cmd` 接进 upper stack。
 - 不因为 RC 没有 Fixposition/ZED 就替换地图定位算法。
-- 不在 RC 分支单独 fork planning/control/gate。
+- 不在 RC 分支单独 fork planning/control/gate，也不在默认启动链路里偷偷切回自研候选。
 - 不围绕 STM32 deadband、PWM 或 UART 细节改上层算法。
 - 不只改 final gate 来掩盖 trajectory、control、gear、adapter 任一层的问题。
 
@@ -169,8 +172,8 @@ flowchart LR
 
 1. Sensing/TF：点云、IMU、静态 TF、车辆状态 topic 可用。
 2. Localization：地图加载、manual seed、NDT pose、`kinematic_state` 可用。
-3. Planning：RViz goal 后生成 `/planning/trajectory`。
-4. Control：raw control 命令方向、速度、转角合理。
-5. Gate：禁用时输出 stop，使能后输出 gated command 和 gear command。
+3. Planning：官方 planning route/goal 后生成 `/planning/trajectory`。
+4. Control：官方 control 输出 `/control/command/control_cmd`，方向、速度、转角合理。
+5. Gate：禁用时输出 stop，使能后输出 `/autoracer/control/safe_control_cmd` 和必要 support command。
 6. Vehicle adapter：串口/CAN 命令和反馈符号、单位、频率正确。
 7. Low-speed drive：低速闭环验证，形成 bag/log 和问题清单。

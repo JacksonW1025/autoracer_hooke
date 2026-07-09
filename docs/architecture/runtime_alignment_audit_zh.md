@@ -8,7 +8,7 @@
 
 - 当前分支的正式入口改为官方 `autoware_launch`；本仓库提供 RC vehicle profile 和 sensor-kit profile。
 - RC 默认 sensing profile 使用 C32、Hipnuc IMU 和 pointcloud filter；UART adapter 通过 official vehicle profile 接入。
-- Hooke profile 使用 Hesai/Nebula、Fixposition seed、NDT、Hooke2 CAN adapter。
+- 未来 Hooke profile 应通过同一套官方 profile 模式接入 Hesai/Nebula、Fixposition seed、NDT 和 Hooke2 CAN adapter。
 - 当前 official localization 默认消费 `/sensing/lidar/concatenated/pointcloud`；`/sensing/lidar/filtered/pointcloud` 是本仓库 sensor-kit profile 的降采样输出，保留给建图录包、诊断和后续可选预处理。
 
 ## 差异处理原则
@@ -38,12 +38,12 @@
 
 | 架构图模块 | launch / package | package / executable | 关键输入 | 关键输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| Hooke LiDAR | `src/autoracer_bringup/launch/sensing.launch.py` | `nebula_hesai/HesaiRosWrapper` | Hesai UDP | `/sensing/lidar/concatenated/pointcloud` | 已映射到 shared launch |
-| Hooke pointcloud filter | `src/autoracer_bringup/launch/sensing.launch.py` | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 已映射到 shared launch |
-| Hooke Fixposition | `src/autoracer_bringup/launch/sensing.launch.py` | `fixposition_driver_ros2/fixposition_driver_ros2_exec` | Fixposition stream | `/fixposition/*` | 已映射到 conditional launch |
-| Hooke seed | `src/autoracer_bringup/launch/localization.launch.py` | `autoware_gnss_poser` + `fixposition_seed_filter` | `/fixposition/fix`, `/fixposition/autoware_orientation` | `/localization/fixposition/seed_pose` | 已映射到 conditional launch |
-| Hooke NDT | 历史 `autoracer_bringup` localization launch | `autoware_ndt_scan_matcher` | filtered pointcloud + seed + map | `/localization/pose_with_covariance` | 历史链路，当前 official 分支不作为正式入口 |
-| Hooke upper stack | planning/control/safety launch files | local shared packages | localization + map + trajectory | gated control command | 与 RC 共享 |
+| Hooke LiDAR | future Hooke sensor-kit profile | `nebula_hesai/HesaiRosWrapper` | Hesai UDP | `/sensing/lidar/concatenated/pointcloud` | 待按 official profile 建立 |
+| Hooke pointcloud filter | future Hooke sensor-kit profile | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 待按 official profile 建立 |
+| Hooke Fixposition | future Hooke sensor-kit/localization profile | `fixposition_driver_ros2/fixposition_driver_ros2_exec` | Fixposition stream | `/fixposition/*` | 待按 official profile 建立 |
+| Hooke seed | future Hooke localization profile | `autoware_gnss_poser` + `fixposition_seed_filter` | `/fixposition/fix`, `/fixposition/autoware_orientation` | `/localization/fixposition/seed_pose` | 待按 official profile 建立 |
+| Hooke NDT | `autoware_launch` localization component | `autoware_ndt_scan_matcher` | pointcloud + seed + map | `/localization/pose_with_covariance` | 待车端验证 |
+| Hooke upper stack | `autoware_launch` planning/control components | official Autoware packages or explicit local plugins | localization + map + route | gated control command | 与 RC 共享接口 |
 | Hooke adapter | `src/hooke2_vehicle/vehicle_launcher/hooke2_launch/launch/vehicle_interface.launch.xml` | `hooke2_interface` + SocketCAN | `/control/command/*` | CAN + `/vehicle/status/*` | 已映射到 Hooke2 launch |
 
 ## RC 入口脚本与 Launch 参数
@@ -56,6 +56,6 @@
 
 ## 审计后续
 
-1. Hooke profile 的真实部署入口需要继续贴合官方 vehicle/sensor profile 约定，不能恢复本仓库自定义总控。
+1. Hooke profile 的真实部署入口需要继续贴合官方 vehicle/sensor profile 约定，不能恢复本仓库自定义总控或旧 bringup 包。
 2. 如果后续关闭 `pointcloud_voxel_filter`，需要同步更新 NDT input topic、架构图和接口契约。
 3. 运行静态测试防止旧文档结构回退。

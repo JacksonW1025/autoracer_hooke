@@ -11,10 +11,9 @@ profiles, vehicle geometry, serial vehicle interface, and mapping workflow:
 Leishen C32 LiDAR + RViz/manual NDT seed + STM32 UART feedback
   -> PCD/Lanelet2 map
   -> LiDAR/NDT localization
-  -> Lanelet centerline route
-  -> Pure pursuit + longitudinal PID
-  -> safety command gate
   -> /control/command/control_cmd
+  -> safety command gate
+  -> /autoracer/control/safe_control_cmd
   -> rc_serial_interface
   -> UART4 11-byte command frame
   -> STM32 Ackermann PWM
@@ -39,17 +38,17 @@ defaults.env               Runtime defaults shared by official RC wrappers.
 docs/                      Bringup and calibration notes.
 maps/                      Local map directory placeholder.
 scripts/                   Import, build, run, and smoke-test helpers.
-src/autoracer_bringup      Legacy config/RViz assets that have not moved yet.
+src/external/autoware      Pinned upstream Autoware packages; keep patches explicit.
 src/autoracer_hooke_*      Official Autoware vehicle and sensor-kit profiles.
-src/autoracer_description  Hooke2/RC frames, URDFs, and static TF launch.
-src/autoracer_localization Localization helper nodes.
-src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
-src/autoracer_planning     Transitional local lanelet route and trajectory node.
-src/autoracer_control      Transitional local pure pursuit controller.
-src/autoracer_safety       Transitional local command gate before the vehicle interface.
-src/autoracer_vehicle_interface RC UART vehicle interface and Autoware status bridge.
+src/autoracer_description  Shared frames, URDF helpers, and static TF assets.
+src/autoracer_sensing      Small sensor adapters used by the official profiles.
+src/autoracer_safety       Final command gate before a chassis adapter.
+src/autoracer_vehicle_interface RC UART chassis adapter and status bridge.
+src/autoracer_localization Localization adapters that preserve official topic contracts.
+src/autoracer_planning     Local algorithm candidates; do not use as hidden launch glue.
+src/autoracer_control      Local controller candidates; do not use as hidden launch glue.
 src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
-src/hooke2_vehicle         Vendored Hooke2 interface, launch, and description.
+src/hooke2_vehicle         Vendored Hooke2 CAN adapter and vehicle description.
 src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
 ```
 
@@ -201,8 +200,9 @@ MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMAND
 
 ## Default Safety Position
 
-The default launch keeps `enable_drive_commands` false. The controller and planner
-will run, but the safety gate publishes stop commands to the real vehicle command topic.
+The default launch keeps `enable_drive_commands` false. The official Autoware
+planning/control chain can run, but the safety gate publishes stop commands to the
+adapter-facing safe command topic.
 Switch it to true only after TF, steering, velocity, localization, serial direction, and
 RC takeover behavior are verified.
 
@@ -211,11 +211,14 @@ workspace does not accidentally run packages from `/home/corage/workspace/projec
 
 ## RC Serial Vehicle Interface
 
-The RC vehicle interface keeps the Autoware-facing topics unchanged and replaces only the
-Hooke2 CAN transport:
+The RC vehicle interface replaces only the chassis transport. Official Autoware
+control remains on the standard command topic; the local gate publishes the
+adapter-facing safe command used by the serial node:
 
 ```text
 /control/command/control_cmd
+  -> autoracer_safety/command_gate
+  -> /autoracer/control/safe_control_cmd
   -> autoracer_vehicle_interface/rc_serial_interface
   -> 0x7B cmd1 cmd2 vx vy wz bcc 0x7D
   -> STM32 UART4
@@ -240,9 +243,8 @@ On the vehicle host, configure the C32 Ethernet link with
 `192.168.1.102/32` on `enP8p1s0` plus a host route to `192.168.1.200/32`, keeping
 WiFi as the normal `192.168.1.0/24` route.
 
-This branch does not keep the old `scripts/run_track.sh` or
-`autoracer_bringup/track*.launch.py` runtime fallback. Roll back by switching to
-the previous branch, not by launching a compatibility path inside this branch.
+This branch keeps one official runtime structure. Roll back by switching to the
+previous branch, not by launching a compatibility path inside this branch.
 
 Runtime validation for the Autoware stack is ARM-side. The x86 development machine is
 used for mapping tools, scripts, static checks, and map packaging; it is not required to

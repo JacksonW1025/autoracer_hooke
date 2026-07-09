@@ -100,6 +100,29 @@ sensor_model:=autoracer_hooke_sensor_kit
 
 所以不是“把配置硬塞进官方文件”，而是把 RC 平台事实放到官方预期的位置。
 
+## 模板分层
+
+本分支的目标不是保留一套能跑的临时工程，而是形成一个可以迁移车型、替换传感器、替换算法的官方结构模板：
+
+```text
+src/external/autoware/          官方依赖，固定版本，必要 patch 必须显式记录。
+src/autoracer_hooke_*           当前 RC/Orin 的 official vehicle/sensor profile。
+src/autoracer_vehicle_interface 底盘 adapter：RC UART；未来 Hooke CAN adapter 应按同一边界接入。
+src/autoracer_sensing           小型传感器 adapter，例如点云降采样和格式桥接。
+src/autoracer_safety            底盘 adapter 前的安全门和限幅边界。
+src/autoracer_localization      定位辅助 adapter，必须保持官方 topic/message/frame 契约。
+src/autoracer_planning          自研 planning 候选；不能作为隐藏总控或旧链路入口。
+src/autoracer_control           自研 control 候选；不能作为隐藏总控或旧链路入口。
+scripts/rc/                     操作者入口，只做薄封装、检查和运行时参数传递。
+docs/                           当前结构、操作流程、接口事实和迁移记录。
+```
+
+替换算法时优先遵守三个规则：
+
+- 能用官方模块就启用官方模块，不复制一份本地并行实现。
+- 自研模块必须像 Autoware 模块一样暴露清楚的 package、launch、参数、topic、diagnostics 契约。
+- 不在 `src/external/autoware` 里做隐形魔改；需要 patch 时用独立提交说明来源、约束和验证。
+
 ## 配置是不是从写死变成官方位置
 
 粗略这么理解是对的，但要更精确一点：
@@ -132,14 +155,16 @@ sensor_model:=autoracer_hooke_sensor_kit
 - RC vehicle profile 和 sensor kit profile 已建立。
 - `tier4_vehicle_launch` 和 `tier4_sensing_launch` 能解析并找到对应 profile。
 - `scripts/rc/rc_start_autoware.sh` 已切到官方 wrapper。
-- 旧链路已从本分支移除：不再保留 `scripts/run_track.sh` 或 `autoracer_bringup/track*.launch.py` 作为正式入口。
+- 旧链路已从本分支移除：不再保留 `scripts/run_track.sh`、`autoracer_bringup` 包或旧 track launch 作为正式入口。
 - 传感器录包和 localization-only helper 已改为通过 official wrapper/profile 启动。
+- `rc_autoware.rviz` 作为当前 profile 的调试视图，归属到 `autoracer_hooke_launch/rviz/`。
+- Orin 上的最小 official runtime 闭包已完成构建，并通过无雷达/无底盘 60 秒启动 smoke。
 
-未完成：
+仍需实车验证：
 
-- 全量 `autoware_launch` 依赖闭包还没有构建完成。
-- 当前机器还缺 `ros-humble-xacro`、`libprotobuf-dev`、`protobuf-compiler`、`libpcap-dev` 等系统依赖。
-- 官方 planning/control/gate 算法替换不在本文件范围内；那是后续共同 upper stack 迁移问题。
+- 雷达和底盘上电后的完整 sensing -> localization -> planning -> control -> vehicle 闭环。
+- 初始位姿、目标点、路线生成和控制输出在真实地图上的动态行为。
+- Future Hooke vehicle/sensor profile 仍需按同一官方结构建立，不能恢复旧 bringup 总控。
 
 ## 以后怎么判断应该改哪里
 

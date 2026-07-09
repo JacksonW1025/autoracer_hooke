@@ -115,6 +115,7 @@ def test_official_sensor_kit_exposes_hipnuc_imu_arguments():
 def test_official_branch_removes_legacy_track_entrypoints():
     removed_entrypoints = [
         ROOT / "scripts" / "run_track.sh",
+        ROOT / "src" / "autoracer_bringup",
         ROOT / "src" / "autoracer_bringup" / "launch" / "track.launch.py",
         ROOT / "src" / "autoracer_bringup" / "launch" / "track_rc_p0.launch.py",
     ]
@@ -154,7 +155,7 @@ def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
 
 def test_rc_autoware_rviz_exposes_runtime_navigation_tools():
     rviz_text = (
-        ROOT / "src" / "autoracer_bringup" / "rviz" / "rc_autoware.rviz"
+        ROOT / "src" / "autoracer_hooke_launch" / "rviz" / "rc_autoware.rviz"
     ).read_text()
 
     for topic in (
@@ -206,7 +207,7 @@ def test_official_autoware_rviz_plugins_are_declared():
     build_minimal = (ROOT / "scripts" / "build_minimal.sh").read_text()
     build_bench = (ROOT / "scripts" / "build_bench.sh").read_text()
     package_xml = (
-        ROOT / "src" / "autoracer_bringup" / "package.xml"
+        ROOT / "src" / "autoracer_hooke_launch" / "package.xml"
     ).read_text()
 
     assert "autoware_rviz_plugins.git" in repos_text
@@ -232,15 +233,22 @@ def test_official_autoware_rviz_plugins_are_declared():
         assert package in import_script
 
 
-def test_rc_ndt_parameters_fit_c32_short_range_smoke_test():
-    rc_ndt = ROOT / "src" / "autoracer_bringup" / "config" / "rc" / "ndt_scan_matcher.param.yaml"
-    hooke_ndt = (
-        ROOT / "src" / "autoracer_bringup" / "config" / "hooke2" / "ndt_scan_matcher.param.yaml"
+def test_localization_parameters_come_from_official_autoware_launch():
+    ndt_param = (
+        ROOT
+        / "src"
+        / "external"
+        / "autoware"
+        / "launcher"
+        / "autoware_launch"
+        / "config"
+        / "localization"
+        / "ndt_scan_matcher"
+        / "ndt_scan_matcher.param.yaml"
     )
 
-    assert rc_ndt.exists()
-    rc_text = rc_ndt.read_text()
-    assert 'base_frame: "base_link"' in rc_text
-    assert 'map_frame: "map"' in rc_text
-    assert "required_distance: 2.0" in rc_text
-    assert "required_distance: 10.0" in hooke_ndt.read_text()
+    assert ndt_param.exists()
+    ndt_text = ndt_param.read_text()
+    assert 'base_frame: "base_link"' in ndt_text
+    assert 'map_frame: "map"' in ndt_text
+    assert "required_distance:" in ndt_text

@@ -60,9 +60,34 @@ def test_platform_doc_has_two_architecture_diagrams():
     assert "## RC 底盘架构图" in text
     assert text.count("```mermaid") == 2
     assert text.count("```") % 2 == 0
-    assert "Shared upper stack" in text
+    assert "Shared official Autoware upper stack" in text
     assert "rc_serial_interface" in text
     assert "hooke2_interface" in text
+
+
+def test_current_runtime_docs_default_to_official_planning_control_boundary():
+    platform = read(DOCS / "architecture" / "platform_and_stack_zh.md")
+    runbook = read(DOCS / "operations" / "rc_runbook_zh.md")
+    interfaces = read(DOCS / "reference" / "interfaces_and_topics_zh.md")
+    current_runtime_docs = "\n".join((platform, runbook, interfaces))
+
+    required_terms = [
+        "official Autoware planning/control",
+        "自研 planning/control 候选",
+        "/control/command/control_cmd",
+        "/autoracer/control/safe_control_cmd",
+        "rc_serial_interface",
+    ]
+    for term in required_terms:
+        assert term in current_runtime_docs
+
+    stale_default_terms = [
+        "lanelet_route_planner",
+        "pure_pursuit_controller",
+        "/autoracer/control/raw_control_cmd",
+    ]
+    for term in stale_default_terms:
+        assert term not in current_runtime_docs
 
 
 def test_current_phase_does_not_describe_future_state_fusion():
@@ -95,6 +120,10 @@ def test_official_launch_structure_doc_explains_old_and_new_boundaries():
         "autoracer_hooke_sensor_kit_launch",
         "command_gate -> rc_serial_interface",
         "旧链路已从本分支移除",
+        "模板分层",
+        "src/external/autoware",
+        "自研 planning 候选",
+        "不在 `src/external/autoware` 里做隐形魔改",
     ]
     for term in required_terms:
         assert term in text

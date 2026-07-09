@@ -2,7 +2,7 @@
 
 用途：给现场运行者一个可重复的上车检查、启动、定位、规划、控制和低速验证流程。非用途：不讨论官方 Autoware 迁移，不记录一次性小测试。
 
-目标：用 RC 验证 Hooke/RC 共享 upper stack，而不是先替换官方组件。
+目标：用 RC 验证 Hooke/RC 共享 official Autoware planning/control + gate 边界，而不是先切回本地旧算法。
 
 全链路进度、缺口和跨文档依赖以 `docs/operations/rc_full_chain_execution_zh.md` 为准；本文件只写现场操作步骤。
 
@@ -85,18 +85,19 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 \
 
 ## 6. Planning
 
-- `lanelet_route_planner` 读取 `lanelet2_map.osm`。
-- 输入 `/localization/pose_with_covariance` 和 `/goal_pose`。
+- 当前分支默认由 `autoware_launch` 启动官方 planning。
+- 输入完整官方地图目录、localization 状态和 RViz/Autoware route/goal 操作。
 - 输出 `/planning/trajectory`。
 - 第一轮只用简单短路线。
 
-这是共享 upper stack 的 planning 部分，先验证，不先替换 official mission planner。
+自研 planning/control 候选不作为本分支默认入口；如果要评估，必须作为单独替换任务显式接入同一 topic/message/frame 合约。
 
 ## 7. Control/Gate/Adapter
 
-- `pure_pursuit_controller` 输出 `/autoracer/control/raw_control_cmd`。
-- `command_gate` 输出 `/control/command/control_cmd` 和 `/control/command/gear_cmd`。
-- `rc_serial_interface` 把 Autoware command 转成 STM32 串口帧。
+- 官方 control 输出 `/control/command/control_cmd`。
+- `command_gate` 读取 `/control/command/control_cmd`，默认禁用时输出 stop。
+- `command_gate` 的 adapter-facing control 输出是 `/autoracer/control/safe_control_cmd`，support commands 仍在 `/control/command/*` 表面。
+- `rc_serial_interface` 消费 `/autoracer/control/safe_control_cmd` 并转成 STM32 串口帧。
 - 默认 `ENABLE_DRIVE_COMMANDS=false`。
 - 第一轮实车建议 `MAX_SPEED_MPS=0.5~0.8`。
 
@@ -128,6 +129,6 @@ MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMAND
 5. 设置 `MAP_PATH`。
 6. 启动 official Autoware wrapper，保持 `ENABLE_DRIVE_COMMANDS=false`。
 7. 给 `/initialpose`，确认 NDT 和 TF。
-8. 给短 `/goal_pose`，确认 trajectory 和 raw control。
+8. 给短 route/goal，确认 trajectory、official control 和 gated safe control。
 9. 架空或低速场地设置 `ENABLE_DRIVE_COMMANDS=true`。
 10. 验证速度符号、转角方向、停止行为，再提高测试复杂度。
