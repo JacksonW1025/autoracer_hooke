@@ -105,7 +105,7 @@ sensor_model:=autoracer_rc_sensor_kit
 | 平台 | `vehicle_model` | `sensor_model` | 当前状态 |
 | --- | --- | --- | --- |
 | RC Ackermann | `autoracer_rc` | `autoracer_rc_sensor_kit` | 当前已落地并作为 Orin 运行默认值 |
-| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | 预留给真实 Hooke vehicle/sensor profile；迁移时必须填真实尺寸、外参、Hesai/Fixposition/Hooke CAN 配置 |
+| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | 当前是 `disabled_placeholder`，目录受 `COLCON_IGNORE` 保护；迁移时必须填真实尺寸、外参、Hesai/Fixposition/Hooke CAN 配置 |
 
 这意味着未来增加 Hooke official profile 时，应新增 `autoracer_hooke_description`、`autoracer_hooke_launch`、`autoracer_hooke_sensor_kit_description`、`autoracer_hooke_sensor_kit_launch`，而不是复用或改名 RC profile。
 
@@ -116,14 +116,16 @@ sensor_model:=autoracer_rc_sensor_kit
 ```text
 src/external/autoware/          官方依赖，固定版本，必要 patch 必须显式记录。
 src/autoracer_rc_*              当前 RC/Orin 的 official vehicle/sensor profile。
-src/autoracer_hooke_*           未来真实 Hooke official profile 的保留命名；未迁移前不要创建空壳默认入口。
+src/autoracer_hooke_*           Hooke official profile 的受控占位；当前有 COLCON_IGNORE，未补真实配置前不能构建或启动。
 src/autoracer_vehicle_interface 底盘 adapter：RC UART；未来 Hooke CAN adapter 应按同一边界接入。
 src/autoracer_sensing           小型传感器 adapter，例如点云降采样和格式桥接。
 src/autoracer_safety            底盘 adapter 前的安全门和限幅边界。
 src/autoracer_localization      定位辅助 adapter，必须保持官方 topic/message/frame 契约。
 src/autoracer_planning          自研 planning 候选；不能作为隐藏总控或旧链路入口。
 src/autoracer_control           自研 control 候选；不能作为隐藏总控或旧链路入口。
+scripts/common/                 共享脚本边界；不能写入具体车辆硬件事实。
 scripts/rc/                     操作者入口，只做薄封装、检查和运行时参数传递。
+scripts/hooke/                  Hooke 交接入口；profile 启用前只能 fail-fast。
 docs/                           当前结构、操作流程、接口事实和迁移记录。
 ```
 
@@ -168,13 +170,14 @@ docs/                           当前结构、操作流程、接口事实和迁
 - 旧链路已从本分支移除：不再保留 `scripts/run_track.sh`、`autoracer_bringup` 包或旧 track launch 作为正式入口。
 - 传感器录包和 localization-only helper 已改为通过 official wrapper/profile 启动。
 - `rc_autoware.rviz` 作为当前 profile 的调试视图，归属到 `autoracer_rc_launch/rviz/`。
+- Hooke official profile 名称已受控占位，但仍由 `COLCON_IGNORE` 禁用，不能作为可运行 profile。
 - Orin 上的最小 official runtime 闭包已完成构建，并通过无雷达/无底盘 60 秒启动 smoke。
 
 仍需实车验证：
 
 - 雷达和底盘上电后的完整 sensing -> localization -> planning -> control -> vehicle 闭环。
 - 初始位姿、目标点、路线生成和控制输出在真实地图上的动态行为。
-- Future Hooke vehicle/sensor profile 仍需按同一官方结构建立，不能恢复旧 bringup 总控。
+- Hooke vehicle/sensor profile 仍需按同一官方结构补真实配置，不能恢复旧 bringup 总控，也不能复用 RC 参数伪装通过。
 
 ## 以后怎么判断应该改哪里
 

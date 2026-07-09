@@ -95,6 +95,35 @@ def test_vehicle_mapping_scripts_exist_and_record_required_topics():
     assert "/install/[a]utoware_" in stop_text
 
 
+def test_script_layers_keep_rc_common_and_disabled_hooke_boundaries():
+    common_readme = ROOT / "scripts" / "common" / "README.md"
+    hooke_readme = ROOT / "scripts" / "hooke" / "README.md"
+    hooke_start = ROOT / "scripts" / "hooke" / "hooke_start_autoware.sh"
+
+    for path in (common_readme, hooke_readme, hooke_start):
+        assert path.exists(), f"missing script boundary file: {path}"
+
+    assert hooke_start.stat().st_mode & 0o111
+
+    common_text = common_readme.read_text(encoding="utf-8")
+    assert "shared helper layer" in common_text
+    assert "must not encode RC or Hooke hardware facts" in common_text
+    assert "scripts/rc/" in common_text
+    assert "scripts/hooke/" in common_text
+
+    hooke_text = "\n".join(
+        (
+            hooke_readme.read_text(encoding="utf-8"),
+            hooke_start.read_text(encoding="utf-8"),
+        )
+    )
+    assert "Hooke profile is disabled" in hooke_text
+    assert "not runtime ready" in hooke_text
+    assert "COLCON_IGNORE" in hooke_text
+    assert "exit 2" in hooke_text
+    assert "ros2 launch autoware_launch" not in hooke_start.read_text(encoding="utf-8")
+
+
 def test_official_sensor_kit_exposes_hipnuc_imu_arguments():
     sensing_launch = (
         ROOT

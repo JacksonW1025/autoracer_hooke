@@ -8,6 +8,7 @@
 
 - `architecture/platform_and_stack_zh.md`：Hooke/RC 两套 Autoware 数据流架构图、共享 upper stack、平台差异边界。
 - `architecture/image.png`：Hooke/RC 架构图静态预览，用于汇报和快速浏览；事实以 Mermaid 源码和审计表为准。
+- `architecture/profile_matrix_zh.md`：RC active runtime baseline、Hooke `disabled_placeholder`、脚本分层和自研算法候选边界。
 - `architecture/runtime_alignment_audit_zh.md`：全链路执行前置审计；把架构图模块映射到 launch、node、topic、参数，并记录 Hooke/RC 差异和当前实现缺口。
 - `architecture/official_launch_structure_zh.md`：旧自定义 launch 链路与官方 `autoware_launch` + vehicle/sensor profile 结构的差异说明和 Mermaid 图。
 - `architecture/official_migration_zh.md`：本地候选 planning/control/gate 与官方 Autoware Core/Universe 组件的差异和后续替换约束。
@@ -26,6 +27,7 @@
 ## 阅读入口
 
 - 架构或平台维护问题先看 `architecture/platform_and_stack_zh.md`。
+- 多车型 profile 状态、RC/Hooke 分工和脚本边界看 `architecture/profile_matrix_zh.md`。
 - 执行全链路前先过 `architecture/runtime_alignment_audit_zh.md`，确认架构、launch、topic 和平台差异没有漂移。
 - 想理解旧启动结构和官方启动结构的差别，看 `architecture/official_launch_structure_zh.md`。
 - 全链路进度、缺口和验收标准看 `operations/rc_full_chain_execution_zh.md`。

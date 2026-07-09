@@ -4,6 +4,8 @@
 
 静态预览图：`docs/architecture/image.png`。该图片用于汇报和快速浏览；本文中的 Mermaid 图和 `runtime_alignment_audit_zh.md` 是可维护源码和事实依据。修改架构图时必须同步更新 Mermaid、审计表和静态预览图。
 
+多车型 profile 的当前状态以 `docs/architecture/profile_matrix_zh.md` 为准：RC 是 active runtime baseline，Hooke 是 `disabled_placeholder`，未补真实配置前 not runtime ready。
+
 ## 核心原则
 
 RC 不是新自动驾驶栈。RC 是同一 official upper stack 的缩比验证平台；Hooke 和 RC 通过不同 vehicle/sensor profile 切换平台事实。

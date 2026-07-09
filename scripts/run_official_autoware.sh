@@ -4,9 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# shellcheck source=scripts/ros_env.sh
-source "$ROOT_DIR/scripts/ros_env.sh"
-
 if [[ -f "$ROOT_DIR/defaults.env" ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -36,11 +33,32 @@ fi
 : "${RVIZ_CONFIG_NAME:=autoware.rviz}"
 : "${ENABLE_ALL_MODULES_AUTO_MODE:=false}"
 
+ACTIVE_AUTORACER_VEHICLE_MODEL="autoracer_rc"
+ACTIVE_AUTORACER_SENSOR_MODEL="autoracer_rc_sensor_kit"
+
 is_true() {
   case "${1,,}" in
     1 | true | yes | on) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+require_active_profile_pair() {
+  if [[ "${AUTORACER_VEHICLE_MODEL}" == "${ACTIVE_AUTORACER_VEHICLE_MODEL}" ]] &&
+    [[ "${AUTORACER_SENSOR_MODEL}" == "${ACTIVE_AUTORACER_SENSOR_MODEL}" ]]; then
+    return 0
+  fi
+
+  cat >&2 <<EOF
+ERROR: Only the RC official profile is enabled in this branch.
+Requested vehicle_model=${AUTORACER_VEHICLE_MODEL}
+Requested sensor_model=${AUTORACER_SENSOR_MODEL}
+
+Hooke is currently a disabled_placeholder guarded by COLCON_IGNORE. Use
+scripts/hooke/hooke_start_autoware.sh for the Hooke handoff message until the
+real Hooke profile is complete.
+EOF
+  exit 2
 }
 
 lidar_route_ready() {
@@ -118,6 +136,8 @@ if [[ -z "${MAP_PATH:-}" ]]; then
   exit 1
 fi
 
+require_active_profile_pair
+
 if is_true "${LAUNCH_VEHICLE_INTERFACE}" && [[ -z "${SERIAL_PORT:-}" ]]; then
   echo "ERROR: SERIAL_PORT is required when LAUNCH_VEHICLE_INTERFACE=true." >&2
   echo "Set SERIAL_PORT=/dev/<actual_chassis_tty> or LAUNCH_VEHICLE_INTERFACE=false." >&2
@@ -125,6 +145,9 @@ if is_true "${LAUNCH_VEHICLE_INTERFACE}" && [[ -z "${SERIAL_PORT:-}" ]]; then
 fi
 
 require_lidar_link_ready
+
+# shellcheck source=scripts/ros_env.sh
+source "$ROOT_DIR/scripts/ros_env.sh"
 
 LAUNCH_ARGS=(
   map_path:="${MAP_PATH}"

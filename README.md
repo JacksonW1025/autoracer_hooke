@@ -39,8 +39,12 @@ defaults.env               Runtime defaults shared by official RC wrappers.
 docs/                      Bringup and calibration notes.
 maps/                      Local map directory placeholder.
 scripts/                   Import, build, run, and smoke-test helpers.
+scripts/common/            Shared helper boundary; no vehicle-specific facts.
+scripts/rc/                Active RC operator entrypoints.
+scripts/hooke/             Disabled Hooke handoff entrypoints; fail fast until real profiles exist.
 src/external/autoware      Pinned upstream Autoware packages; keep patches explicit.
 src/autoracer_rc_*         Current RC official Autoware vehicle/sensor profiles.
+src/autoracer_hooke_*      Disabled Hooke official-profile placeholders guarded by COLCON_IGNORE.
 src/autoracer_description  Shared frames, URDF helpers, and static TF assets.
 src/autoracer_sensing      Small sensor adapters used by the official profiles.
 src/autoracer_safety       Final command gate before a chassis adapter.

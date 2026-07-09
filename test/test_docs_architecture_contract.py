@@ -8,6 +8,7 @@ DOCS = ROOT / "docs"
 FORMAL_DOCS = [
     DOCS / "README_zh.md",
     DOCS / "architecture" / "platform_and_stack_zh.md",
+    DOCS / "architecture" / "profile_matrix_zh.md",
     DOCS / "architecture" / "official_launch_structure_zh.md",
     DOCS / "architecture" / "official_migration_zh.md",
     DOCS / "architecture" / "runtime_alignment_audit_zh.md",
@@ -87,6 +88,33 @@ def test_current_runtime_docs_default_to_official_planning_control_boundary():
     ]
     for term in stale_default_terms:
         assert term not in current_runtime_docs
+
+
+def test_profile_matrix_records_active_rc_and_disabled_hooke_profiles():
+    text = read(DOCS / "architecture" / "profile_matrix_zh.md")
+
+    required_terms = [
+        "authoritative profile matrix",
+        "autoracer_rc",
+        "autoracer_rc_sensor_kit",
+        "active runtime baseline",
+        "scripts/rc/",
+        "autoracer_hooke",
+        "autoracer_hooke_sensor_kit",
+        "disabled_placeholder",
+        "COLCON_IGNORE",
+        "not runtime ready",
+        "scripts/hooke/",
+        "scripts/common/",
+        "autoracer_planning",
+        "autoracer_control",
+        "自研算法候选",
+        "不要把 Hooke 空壳包当成可运行 profile",
+    ]
+    for term in required_terms:
+        assert term in text
+
+    assert "按分支区分车型" not in text
 
 
 def test_formal_docs_do_not_keep_stale_host_or_old_control_language():
