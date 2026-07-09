@@ -1,12 +1,12 @@
-# 接口、Topic 与底盘适配事实表
+# 接口、Topic 与标定事实
 
-用途：记录长期接口事实，包括 topic、消息类型、frame、传感器输入和 vehicle adapter 边界。非用途：不写现场运行步骤，不记录一次性排查命令。
+用途：集中记录长期接口事实，包括 topic、消息类型、frame、LiDAR/IMU 输入、Hooke CAN adapter、RC UART adapter、车辆几何和低速标定检查。非用途：不写现场启动步骤，不记录一次性排查命令。
 
-## Upper Stack Topic 契约
+## Topic 契约
 
 | Topic | 类型 | 生产者 | 消费者 | 语义 |
 | --- | --- | --- | --- | --- |
-| `/sensing/lidar/concatenated/pointcloud` | `sensor_msgs/msg/PointCloud2` | Hooke Hesai/Nebula 或 RC C32/lslidar | pointcloud filter、建图录包 | LiDAR driver 输出，frame 为 `lidar_top`。 |
+| `/sensing/lidar/concatenated/pointcloud` | `sensor_msgs/msg/PointCloud2` | Hooke Hesai/Nebula 或 RC C32/lslidar | pointcloud filter、建图录包、official localization | LiDAR driver 输出，frame 为 `lidar_top`。 |
 | `/sensing/lidar/filtered/pointcloud` | `sensor_msgs/msg/PointCloud2` | `pointcloud_voxel_filter` | 建图录包、诊断、后续可选预处理输入 | 当前 official localization 默认不消费该 topic。 |
 | `/localization/fixposition/seed_pose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | Hooke Fixposition seed 或 RC manual seed | NDT initial pose predictor、NDT regularization input | 名字带 Fixposition，但语义是 localization seed。 |
 | `/localization/ndt_initial_pose` | `geometry_msgs/msg/PoseWithCovarianceStamped` | `ndt_initial_pose_predictor` | NDT scan matcher | NDT 启动/重定位初始位姿。 |
@@ -18,7 +18,7 @@
 | `/control/command/gear_cmd` | `autoware_vehicle_msgs/msg/GearCommand` | `command_gate` | Hooke2 CAN adapter 或需要挡位的 vehicle adapter | 挡位命令。 |
 | `/vehicle/status/velocity_status` | `autoware_vehicle_msgs/msg/VelocityReport` | Hooke2 CAN adapter 或 RC serial adapter | localization、control | 纵向速度和 yaw rate，单位必须符合 Autoware。 |
 | `/vehicle/status/steering_status` | `autoware_vehicle_msgs/msg/SteeringReport` | Hooke2 CAN adapter 或 RC serial adapter | localization、diagnostics | 前轮转角反馈。 |
-| `/vehicle/status/gear_status` | `autoware_vehicle_msgs/msg/GearReport` | Hooke2 CAN adapter 或 RC serial adapter | diagnostics、后续 gate/adapter 检查 | 实际挡位反馈。 |
+| `/vehicle/status/gear_status` | `autoware_vehicle_msgs/msg/GearReport` | Hooke2 CAN adapter 或 RC serial adapter | diagnostics、gate/adapter 检查 | 实际挡位反馈。 |
 | `/vehicle/status/control_mode` | `autoware_vehicle_msgs/msg/ControlModeReport` | Hooke2 CAN adapter 或 RC serial adapter | diagnostics、接管状态检查 | 底盘控制模式反馈。 |
 
 ## LiDAR
@@ -35,9 +35,9 @@ Filtered pointcloud output for mapping bag capture and diagnosis:
 /sensing/lidar/filtered/pointcloud  sensor_msgs/msg/PointCloud2
 ```
 
-Mapping bag capture keeps both `/sensing/lidar/concatenated/pointcloud` and `/sensing/lidar/filtered/pointcloud`; offline mapping can choose either raw driver output or filtered diagnostic output. Current official localization uses the upstream default input topic, so runtime localization consumes the official default concatenated topic unless a later profile explicitly overrides it.
+Mapping bag capture keeps both `/sensing/lidar/concatenated/pointcloud` and `/sensing/lidar/filtered/pointcloud`; offline mapping can choose either raw driver output or filtered diagnostic output. Current official localization uses the upstream default input topic, so runtime localization consumes the official default concatenated topic unless a later profile explicitly overrides it. 当前 official localization 默认消费 `/sensing/lidar/concatenated/pointcloud`。
 
-Hooke uses Hesai Pandar through `nebula_hesai`. The historical live configuration used Nebula's `Pandar40P` model and `lidar_top` frame. A future Hooke deployment must provide those facts through a dedicated official sensor-kit profile rather than restoring the removed legacy bringup package.
+Hooke uses Hesai Pandar through `nebula_hesai`. A future Hooke deployment must provide the exact model, frame and network facts through a dedicated official sensor-kit profile.
 
 The RC official sensor-kit profile uses Leishen C32 through `lslidar_driver` with `src/autoracer_rc_sensor_kit_launch/config/lslidar_cx.yaml`: `device_ip=192.168.1.200`, `msop_port=2368`, `difop_port=2369`. It publishes directly to `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
 
@@ -94,7 +94,7 @@ Feedback returns on `/can_tx_to_autoware`, then `hooke2_interface` republishes v
 /vehicle/status/control_mode
 ```
 
-Do not consume raw `/hooke2/*` chassis reports outside tiny adapters and debugging tools. Use `/vehicle/status/velocity_status` and `/vehicle/status/steering_status` for localization, planning, and control consumers.
+Do not consume raw Hooke chassis reports outside tiny adapters and debugging tools. Use `/vehicle/status/velocity_status` and `/vehicle/status/steering_status` for localization, planning, and control consumers.
 
 ## RC UART Adapter
 
@@ -114,3 +114,36 @@ RC vehicle interface keeps the official Autoware control topic on the upstream s
 The adapter publishes the same `/vehicle/status/*` surface as Hooke2. Wheel speed, velocity sign, steering angle, and `wz` definitions must be checked against the STM32 protocol and `rc_serial_interface` implementation before dynamic tests.
 
 The only adapter added around Hooke Fixposition compatibility is `velocity_to_fixposition_speed`, which bridges `/vehicle/status/velocity_status` to `/fixposition/speed` as a single `RC` wheelspeed measurement in millimeters per second.
+
+## RC 车辆参数
+
+| 参数 | 值 |
+| --- | --- |
+| 车长 | `0.83 m` |
+| 车宽 | `0.58 m` |
+| 车高 | `0.50 m` |
+| 轮径 | `0.23 m` |
+| 轮半径 / `base_link` 高度 | `0.115 m` |
+| 轴距 | `0.6 m` |
+| 最大前轮转角 | `0.262 rad` |
+
+这些值需要同步到 vehicle profile、URDF/TF、controller 参数、vehicle adapter 限幅和低速测试记录。参数不能在多个文件里各自漂移。
+
+## Frames
+
+- `base_link -> lidar_top` measured on the active platform.
+- Hooke profile: `base_link -> gnss_base_link` measured to the Fixposition antenna reference.
+- Hooke profile: `base_link -> imu_link` or Fixposition IMU frame measured and yaw-aligned.
+- RC profile: `base_link -> lidar_top` starts from the current C32 value but must be rechecked on the car.
+- RC profile: `base_link -> imu_link` starts as zero pose for Hipnuc/N300 Pro and must be updated after physical measurement.
+- `map -> base_link` moves smoothly while driving slowly on the mapped track.
+
+## 低速标定检查
+
+Run these checks before setting `ENABLE_DRIVE_COMMANDS=true`.
+
+1. Keep wheels lifted or vehicle secured.
+2. Run with `ENABLE_DRIVE_COMMANDS=false`.
+3. Confirm route, trajectory, official control, and gated safe control direction in RViz.
+4. Enable drive commands at `MAX_SPEED_MPS=0.5` or another explicitly chosen low-speed limit.
+5. Verify stop on localization loss, control command timeout, and route completion.

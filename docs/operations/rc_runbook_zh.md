@@ -4,7 +4,7 @@
 
 目标：用 RC 验证 Hooke/RC 共享 official Autoware planning/control + gate 边界，而不是先切回本地旧算法。
 
-全链路进度、缺口和跨文档依赖以 `docs/operations/rc_full_chain_execution_zh.md` 为准；本文件只写现场操作步骤。
+本文件只写现场操作步骤；架构边界看 `docs/architecture_zh.md`，topic、frame、车辆参数和标定事实看 `docs/reference/interfaces_and_calibration_zh.md`。
 
 ## 1. 主机与网络
 
@@ -122,7 +122,7 @@ MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMAND
 
 不要用 `timeout -s INT` 作为 full-chain dry-run 的正式停止方式。它会直接向官方 launch 发送 SIGINT，可能在 composable node 卸载时触发上游 planning container shutdown 崩溃；现场和验证脚本都应让链路正常运行，再用 `rc_stop.sh` 做受控清理。
 
-## 8. 实际跑车顺序
+## 8. 低速动态验证顺序
 
 1. 接 LiDAR、控制板、底盘动力。
 2. 烧录最新 STM32 固件，或确认当前固件协议和车身参数与源码一致。

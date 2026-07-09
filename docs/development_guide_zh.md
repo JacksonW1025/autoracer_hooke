@@ -107,13 +107,10 @@ Hooke sensor 外参    -> src/autoracer_description/config/hooke2_sensor_extrins
 | 要改的问题 | 应改文档 |
 | --- | --- |
 | 新人如何接手、包责任、开发路线 | 本文件 |
-| RC/Hooke profile 状态 | `docs/architecture/profile_matrix_zh.md` |
-| 架构边界和上层链路 | `docs/architecture/platform_and_stack_zh.md` |
-| launch/topic 是否对齐 | `docs/architecture/runtime_alignment_audit_zh.md` |
+| 架构边界、官方 launch、profile 状态、旧框架迁移说明 | `docs/architecture_zh.md` |
 | 上车操作 | `docs/operations/rc_runbook_zh.md` |
 | 建图和地图回灌 | `docs/operations/mapping_workflow_zh.md` |
-| topic/frame/adapter 事实 | `docs/reference/interfaces_and_topics_zh.md` |
-| 车辆参数和标定 | `docs/reference/calibration_zh.md` |
+| topic、frame、adapter、车辆参数和标定 | `docs/reference/interfaces_and_calibration_zh.md` |
 
 每次改 docs 后跑：
 

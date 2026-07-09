@@ -217,8 +217,8 @@ def test_official_localization_contract_uses_upstream_default_pointcloud_topic()
     docs = "\n".join(
         read(path)
         for path in (
-            "docs/architecture/runtime_alignment_audit_zh.md",
-            "docs/reference/interfaces_and_topics_zh.md",
+            "docs/architecture_zh.md",
+            "docs/reference/interfaces_and_calibration_zh.md",
         )
     )
 
@@ -234,7 +234,7 @@ def test_official_localization_docs_require_full_map_directory():
             "README.md",
             "docs/operations/mapping_workflow_zh.md",
             "docs/operations/rc_runbook_zh.md",
-            "docs/operations/rc_full_chain_execution_zh.md",
+            "docs/reference/interfaces_and_calibration_zh.md",
         )
     )
 

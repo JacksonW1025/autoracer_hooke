@@ -41,7 +41,7 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
 
 def test_rc_user_docs_do_not_recommend_obsolete_host_address():
     canonical_link_docs = [
-        "docs/reference/interfaces_and_topics_zh.md",
+        "docs/reference/interfaces_and_calibration_zh.md",
     ]
 
     for relative_path in canonical_link_docs:
@@ -50,14 +50,11 @@ def test_rc_user_docs_do_not_recommend_obsolete_host_address():
 
     current_user_docs = [
         "README.md",
-        "docs/README_zh.md",
-        "docs/architecture/platform_and_stack_zh.md",
-        "docs/architecture/runtime_alignment_audit_zh.md",
-        "docs/operations/rc_full_chain_execution_zh.md",
+        "docs/development_guide_zh.md",
+        "docs/architecture_zh.md",
         "docs/operations/rc_runbook_zh.md",
         "docs/operations/mapping_workflow_zh.md",
-        "docs/reference/interfaces_and_topics_zh.md",
-        "docs/reference/calibration_zh.md",
+        "docs/reference/interfaces_and_calibration_zh.md",
     ]
 
     for relative_path in current_user_docs:

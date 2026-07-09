@@ -63,15 +63,15 @@ Start here:
 
 ```text
 docs/development_guide_zh.md
-docs/README_zh.md
 ```
 
 The docs are organized by task:
 
 ```text
-docs/architecture/  Shared stack boundary and official Autoware migration notes.
-docs/operations/    RC field runbook and mapping workflow.
-docs/reference/     Topic, frame, vehicle, feedback, and calibration facts.
+docs/architecture_zh.md
+docs/operations/rc_runbook_zh.md
+docs/operations/mapping_workflow_zh.md
+docs/reference/interfaces_and_calibration_zh.md
 ```
 
 ## First Bringup
@@ -116,7 +116,6 @@ Use the task docs instead of copying one-off field commands into this file:
 ```text
 docs/operations/mapping_workflow_zh.md
 docs/operations/rc_runbook_zh.md
-docs/operations/rc_full_chain_execution_zh.md
 ```
 
 Official Autoware startup should use `autoware_launch` with the RC vehicle and

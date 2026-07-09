@@ -2,7 +2,7 @@
 
 用途：定义可重复的 RC 建图工作流：车端采集 bag，工作机用 Foxglove 检查 bag，用 Super-LIO 建图并打包 Autoware 地图，再回灌车端验证；现场需要时，也可用 Foxglove Bridge 实时查看车端 ROS 2 topic。非用途：不承载车端运行态 Autoware/RViz 配置。
 
-全链路进度、缺口和上下游依赖以 `docs/operations/rc_full_chain_execution_zh.md` 为准；本文件只写建图和地图回灌流程。
+本文件只写建图和地图回灌流程；上车运行顺序看 `docs/operations/rc_runbook_zh.md`，topic、frame 和车辆参数看 `docs/reference/interfaces_and_calibration_zh.md`。
 
 ## 工作区
 
@@ -22,7 +22,7 @@ rc_mapping_data/
   reports/<run_id>.md
 ```
 
-## 现场扫图速查
+## 车端采集
 
 本节是上车采集 ROS bag 的操作入口。扫图过程不在工作机上完成；车端只负责启动传感器、发布 TF、录制 bag。工作机在 bag 拉回后再检查、可视化、离线建图和打包地图。
 
@@ -168,37 +168,6 @@ VEHICLE_BAG=/home/<user>/autoracer_mapping_bags/floor1_mapping_001 \
 ```
 
 后续工作机检查和建图都以这个目录为输入。
-
-## 车端采集
-
-启动传感器：
-
-```bash
-IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_sensors.sh
-```
-
-检查输入：
-
-```bash
-./scripts/check_mapping_inputs.sh
-```
-
-定长录包：
-
-```bash
-BAG_DURATION_SEC=60 IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_capture_mapping_bag.sh
-```
-
-开放式录包：
-
-```bash
-IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_mapping_bag.sh
-./scripts/rc/rc_stop_mapping_bag.sh
-```
-
-建图必录 topic：`/sensing/lidar/concatenated/pointcloud`、`/sensing/lidar/filtered/pointcloud`、`/sensing/imu/imu_data_raw`、`/sensing/imu/imu_data`、`/tf`、`/tf_static`、`/rosout`。
-
-诊断可选 topic：`/vehicle/status/velocity_status`、`/vehicle/status/steering_status`、`/vehicle/status/gear_status`、`/autoracer/vehicle_interface/state`。
 
 ## 车端实时 Foxglove 监控
 

@@ -6,16 +6,23 @@ DOCS = ROOT / "docs"
 
 
 FORMAL_DOCS = [
-    DOCS / "README_zh.md",
     DOCS / "development_guide_zh.md",
+    DOCS / "architecture_zh.md",
+    DOCS / "operations" / "rc_runbook_zh.md",
+    DOCS / "operations" / "mapping_workflow_zh.md",
+    DOCS / "reference" / "interfaces_and_calibration_zh.md",
+]
+
+
+REMOVED_DOCS = [
+    DOCS / "README_zh.md",
+    DOCS / "architecture" / "image.png",
     DOCS / "architecture" / "platform_and_stack_zh.md",
     DOCS / "architecture" / "profile_matrix_zh.md",
     DOCS / "architecture" / "official_launch_structure_zh.md",
     DOCS / "architecture" / "official_migration_zh.md",
     DOCS / "architecture" / "runtime_alignment_audit_zh.md",
     DOCS / "operations" / "rc_full_chain_execution_zh.md",
-    DOCS / "operations" / "rc_runbook_zh.md",
-    DOCS / "operations" / "mapping_workflow_zh.md",
     DOCS / "reference" / "interfaces_and_topics_zh.md",
     DOCS / "reference" / "calibration_zh.md",
 ]
@@ -38,33 +45,38 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def test_docs_readme_indexes_formal_docs():
-    text = read(DOCS / "README_zh.md")
-    for path in FORMAL_DOCS:
-        if path.name == "README_zh.md":
-            continue
-        rel = path.relative_to(DOCS).as_posix()
-        assert f"`{rel}`" in text
-    assert "`superpowers/" not in text
+def combined_formal_docs() -> str:
+    return "\n".join(read(path) for path in FORMAL_DOCS)
 
 
-def test_root_readme_stays_as_repository_entrypoint():
+def test_docs_are_converged_to_five_formal_markdown_files():
+    tracked_docs = sorted(path.relative_to(ROOT).as_posix() for path in DOCS.rglob("*") if path.is_file())
+    expected_docs = sorted(path.relative_to(ROOT).as_posix() for path in FORMAL_DOCS)
+
+    assert tracked_docs == expected_docs
+    for path in REMOVED_DOCS:
+        assert not path.exists(), path
+
+
+def test_root_readme_points_to_converged_docs_only():
     text = read(ROOT / "README.md")
 
     required_terms = [
         "docs/development_guide_zh.md",
-        "docs/README_zh.md",
+        "docs/architecture_zh.md",
+        "docs/operations/mapping_workflow_zh.md",
+        "docs/operations/rc_runbook_zh.md",
+        "docs/reference/interfaces_and_calibration_zh.md",
         "scripts/rc/",
         "vehicle_model:=autoracer_rc",
         "sensor_model:=autoracer_rc_sensor_kit",
-        "docs/operations/mapping_workflow_zh.md",
-        "docs/operations/rc_runbook_zh.md",
-        "docs/operations/rc_full_chain_execution_zh.md",
     ]
     for term in required_terms:
         assert term in text
 
+    removed_refs = [path.relative_to(DOCS).as_posix() for path in REMOVED_DOCS]
     stale_or_local_terms = [
+        *removed_refs,
         "/home/",
         "pilot-auto.x1",
         "IMPORT_FROM_PILOT",
@@ -73,49 +85,6 @@ def test_root_readme_stays_as_repository_entrypoint():
     ]
     for term in stale_or_local_terms:
         assert term not in text
-
-
-def test_no_reader_role_table_or_old_doc_names():
-    combined = "\n".join(read(path) for path in FORMAL_DOCS if path.exists())
-    assert "| 文档 | 角色 | 什么时候读 |" not in combined
-    for name in OLD_DOC_NAMES:
-        assert name not in combined
-
-
-def test_platform_doc_has_two_architecture_diagrams():
-    text = read(DOCS / "architecture" / "platform_and_stack_zh.md")
-    assert "## Hooke 底盘架构图" in text
-    assert "## RC 底盘架构图" in text
-    assert text.count("```mermaid") == 2
-    assert text.count("```") % 2 == 0
-    assert "Shared official Autoware upper stack" in text
-    assert "rc_serial_interface" in text
-    assert "hooke2_interface" in text
-
-
-def test_current_runtime_docs_default_to_official_planning_control_boundary():
-    platform = read(DOCS / "architecture" / "platform_and_stack_zh.md")
-    runbook = read(DOCS / "operations" / "rc_runbook_zh.md")
-    interfaces = read(DOCS / "reference" / "interfaces_and_topics_zh.md")
-    current_runtime_docs = "\n".join((platform, runbook, interfaces))
-
-    required_terms = [
-        "official Autoware planning/control",
-        "自研 planning/control 候选",
-        "/control/command/control_cmd",
-        "/autoracer/control/safe_control_cmd",
-        "rc_serial_interface",
-    ]
-    for term in required_terms:
-        assert term in current_runtime_docs
-
-    stale_default_terms = [
-        "lanelet_route_planner",
-        "pure_pursuit_controller",
-        "/autoracer/control/raw_control_cmd",
-    ]
-    for term in stale_default_terms:
-        assert term not in current_runtime_docs
 
 
 def test_development_guide_explains_src_packages_and_continuation_paths():
@@ -153,35 +122,143 @@ def test_development_guide_explains_src_packages_and_continuation_paths():
     assert "autoracer_bringup" not in text
 
 
-def test_profile_matrix_records_active_rc_and_disabled_hooke_profiles():
-    text = read(DOCS / "architecture" / "profile_matrix_zh.md")
+def test_architecture_doc_owns_platform_profile_launch_and_algorithm_boundaries():
+    text = read(DOCS / "architecture_zh.md")
 
     required_terms = [
-        "authoritative profile matrix",
-        "autoracer_rc",
-        "autoracer_rc_sensor_kit",
-        "active runtime baseline",
-        "scripts/rc/",
+        "## 平台原则",
+        "## 官方 Launch 结构",
+        "## 给旧框架开发者的迁移说明",
+        "## Profile 状态",
+        "## Hooke 底盘架构图",
+        "## RC 底盘架构图",
+        "Shared official Autoware upper stack",
+        "vehicle_model:=autoracer_rc",
+        "sensor_model:=autoracer_rc_sensor_kit",
+        "autoracer_rc_description",
+        "autoracer_rc_launch",
+        "autoracer_rc_sensor_kit_description",
+        "autoracer_rc_sensor_kit_launch",
         "autoracer_hooke",
         "autoracer_hooke_sensor_kit",
         "disabled_placeholder",
         "COLCON_IGNORE",
         "not runtime ready",
+        "scripts/rc/",
         "scripts/hooke/",
         "scripts/common/",
-        "autoracer_planning",
-        "autoracer_control",
-        "自研算法候选",
-        "不要把 Hooke 空壳包当成可运行 profile",
+        "src/external/autoware",
+        "自研 planning/control 候选",
+        "不在 `src/external/autoware` 里做隐形修改",
+        "旧框架是本仓库自定义总控",
+        "新框架是官方 Autoware 总控",
+        "以后怎么判断应该改哪里",
     ]
     for term in required_terms:
         assert term in text
 
+    assert text.count("```mermaid") == 2
+    assert text.count("```") % 2 == 0
+    assert "静态预览图" not in text
+    assert "docs/architecture/image.png" not in text
     assert "按分支区分车型" not in text
 
 
-def test_formal_docs_do_not_keep_stale_host_or_old_control_language():
-    combined = "\n".join(read(path) for path in FORMAL_DOCS if path.exists())
+def test_runtime_docs_default_to_official_planning_control_boundary():
+    current_runtime_docs = "\n".join(
+        (
+            read(DOCS / "architecture_zh.md"),
+            read(DOCS / "operations" / "rc_runbook_zh.md"),
+            read(DOCS / "reference" / "interfaces_and_calibration_zh.md"),
+        )
+    )
+
+    required_terms = [
+        "official Autoware planning/control",
+        "自研 planning/control 候选",
+        "/control/command/control_cmd",
+        "/autoracer/control/safe_control_cmd",
+        "rc_serial_interface",
+        "command_gate",
+    ]
+    for term in required_terms:
+        assert term in current_runtime_docs
+
+    stale_default_terms = [
+        "lanelet_route_planner",
+        "pure_pursuit_controller",
+        "/autoracer/control/raw_control_cmd",
+    ]
+    for term in stale_default_terms:
+        assert term not in current_runtime_docs
+
+
+def test_operations_docs_preserve_mapping_and_runtime_sequences():
+    mapping = read(DOCS / "operations" / "mapping_workflow_zh.md")
+    runbook = read(DOCS / "operations" / "rc_runbook_zh.md")
+
+    mapping_terms = [
+        "车端采集",
+        "Foxglove Bridge",
+        "Super-LIO",
+        "Autoware 地图目录",
+        "pointcloud_map.pcd",
+        "pointcloud_map_metadata.yaml",
+        "lanelet2_map.osm",
+        "map_projector_info.yaml",
+        "/sensing/lidar/concatenated/pointcloud",
+        "/sensing/imu/imu_data_raw",
+        "/tf_static",
+    ]
+    for term in mapping_terms:
+        assert term in mapping
+
+    runbook_terms = [
+        "配置 LiDAR 网口",
+        "启动 sensors",
+        "NDT",
+        "/planning/trajectory",
+        "/control/command/control_cmd",
+        "/autoracer/control/safe_control_cmd",
+        "ENABLE_DRIVE_COMMANDS=false",
+        "不要用 `timeout -s INT`",
+        "低速动态验证",
+    ]
+    for term in runbook_terms:
+        assert term in runbook
+
+    assert "docs/operations/rc_full_chain_execution_zh.md" not in mapping
+    assert "docs/operations/rc_full_chain_execution_zh.md" not in runbook
+
+
+def test_reference_doc_combines_interfaces_and_calibration_facts():
+    text = read(DOCS / "reference" / "interfaces_and_calibration_zh.md")
+
+    required_terms = [
+        "## Topic 契约",
+        "## LiDAR",
+        "## Fixposition 与 RC Seed",
+        "## Hooke2 CAN Adapter",
+        "## RC UART Adapter",
+        "## RC 车辆参数",
+        "## Frames",
+        "## 低速标定检查",
+        "192.168.1.102",
+        "192.168.1.200",
+        "/sensing/lidar/concatenated/pointcloud",
+        "/sensing/lidar/filtered/pointcloud",
+        "/vehicle/status/velocity_status",
+        "0.6 m",
+        "0.262 rad",
+    ]
+    for term in required_terms:
+        assert term in text
+
+    assert "runtime localization consumes the official default concatenated topic" in text
+
+
+def test_formal_docs_do_not_keep_stale_host_or_transition_language():
+    combined = combined_formal_docs()
 
     stale_terms = [
         "树莓派",
@@ -191,89 +268,27 @@ def test_formal_docs_do_not_keep_stale_host_or_old_control_language():
         "raw control",
         "/autoracer/control/raw_control_cmd",
         "后续实现计划",
+        "rc_full_chain_execution_zh.md",
+        "runtime_alignment_audit_zh.md",
+        "official_launch_structure_zh.md",
+        "official_migration_zh.md",
+        "profile_matrix_zh.md",
+        "platform_and_stack_zh.md",
+        "reference/interfaces_and_topics_zh.md",
+        "reference/calibration_zh.md",
     ]
     for term in stale_terms:
         assert term not in combined
 
+    for name in OLD_DOC_NAMES:
+        assert name not in combined
+
 
 def test_current_phase_does_not_describe_future_state_fusion():
-    combined = "\n".join(read(path) for path in FORMAL_DOCS if path.exists())
+    combined = combined_formal_docs()
     forbidden_terms = ["卡尔曼", "Kalman", "EKF", "ekf"]
     for term in forbidden_terms:
         assert term not in combined
-
-
-def test_runtime_audit_records_pointcloud_filter_contract():
-    text = read(DOCS / "architecture" / "runtime_alignment_audit_zh.md")
-    assert "pointcloud_voxel_filter" in text
-    assert "/sensing/lidar/concatenated/pointcloud" in text
-    assert "/sensing/lidar/filtered/pointcloud" in text
-    assert "official localization 默认消费 `/sensing/lidar/concatenated/pointcloud`" in text
-
-
-def test_official_launch_structure_doc_explains_old_and_new_boundaries():
-    text = read(DOCS / "architecture" / "official_launch_structure_zh.md")
-    required_terms = [
-        "旧结构图",
-        "官方结构图",
-        "autoracer_bringup/track.launch.py",
-        "autoware_launch/autoware.launch.xml",
-        "vehicle_model:=autoracer_rc",
-        "sensor_model:=autoracer_rc_sensor_kit",
-        "autoracer_rc_description",
-        "autoracer_rc_launch",
-        "autoracer_rc_sensor_kit_description",
-        "autoracer_rc_sensor_kit_launch",
-        "同一仓库可以维护多套车型 profile",
-        "autoracer_hooke_description",
-        "autoracer_hooke_launch",
-        "autoracer_hooke_sensor_kit_description",
-        "autoracer_hooke_sensor_kit_launch",
-        "command_gate -> rc_serial_interface",
-        "旧链路已从本分支移除",
-        "模板分层",
-        "src/external/autoware",
-        "自研 planning 候选",
-        "不在 `src/external/autoware` 里做隐形魔改",
-    ]
-    for term in required_terms:
-        assert term in text
-    assert text.count("```mermaid") >= 2
-    assert "旧 `run_track.sh` 路径保留" not in text
-    assert "旧链路回退" not in text
-
-
-def test_full_chain_doc_preserves_audit_to_runtime_order():
-    text = read(DOCS / "operations" / "rc_full_chain_execution_zh.md")
-    required_terms = [
-        "架构/Launch 差距审计",
-        "车端传感器和 TF",
-        "工作机 bag 检查和 Foxglove 查看",
-        "Super-LIO 生成 PCD",
-        "NDT localization-only",
-        "planning/control/gate dry-run",
-        "低速动态验证",
-        "dry-run 结束必须用 `./scripts/rc/rc_stop.sh`",
-        "不要用 `timeout -s INT`",
-        "docs/architecture/runtime_alignment_audit_zh.md",
-        "docs/operations/mapping_workflow_zh.md",
-        "docs/operations/rc_runbook_zh.md",
-    ]
-    for term in required_terms:
-        assert term in text
-    assert "没有 Lanelet2 地图时只验证 localization-only" not in text
-    assert "完整官方地图目录" in text
-
-
-def test_static_architecture_png_is_documented_as_preview():
-    assert (DOCS / "architecture" / "image.png").exists()
-    readme = read(DOCS / "README_zh.md")
-    platform = read(DOCS / "architecture" / "platform_and_stack_zh.md")
-    assert "`architecture/image.png`" in readme
-    assert "`docs/architecture/image.png`" in platform
-    assert "静态预览图" in platform
-    assert "Mermaid" in platform
-    assert "runtime_alignment_audit_zh.md" in platform
 
 
 def test_stale_superpowers_docs_are_removed_from_formal_docs():
