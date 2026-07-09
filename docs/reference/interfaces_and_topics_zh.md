@@ -39,7 +39,7 @@ Mapping bag capture keeps both `/sensing/lidar/concatenated/pointcloud` and `/se
 
 Hooke uses Hesai Pandar through `nebula_hesai`. The historical live configuration used Nebula's `Pandar40P` model and `lidar_top` frame. A future Hooke deployment must provide those facts through a dedicated official sensor-kit profile rather than restoring the removed legacy bringup package.
 
-The RC official sensor-kit profile uses Leishen C32 through `lslidar_driver` with `src/autoracer_hooke_sensor_kit_launch/config/lslidar_cx.yaml`: `device_ip=192.168.1.200`, `msop_port=2368`, `difop_port=2369`. It publishes directly to `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
+The RC official sensor-kit profile uses Leishen C32 through `lslidar_driver` with `src/autoracer_rc_sensor_kit_launch/config/lslidar_cx.yaml`: `device_ip=192.168.1.200`, `msop_port=2368`, `difop_port=2369`. It publishes directly to `/sensing/lidar/concatenated/pointcloud` in frame `lidar_top`.
 
 The underlying helper uses `192.168.1.102/32` on the LiDAR-facing Ethernet link and a host route to `192.168.1.200/32`, keeping the normal LAN/WiFi route separate. The current ARM vehicle host is temporary; do not encode it as the architecture boundary.
 

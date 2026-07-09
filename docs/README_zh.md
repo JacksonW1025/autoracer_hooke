@@ -25,7 +25,7 @@
 
 ## 阅读入口
 
-- 架构或分支维护问题先看 `architecture/platform_and_stack_zh.md`。
+- 架构或平台维护问题先看 `architecture/platform_and_stack_zh.md`。
 - 执行全链路前先过 `architecture/runtime_alignment_audit_zh.md`，确认架构、launch、topic 和平台差异没有漂移。
 - 想理解旧启动结构和官方启动结构的差别，看 `architecture/official_launch_structure_zh.md`。
 - 全链路进度、缺口和验收标准看 `operations/rc_full_chain_execution_zh.md`。

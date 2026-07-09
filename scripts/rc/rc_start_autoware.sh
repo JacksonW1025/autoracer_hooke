@@ -14,8 +14,8 @@ Environment:
   ENABLE_DRIVE_COMMANDS   default: false
   LAUNCH_RVIZ             default: false
 
-Starts the official Autoware launch path with the autoracer_hooke vehicle,
-autoracer_hooke_sensor_kit sensors, safety gate, and RC serial interface.
+Starts the official Autoware launch path with the autoracer_rc vehicle,
+autoracer_rc_sensor_kit sensors, safety gate, and RC serial interface.
 EOF
 }
 

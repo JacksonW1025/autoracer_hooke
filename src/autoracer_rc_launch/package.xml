@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>autoracer_hooke_launch</name>
+  <name>autoracer_rc_launch</name>
   <version>0.1.0</version>
-  <description>Official Autoware vehicle launch adapter for the Autoracer Hooke RC platform.</description>
+  <description>Official Autoware vehicle launch adapter for the Autoracer RC platform.</description>
   <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
   <license>Apache-2.0</license>
 

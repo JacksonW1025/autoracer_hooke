@@ -22,17 +22,17 @@
 | 架构图模块 | launch / script | package / executable | 关键输入 | 关键输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | RC entrypoint | `scripts/rc/rc_start_autoware.sh` | `scripts/run_official_autoware.sh` | `MAP_PATH` | `autoware_launch/autoware.launch.xml` | 已映射 |
-| RC vehicle description / TF | `tier4_vehicle_launch` + `autoracer_hooke_description` | `robot_state_publisher` | vehicle/sensor xacro | `/tf_static` | 已映射 |
-| RC sensing | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `lslidar_driver/lslidar_driver_node` | C32 UDP | `/sensing/lidar/concatenated/pointcloud` | 已映射 |
-| RC pointcloud filter | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 已映射 |
-| RC IMU raw | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `hipnuc_imu/talker` | serial | `/sensing/imu/imu_data_raw` | 已映射 |
-| RC IMU filtered | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` | `imu_filter_madgwick/imu_filter_madgwick_node` | `/sensing/imu/imu_data_raw` | `/sensing/imu/imu_data` | 已映射 |
+| RC vehicle description / TF | `tier4_vehicle_launch` + `autoracer_rc_description` | `robot_state_publisher` | vehicle/sensor xacro | `/tf_static` | 已映射 |
+| RC sensing | `autoracer_rc_sensor_kit_launch/launch/sensing.launch.xml` | `lslidar_driver/lslidar_driver_node` | C32 UDP | `/sensing/lidar/concatenated/pointcloud` | 已映射 |
+| RC pointcloud filter | `autoracer_rc_sensor_kit_launch/launch/sensing.launch.xml` | `autoracer_sensing/pointcloud_voxel_filter` | `/sensing/lidar/concatenated/pointcloud` | `/sensing/lidar/filtered/pointcloud` | 已映射 |
+| RC IMU raw | `autoracer_rc_sensor_kit_launch/launch/sensing.launch.xml` | `hipnuc_imu/talker` | serial | `/sensing/imu/imu_data_raw` | 已映射 |
+| RC IMU filtered | `autoracer_rc_sensor_kit_launch/launch/sensing.launch.xml` | `imu_filter_madgwick/imu_filter_madgwick_node` | `/sensing/imu/imu_data_raw` | `/sensing/imu/imu_data` | 已映射 |
 | RC localization | `autoware_launch` localization component | official localization packages | map + `/sensing/lidar/concatenated/pointcloud` + initial pose | `/localization/pose_with_covariance` | 待车端验证 |
 | RC kinematic state | official localization/control surface | Autoware components | localization + `/vehicle/status/*` | `/localization/kinematic_state` | 待车端验证 |
 | Official planning | `autoware_launch` planning component | official Autoware planning packages | map + localization + route/goal | `/planning/trajectory` and official planning surface | 待车端验证 |
 | Official control | `autoware_launch` control component | official Autoware control packages | trajectory + kinematic state + vehicle info | `/control/command/control_cmd` | 待车端验证 |
-| Vehicle gate | `autoracer_hooke_launch/launch/vehicle_interface.launch.xml` | `autoracer_safety/command_gate` | `/control/command/control_cmd` | `/autoracer/control/safe_control_cmd` | RC adapter 前保留 |
-| RC adapter | `autoracer_hooke_launch/launch/vehicle_interface.launch.xml` | `autoracer_safety/command_gate` -> `autoracer_vehicle_interface/rc_serial_interface` | `/control/command/*` | UART + `/vehicle/status/*` | 已映射 |
+| Vehicle gate | `autoracer_rc_launch/launch/vehicle_interface.launch.xml` | `autoracer_safety/command_gate` | `/control/command/control_cmd` | `/autoracer/control/safe_control_cmd` | RC adapter 前保留 |
+| RC adapter | `autoracer_rc_launch/launch/vehicle_interface.launch.xml` | `autoracer_safety/command_gate` -> `autoracer_vehicle_interface/rc_serial_interface` | `/control/command/*` | UART + `/vehicle/status/*` | 已映射 |
 
 ## Hooke Launch 链路
 

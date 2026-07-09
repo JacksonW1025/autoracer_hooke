@@ -3,9 +3,10 @@
 ROS 2 workspace for using the RC Ackermann car to validate the Autoracer
 Hooke/Autoware chain.
 
-The current priority is to keep the Hooke and RC branches on the same upper stack
-and validate that stack on the RC platform. RC-specific work belongs in sensor
-profiles, vehicle geometry, serial vehicle interface, and mapping workflow:
+The current priority is to keep Hooke and RC on the same official Autoware upper
+stack and validate that stack on the RC platform first. Platform-specific work
+belongs in explicit vehicle/sensor profiles, vehicle adapters, and mapping
+workflow instead of hidden launch glue:
 
 ```text
 Leishen C32 LiDAR + RViz/manual NDT seed + STM32 UART feedback
@@ -39,7 +40,7 @@ docs/                      Bringup and calibration notes.
 maps/                      Local map directory placeholder.
 scripts/                   Import, build, run, and smoke-test helpers.
 src/external/autoware      Pinned upstream Autoware packages; keep patches explicit.
-src/autoracer_hooke_*      Official Autoware vehicle and sensor-kit profiles.
+src/autoracer_rc_*         Current RC official Autoware vehicle/sensor profiles.
 src/autoracer_description  Shared frames, URDF helpers, and static TF assets.
 src/autoracer_sensing      Small sensor adapters used by the official profiles.
 src/autoracer_safety       Final command gate before a chassis adapter.
@@ -48,7 +49,7 @@ src/autoracer_localization Localization adapters that preserve official topic co
 src/autoracer_planning     Local algorithm candidates; do not use as hidden launch glue.
 src/autoracer_control      Local controller candidates; do not use as hidden launch glue.
 src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
-src/hooke2_vehicle         Vendored Hooke2 CAN adapter and vehicle description.
+src/hooke2_vehicle         Vendored Hooke2 CAN adapter and legacy vehicle assets.
 src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
 ```
 
@@ -162,9 +163,11 @@ map_projector_info.yaml
 ```
 
 Official Autoware startup should use `autoware_launch` with the RC vehicle and
-sensor kit packages. Keep RViz disabled on the vehicle computer unless the
-machine is attached to a display; use Foxglove or a workstation for normal
-visualization:
+sensor-kit profile names. Future Hooke profile packages should use the same
+official naming rule (`autoracer_hooke` / `autoracer_hooke_sensor_kit`) when
+their real vehicle and sensor configuration is migrated. Keep RViz disabled on
+the vehicle computer unless the machine is attached to a display; use Foxglove
+or a workstation for normal visualization:
 
 Official-path build prerequisites on a fresh machine:
 
@@ -175,8 +178,8 @@ sudo apt install ros-humble-xacro libprotobuf-dev protobuf-compiler libpcap-dev
 ```bash
 ros2 launch autoware_launch autoware.launch.xml \
   map_path:=/path/to/map \
-  vehicle_model:=autoracer_hooke \
-  sensor_model:=autoracer_hooke_sensor_kit \
+  vehicle_model:=autoracer_rc \
+  sensor_model:=autoracer_rc_sensor_kit \
   launch_vehicle_interface:=false \
   launch_perception:=false \
   rviz:=false

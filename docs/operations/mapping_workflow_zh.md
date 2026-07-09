@@ -26,10 +26,10 @@ rc_mapping_data/
 
 本节是上车采集 ROS bag 的操作入口。扫图过程不在工作机上完成；车端只负责启动传感器、发布 TF、录制 bag。工作机在 bag 拉回后再检查、可视化、离线建图和打包地图。
 
-车端进入 `autoracer_hooke` 工作区：
+车端进入本仓库工作区：
 
 ```bash
-cd <autoracer_hooke工作区>
+cd <autoracer工作区>
 ```
 
 默认车端 bag 保存位置：
@@ -154,7 +154,7 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 \
 在工作机执行：
 
 ```bash
-cd /home/milesli/Desktop/RC/autoracer_hooke
+cd /home/milesli/Desktop/RC/<autoracer工作区>
 
 VEHICLE_HOST=<user@vehicle-host> \
 VEHICLE_BAG=/home/<user>/autoracer_mapping_bags/floor1_mapping_001 \

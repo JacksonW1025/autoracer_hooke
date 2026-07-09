@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(autoracer_hooke_description)
+project(autoracer_rc_sensor_kit_description)
 
 find_package(ament_cmake REQUIRED)
 

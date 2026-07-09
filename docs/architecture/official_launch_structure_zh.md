@@ -6,7 +6,7 @@
 
 旧结构是“本仓库自己当总控”：`autoracer_bringup/track.launch.py` 直接决定要启动哪些模块，并把 RC 的传感器、定位、规划、控制、安全门、串口车辆接口串起来。
 
-新结构是“官方 Autoware 当总控”：`autoware_launch/autoware.launch.xml` 负责总装配；本仓库按官方约定提供 `autoracer_hooke` 车辆包和 `autoracer_hooke_sensor_kit` 传感器包，让官方 launch 按名字找到 RC 的配置和适配层。
+新结构是“官方 Autoware 当总控”：`autoware_launch/autoware.launch.xml` 负责总装配；本仓库按官方约定提供 `autoracer_rc` 车辆包和 `autoracer_rc_sensor_kit` 传感器包，让官方 launch 按名字找到 RC 的配置和适配层。
 
 这不是简单把几个参数换个文件名，而是启动责任边界变了：
 
@@ -14,10 +14,10 @@
 | --- | --- | --- |
 | 总入口 | `scripts/run_track.sh` -> `autoracer_bringup/track.launch.py` | `scripts/run_official_autoware.sh` -> `autoware_launch/autoware.launch.xml` |
 | 模块装配 | 本仓库 launch 手动 include sensing/localization/planning/control/safety/vehicle | 官方 launch include `tier4_*_launch`，再按 profile 名找 vehicle/sensor 包 |
-| RC 车辆参数 | 分散在 `defaults.env`、`track.launch.py` 参数、`autoracer_description` | `autoracer_hooke_description/config/vehicle_info.param.yaml` 等官方 profile 位置 |
-| RC 传感器外参 | 旧 RC description / extrinsics 文件 | `autoracer_hooke_sensor_kit_description/config/sensor_kit_calibration.yaml` |
-| RC 传感器启动 | `autoracer_bringup/launch/sensing.launch.py` 手动启动 C32/IMU/filter | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml`，由官方 `tier4_sensing_launch` 调用 |
-| RC 车辆接口 | `autoracer_bringup/launch/vehicle.launch.py` 直接启动 `rc_serial_interface` | `autoracer_hooke_launch/launch/vehicle_interface.launch.xml`，由官方 `tier4_vehicle_launch` 调用 |
+| RC 车辆参数 | 分散在 `defaults.env`、`track.launch.py` 参数、`autoracer_description` | `autoracer_rc_description/config/vehicle_info.param.yaml` 等官方 profile 位置 |
+| RC 传感器外参 | 旧 RC description / extrinsics 文件 | `autoracer_rc_sensor_kit_description/config/sensor_kit_calibration.yaml` |
+| RC 传感器启动 | `autoracer_bringup/launch/sensing.launch.py` 手动启动 C32/IMU/filter | `autoracer_rc_sensor_kit_launch/launch/sensing.launch.xml`，由官方 `tier4_sensing_launch` 调用 |
+| RC 车辆接口 | `autoracer_bringup/launch/vehicle.launch.py` 直接启动 `rc_serial_interface` | `autoracer_rc_launch/launch/vehicle_interface.launch.xml`，由官方 `tier4_vehicle_launch` 调用 |
 | 安全门 | 本仓库 `track.launch.py` 中单独 include safety | RC vehicle profile 内仍保留 `command_gate`，放在官方车辆接口前 |
 | 回退方式 | 主路径就是旧链路 | 本分支不保留兼容入口；需要回退时切回旧分支 |
 
@@ -63,10 +63,10 @@ flowchart TD
   SensorTier["tier4_sensing_launch\n按 sensor_model 找包"]
   MapLocPlanCtrl["tier4_map/localization/planning/control/system/api\n官方模块装配"]
 
-  VehicleDesc["autoracer_hooke_description\nvehicle_info / mirror / simulator_model / vehicle.xacro"]
-  VehicleLaunch["autoracer_hooke_launch\nvehicle_interface.launch.xml\ncommand_gate -> rc_serial_interface"]
-  SensorDesc["autoracer_hooke_sensor_kit_description\nsensor_kit_calibration / sensors.xacro"]
-  SensorLaunch["autoracer_hooke_sensor_kit_launch\nsensing.launch.xml\nC32 + IMU + filter"]
+  VehicleDesc["autoracer_rc_description\nvehicle_info / mirror / simulator_model / vehicle.xacro"]
+  VehicleLaunch["autoracer_rc_launch\nvehicle_interface.launch.xml\ncommand_gate -> rc_serial_interface"]
+  SensorDesc["autoracer_rc_sensor_kit_description\nsensor_kit_calibration / sensors.xacro"]
+  SensorLaunch["autoracer_rc_sensor_kit_launch\nsensing.launch.xml\nC32 + IMU + filter"]
 
   Op --> Wrapper --> Auto
   Auto --> VehicleTier
@@ -85,20 +85,29 @@ flowchart TD
 当前 pin 的 `autoware_launch 0.50.0` 使用 `vehicle_model` 和 `sensor_model` 参数。给它：
 
 ```bash
-vehicle_model:=autoracer_hooke
-sensor_model:=autoracer_hooke_sensor_kit
+vehicle_model:=autoracer_rc
+sensor_model:=autoracer_rc_sensor_kit
 ```
 
 官方 launch 会按下面规则找包：
 
 | 官方参数 | 自动寻找的包 | 本仓库新增包 | 负责内容 |
 | --- | --- | --- | --- |
-| `vehicle_model:=autoracer_hooke` | `$(vehicle_model)_description` | `autoracer_hooke_description` | 车辆尺寸、几何、vehicle URDF、mirror/simulator 参数 |
-| `vehicle_model:=autoracer_hooke` | `$(vehicle_model)_launch` | `autoracer_hooke_launch` | 车辆接口启动：安全门、RC 串口 adapter |
-| `sensor_model:=autoracer_hooke_sensor_kit` | `$(sensor_model)_description` | `autoracer_hooke_sensor_kit_description` | 传感器外参、sensor kit URDF |
-| `sensor_model:=autoracer_hooke_sensor_kit` | `$(sensor_model)_launch` | `autoracer_hooke_sensor_kit_launch` | C32、Hipnuc IMU、Madgwick、点云降采样 |
+| `vehicle_model:=autoracer_rc` | `$(vehicle_model)_description` | `autoracer_rc_description` | 车辆尺寸、几何、vehicle URDF、mirror/simulator 参数 |
+| `vehicle_model:=autoracer_rc` | `$(vehicle_model)_launch` | `autoracer_rc_launch` | 车辆接口启动：安全门、RC 串口 adapter |
+| `sensor_model:=autoracer_rc_sensor_kit` | `$(sensor_model)_description` | `autoracer_rc_sensor_kit_description` | 传感器外参、sensor kit URDF |
+| `sensor_model:=autoracer_rc_sensor_kit` | `$(sensor_model)_launch` | `autoracer_rc_sensor_kit_launch` | C32、Hipnuc IMU、Madgwick、点云降采样 |
 
 所以不是“把配置硬塞进官方文件”，而是把 RC 平台事实放到官方预期的位置。
+
+同一仓库可以维护多套车型 profile，但每套 profile 必须用自己的 vehicle/sensor 名称，不能把 RC 配置继续放在 Hooke 名字下面：
+
+| 平台 | `vehicle_model` | `sensor_model` | 当前状态 |
+| --- | --- | --- | --- |
+| RC Ackermann | `autoracer_rc` | `autoracer_rc_sensor_kit` | 当前已落地并作为 Orin 运行默认值 |
+| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | 预留给真实 Hooke vehicle/sensor profile；迁移时必须填真实尺寸、外参、Hesai/Fixposition/Hooke CAN 配置 |
+
+这意味着未来增加 Hooke official profile 时，应新增 `autoracer_hooke_description`、`autoracer_hooke_launch`、`autoracer_hooke_sensor_kit_description`、`autoracer_hooke_sensor_kit_launch`，而不是复用或改名 RC profile。
 
 ## 模板分层
 
@@ -106,7 +115,8 @@ sensor_model:=autoracer_hooke_sensor_kit
 
 ```text
 src/external/autoware/          官方依赖，固定版本，必要 patch 必须显式记录。
-src/autoracer_hooke_*           当前 RC/Orin 的 official vehicle/sensor profile。
+src/autoracer_rc_*              当前 RC/Orin 的 official vehicle/sensor profile。
+src/autoracer_hooke_*           未来真实 Hooke official profile 的保留命名；未迁移前不要创建空壳默认入口。
 src/autoracer_vehicle_interface 底盘 adapter：RC UART；未来 Hooke CAN adapter 应按同一边界接入。
 src/autoracer_sensing           小型传感器 adapter，例如点云降采样和格式桥接。
 src/autoracer_safety            底盘 adapter 前的安全门和限幅边界。
@@ -157,7 +167,7 @@ docs/                           当前结构、操作流程、接口事实和迁
 - `scripts/rc/rc_start_autoware.sh` 已切到官方 wrapper。
 - 旧链路已从本分支移除：不再保留 `scripts/run_track.sh`、`autoracer_bringup` 包或旧 track launch 作为正式入口。
 - 传感器录包和 localization-only helper 已改为通过 official wrapper/profile 启动。
-- `rc_autoware.rviz` 作为当前 profile 的调试视图，归属到 `autoracer_hooke_launch/rviz/`。
+- `rc_autoware.rviz` 作为当前 profile 的调试视图，归属到 `autoracer_rc_launch/rviz/`。
 - Orin 上的最小 official runtime 闭包已完成构建，并通过无雷达/无底盘 60 秒启动 smoke。
 
 仍需实车验证：
@@ -170,11 +180,11 @@ docs/                           当前结构、操作流程、接口事实和迁
 
 | 要改的问题 | 优先位置 |
 | --- | --- |
-| 车身尺寸、轴距、最大转角 | `autoracer_hooke_description/config/vehicle_info.param.yaml` |
-| LiDAR/IMU 相对 `base_link` 的外参 | `autoracer_hooke_sensor_kit_description/config/sensor_kit_calibration.yaml` |
-| C32 驱动参数、盲区、距离裁剪、输出 frame/topic | `autoracer_hooke_sensor_kit_launch/config/lslidar_cx.yaml` |
-| IMU 串口、滤波输出、点云降采样 | `autoracer_hooke_sensor_kit_launch/launch/sensing.launch.xml` 或其 config |
-| RC 串口车辆接口、安全门与真实底盘串口 | `autoracer_hooke_launch/launch/vehicle_interface.launch.xml` |
+| 车身尺寸、轴距、最大转角 | `autoracer_rc_description/config/vehicle_info.param.yaml` |
+| LiDAR/IMU 相对 `base_link` 的外参 | `autoracer_rc_sensor_kit_description/config/sensor_kit_calibration.yaml` |
+| C32 驱动参数、盲区、距离裁剪、输出 frame/topic | `autoracer_rc_sensor_kit_launch/config/lslidar_cx.yaml` |
+| IMU 串口、滤波输出、点云降采样 | `autoracer_rc_sensor_kit_launch/launch/sensing.launch.xml` 或其 config |
+| RC 串口车辆接口、安全门与真实底盘串口 | `autoracer_rc_launch/launch/vehicle_interface.launch.xml` |
 | 地图路径、是否开 RViz、是否开车辆接口 | `scripts/run_official_autoware.sh` 的运行时环境变量 |
 | 本地临时调试 | 使用 official wrapper 的裁剪参数，或切回旧分支排查历史链路 |
 

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:property name="vehicle_info" value="${xacro.load_yaml('$(find autoracer_hooke_description)/config/vehicle_info.param.yaml')}"/>
+  <xacro:property name="vehicle_info" value="${xacro.load_yaml('$(find autoracer_rc_description)/config/vehicle_info.param.yaml')}"/>
   <xacro:property name="wheel_base" value="${vehicle_info['/**']['ros__parameters']['wheel_base']}"/>
 
   <link name="base_link">

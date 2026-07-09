@@ -21,10 +21,10 @@ PACKAGES=(
   autoracer_control
   autoracer_safety
   autoracer_vehicle_interface
-  autoracer_hooke_description
-  autoracer_hooke_launch
-  autoracer_hooke_sensor_kit_description
-  autoracer_hooke_sensor_kit_launch
+  autoracer_rc_description
+  autoracer_rc_launch
+  autoracer_rc_sensor_kit_description
+  autoracer_rc_sensor_kit_launch
   hipnuc_imu
   lslidar_msgs
   lslidar_driver

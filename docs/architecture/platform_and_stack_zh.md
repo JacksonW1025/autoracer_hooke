@@ -1,19 +1,19 @@
 # RC 与 Hooke 平台/上层链路边界
 
-用途：定义 Hooke `main` 和 RC 分支必须共享的 upper stack 契约，以及允许因平台不同而变化的适配层。非用途：不写现场启动命令，不记录一次性测试过程。
+用途：定义同一仓库内 Hooke/RC official profiles 必须共享的 upper stack 契约，以及允许因平台不同而变化的适配层。非用途：不写现场启动命令，不记录一次性测试过程。
 
 静态预览图：`docs/architecture/image.png`。该图片用于汇报和快速浏览；本文中的 Mermaid 图和 `runtime_alignment_audit_zh.md` 是可维护源码和事实依据。修改架构图时必须同步更新 Mermaid、审计表和静态预览图。
 
 ## 核心原则
 
-RC 不是新自动驾驶栈。RC 是 Hooke `main` 共享 upper stack 的缩比验证平台。
+RC 不是新自动驾驶栈。RC 是同一 official upper stack 的缩比验证平台；Hooke 和 RC 通过不同 vehicle/sensor profile 切换平台事实。
 
 当前目标：
 
 - 保持 Hooke/RC 共享 `localization -> official Autoware planning/control -> gate`。
 - 在 RC 上跑通这套 upper stack，验证接口、消息字段、时序和控制行为。
 - 传感器、初始位姿来源、车辆参数、外参、vehicle adapter 按平台配置。
-- 自研 planning/control 候选只能作为显式替换项进入同一接口，不作为当前分支的默认启动路径。
+- 自研 planning/control 候选只能作为显式替换项进入同一接口，不作为当前 official baseline 的默认启动路径。
 
 ## 必须一致
 
@@ -140,7 +140,7 @@ flowchart LR
 
 | 模块 | 当前实现 | 保留原因 |
 | --- | --- | --- |
-| Planning/Control | `autoware_launch` 启动的官方 planning/control 组件 | 当前分支默认贴近官方结构，先验证官方接口闭环。 |
+| Planning/Control | `autoware_launch` 启动的官方 planning/control 组件 | 当前 official baseline 默认贴近官方结构，先验证官方接口闭环。 |
 | Gate | `autoracer_safety/command_gate.py` | 保留在官方 control 和车端 adapter 之间，默认禁用实车输出并做限幅/超时保护。 |
 | Local candidates | `autoracer_planning`、`autoracer_control` | 自研 planning/control 候选；只能显式接入同一 topic/message/frame 合约，不作为隐藏总控或默认链路。 |
 
@@ -157,7 +157,7 @@ flowchart LR
 
 - 不把 Nav2 的 AMCL、slam_toolbox、`/scan`、`/wheel_odom`、`/chassis_state`、`/ackermann_cmd` 接进 upper stack。
 - 不因为 RC 没有 Fixposition/ZED 就替换地图定位算法。
-- 不在 RC 分支单独 fork planning/control/gate，也不在默认启动链路里偷偷切回自研候选。
+- 不为 RC 单独 fork planning/control/gate，也不在默认启动链路里偷偷切回自研候选。
 - 不围绕 STM32 deadband、PWM 或 UART 细节改上层算法。
 - 不只改 final gate 来掩盖 trajectory、control、gear、adapter 任一层的问题。
 

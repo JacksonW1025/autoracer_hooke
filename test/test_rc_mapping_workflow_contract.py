@@ -97,7 +97,7 @@ def test_official_sensor_kit_exposes_hipnuc_imu_arguments():
     sensing_launch = (
         ROOT
         / "src"
-        / "autoracer_hooke_sensor_kit_launch"
+        / "autoracer_rc_sensor_kit_launch"
         / "launch"
         / "sensing.launch.xml"
     )
@@ -147,7 +147,7 @@ def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
     operator_files = [
         ROOT / "README.md",
         ROOT / "docs" / "operations" / "rc_runbook_zh.md",
-        ROOT / "src" / "autoracer_hooke_launch" / "launch" / "vehicle_interface.launch.xml",
+        ROOT / "src" / "autoracer_rc_launch" / "launch" / "vehicle_interface.launch.xml",
         ROOT / "scripts" / "run_official_autoware.sh",
     ]
     for path in operator_files:
@@ -156,7 +156,7 @@ def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
 
 def test_rc_autoware_rviz_exposes_runtime_navigation_tools():
     rviz_text = (
-        ROOT / "src" / "autoracer_hooke_launch" / "rviz" / "rc_autoware.rviz"
+        ROOT / "src" / "autoracer_rc_launch" / "rviz" / "rc_autoware.rviz"
     ).read_text()
 
     for topic in (
@@ -208,7 +208,7 @@ def test_official_autoware_rviz_plugins_are_declared():
     build_minimal = (ROOT / "scripts" / "build_minimal.sh").read_text()
     build_bench = (ROOT / "scripts" / "build_bench.sh").read_text()
     package_xml = (
-        ROOT / "src" / "autoracer_hooke_launch" / "package.xml"
+        ROOT / "src" / "autoracer_rc_launch" / "package.xml"
     ).read_text()
 
     assert "autoware_rviz_plugins.git" in repos_text

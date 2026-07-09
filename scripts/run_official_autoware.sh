@@ -14,8 +14,8 @@ if [[ -f "$ROOT_DIR/defaults.env" ]]; then
   set +a
 fi
 
-: "${AUTORACER_VEHICLE_MODEL:=autoracer_hooke}"
-: "${AUTORACER_SENSOR_MODEL:=autoracer_hooke_sensor_kit}"
+: "${AUTORACER_VEHICLE_MODEL:=autoracer_rc}"
+: "${AUTORACER_SENSOR_MODEL:=autoracer_rc_sensor_kit}"
 : "${AUTOWARE_DATA_PATH:=${HOME}/autoware_data}"
 : "${POINTCLOUD_CONTAINER_NAME:=pointcloud_container}"
 : "${LANELET2_MAP_FILE:=lanelet2_map.osm}"
@@ -80,7 +80,7 @@ require_lidar_link_ready() {
   if ! is_true "${LAUNCH_SENSING:-true}" || ! is_true "${LAUNCH_SENSING_DRIVER:-true}"; then
     return 0
   fi
-  if [[ "${AUTORACER_SENSOR_MODEL}" != "autoracer_hooke_sensor_kit" ]]; then
+  if [[ "${AUTORACER_SENSOR_MODEL}" != "autoracer_rc_sensor_kit" ]]; then
     return 0
   fi
 

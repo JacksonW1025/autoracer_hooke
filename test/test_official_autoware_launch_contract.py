@@ -26,13 +26,13 @@ def test_autoware_launch_is_pinned_as_the_official_entrypoint():
 
 def test_autoracer_vehicle_and_sensor_kit_packages_follow_official_names():
     expected_packages = {
-        "src/autoracer_hooke_description/package.xml": "autoracer_hooke_description",
-        "src/autoracer_hooke_launch/package.xml": "autoracer_hooke_launch",
-        "src/autoracer_hooke_sensor_kit_description/package.xml": (
-            "autoracer_hooke_sensor_kit_description"
+        "src/autoracer_rc_description/package.xml": "autoracer_rc_description",
+        "src/autoracer_rc_launch/package.xml": "autoracer_rc_launch",
+        "src/autoracer_rc_sensor_kit_description/package.xml": (
+            "autoracer_rc_sensor_kit_description"
         ),
-        "src/autoracer_hooke_sensor_kit_launch/package.xml": (
-            "autoracer_hooke_sensor_kit_launch"
+        "src/autoracer_rc_sensor_kit_launch/package.xml": (
+            "autoracer_rc_sensor_kit_launch"
         ),
     }
 
@@ -41,33 +41,33 @@ def test_autoracer_vehicle_and_sensor_kit_packages_follow_official_names():
         assert package_xml.exists(), f"missing package.xml: {relative_path}"
         assert package_name(package_xml) == expected_name
 
-    assert "autoracer_bringup" not in read("src/autoracer_hooke_launch/package.xml")
-    assert "autoracer_bringup" not in read("src/autoracer_hooke_sensor_kit_launch/package.xml")
+    assert "autoracer_bringup" not in read("src/autoracer_rc_launch/package.xml")
+    assert "autoracer_bringup" not in read("src/autoracer_rc_sensor_kit_launch/package.xml")
 
 
 def test_official_launch_packages_expose_expected_launch_files_and_rc_hardware():
-    vehicle_launch = ROOT / "src" / "autoracer_hooke_launch" / "launch" / "vehicle_interface.launch.xml"
+    vehicle_launch = ROOT / "src" / "autoracer_rc_launch" / "launch" / "vehicle_interface.launch.xml"
     sensing_launch = (
         ROOT
         / "src"
-        / "autoracer_hooke_sensor_kit_launch"
+        / "autoracer_rc_sensor_kit_launch"
         / "launch"
         / "sensing.launch.xml"
     )
     lidar_config = (
-        ROOT / "src" / "autoracer_hooke_sensor_kit_launch" / "config" / "lslidar_cx.yaml"
+        ROOT / "src" / "autoracer_rc_sensor_kit_launch" / "config" / "lslidar_cx.yaml"
     )
     vehicle_info = (
         ROOT
         / "src"
-        / "autoracer_hooke_description"
+        / "autoracer_rc_description"
         / "config"
         / "vehicle_info.param.yaml"
     )
     sensor_calibration = (
         ROOT
         / "src"
-        / "autoracer_hooke_sensor_kit_description"
+        / "autoracer_rc_sensor_kit_description"
         / "config"
         / "sensor_kit_calibration.yaml"
     )
@@ -112,13 +112,15 @@ def test_operator_docs_prefer_official_autoware_launch_command():
     run_official = read("scripts/run_official_autoware.sh")
 
     assert "ros2 launch autoware_launch autoware.launch.xml" in readme
-    assert "vehicle_model:=autoracer_hooke" in readme
-    assert "sensor_model:=autoracer_hooke_sensor_kit" in readme
+    assert "vehicle_model:=autoracer_rc" in readme
+    assert "sensor_model:=autoracer_rc_sensor_kit" in readme
     assert "launch_perception:=false" in readme
     assert "rviz:=false" in readme
     assert "launch_vehicle_interface:=false" in readme
     assert "run_official_autoware.sh" in rc_start
     assert "ros2 launch autoware_launch autoware.launch.xml" in run_official
+    assert "AUTORACER_VEHICLE_MODEL:=autoracer_rc" in run_official
+    assert "AUTORACER_SENSOR_MODEL:=autoracer_rc_sensor_kit" in run_official
     assert 'vehicle_model:="${AUTORACER_VEHICLE_MODEL}"' in run_official
     assert 'sensor_model:="${AUTORACER_SENSOR_MODEL}"' in run_official
     assert 'launch_perception:="${LAUNCH_PERCEPTION}"' in run_official
