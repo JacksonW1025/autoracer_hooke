@@ -69,6 +69,7 @@ The docs are organized by task:
 
 ```text
 docs/architecture_zh.md
+docs/architecture_visualization_zh.md
 docs/operations/rc_runbook_zh.md
 docs/operations/mapping_workflow_zh.md
 docs/reference/interfaces_and_calibration_zh.md
@@ -92,6 +93,7 @@ sudo apt install -y \
   libpng++-dev \
   libpng-dev \
   nlohmann-json3-dev \
+  qtbase5-dev \
   ros-humble-autoware-motion-utils \
   ros-humble-foxglove-bridge \
   ros-humble-rviz-2d-overlay-msgs \

@@ -22,6 +22,12 @@ PACKAGES_UP_TO=(
   fixposition_driver_ros2
   autoware_localization_rviz_plugin
   autoware_planning_rviz_plugin
+  autoware_perception_rviz_plugin
+  autoware_overlay_rviz_plugin
+  autoware_mission_details_overlay_rviz_plugin
+  autoware_string_stamped_rviz_plugin
+  tier4_adapi_rviz_plugin
+  tier4_datetime_rviz_plugin
   tier4_control_mode_rviz_plugin
   tier4_state_rviz_plugin
   tier4_vehicle_rviz_plugin

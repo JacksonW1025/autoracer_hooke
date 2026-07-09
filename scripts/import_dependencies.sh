@@ -91,6 +91,10 @@ copy_from_pilot_repo() {
     "src/external/autoware/universe/common/tier4_api_utils"
   copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_control_mode_rviz_plugin" \
     "src/external/autoware/universe/visualization/tier4_control_mode_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_adapi_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_adapi_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_datetime_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_datetime_rviz_plugin"
   copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_planning_factor_rviz_plugin" \
     "src/external/autoware/universe/visualization/tier4_planning_factor_rviz_plugin"
   copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_state_rviz_plugin" \

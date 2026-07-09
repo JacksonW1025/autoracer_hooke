@@ -1,0 +1,65 @@
+flowchart LR
+  subgraph Operator["Operator tools"]
+    RViz["RViz2 official Autoware profile\ninitial pose / route / goal / state panels"]
+    Foxglove["Foxglove\nbag and live topic inspection"]
+    ArchDoc["Mermaid architecture docs\nnot runtime HMI"]
+  end
+
+  subgraph Profiles["Official Autoware profiles"]
+    VehicleProfile["autoracer_rc_description\nautoracer_rc_launch"]
+    SensorProfile["autoracer_rc_sensor_kit_description\nautoracer_rc_sensor_kit_launch"]
+  end
+
+  subgraph Sensing["RC sensing"]
+    Lidar["Leishen C32 driver"]
+    Imu["Hipnuc IMU + filter"]
+    Points["/sensing/lidar/concatenated/pointcloud"]
+    ImuTopic["/sensing/imu/imu_data"]
+  end
+
+  subgraph MapLoc["Map and localization"]
+    Map["Autoware map\nPCD + Lanelet2 + projector"]
+    Seed["/initialpose -> seed pose adapter"]
+    NDT["official NDT localization"]
+    Pose["/localization/pose_with_covariance"]
+    Kinematic["/localization/kinematic_state"]
+  end
+
+  subgraph AutowareUpper["Official Autoware upper stack"]
+    Route["route / mission planning"]
+    Planning["behavior + motion planning"]
+    Trajectory["/planning/trajectory"]
+    Control["official control"]
+    ControlCmd["/control/command/control_cmd"]
+  end
+
+  subgraph VehicleAdapter["RC vehicle adapter"]
+    Gate["autoracer_safety command_gate"]
+    SafeCmd["/autoracer/control/safe_control_cmd"]
+    Serial["rc_serial_interface"]
+    STM32["STM32 Ackermann firmware"]
+    Status["/vehicle/status/*"]
+  end
+
+  RViz --> Seed
+  RViz --> Route
+  Foxglove -. inspect .-> Points
+  Foxglove -. inspect .-> ImuTopic
+  ArchDoc -. explains .-> Profiles
+
+  VehicleProfile --> VehicleAdapter
+  SensorProfile --> Sensing
+
+  Lidar --> Points --> NDT
+  Imu --> ImuTopic
+  ImuTopic -. optional motion input .-> NDT
+  Map --> NDT
+  Seed --> NDT
+  NDT --> Pose --> Route --> Planning --> Trajectory --> Control --> ControlCmd
+  NDT --> Kinematic --> Planning
+  Kinematic --> Control
+
+  ControlCmd --> Gate --> SafeCmd --> Serial --> STM32
+  STM32 --> Serial --> Status
+  Status --> Kinematic
+  Status --> Control
