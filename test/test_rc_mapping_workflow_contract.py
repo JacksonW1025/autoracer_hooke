@@ -90,6 +90,7 @@ def test_vehicle_mapping_scripts_exist_and_record_required_topics():
     stop_text = (rc_dir / "rc_stop.sh").read_text()
     assert "pkill" in stop_text
     assert "component_container" in stop_text
+    assert "topic_tools/relay" in stop_text
 
 
 def test_official_sensor_kit_exposes_hipnuc_imu_arguments():
