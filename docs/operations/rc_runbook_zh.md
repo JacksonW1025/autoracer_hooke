@@ -120,6 +120,8 @@ MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMAND
 ./scripts/rc/rc_stop.sh
 ```
 
+不要用 `timeout -s INT` 作为 full-chain dry-run 的正式停止方式。它会直接向官方 launch 发送 SIGINT，可能在 composable node 卸载时触发上游 planning container shutdown 崩溃；现场和验证脚本都应让链路正常运行，再用 `rc_stop.sh` 做受控清理。
+
 ## 8. 实际跑车顺序
 
 1. 接 LiDAR、控制板、底盘动力。

@@ -11,6 +11,7 @@
 - 固化脚本只服务长期全流程；一次性排查命令不升格为正式脚本。
 - x86 工作机负责 bag 检查、Super-LIO 建图、地图打包和静态检查；ARM 车端主机负责传感器、定位、upper stack、vehicle adapter 和实车验证。
 - official localization-only 也需要完整官方地图目录；没有底盘动力时只验证节点、topic、TF 和零速输出。
+- Full Autoware dry-run 可以在缺雷达/缺底盘时长期等待输入；dry-run 结束必须用 `./scripts/rc/rc_stop.sh` 做受控停止，不要用 `timeout -s INT` 模拟正式停止。`timeout -s INT` 会直接打断官方 launch 的 composable node shutdown，可能触发上游 motion planning container 析构期崩溃，不能作为本仓库 full-chain 通过/失败依据。
 
 ## 总链路
 

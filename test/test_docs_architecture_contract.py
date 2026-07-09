@@ -160,6 +160,8 @@ def test_full_chain_doc_preserves_audit_to_runtime_order():
         "NDT localization-only",
         "planning/control/gate dry-run",
         "低速动态验证",
+        "dry-run 结束必须用 `./scripts/rc/rc_stop.sh`",
+        "不要用 `timeout -s INT`",
         "docs/architecture/runtime_alignment_audit_zh.md",
         "docs/operations/mapping_workflow_zh.md",
         "docs/operations/rc_runbook_zh.md",
