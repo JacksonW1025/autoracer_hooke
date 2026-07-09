@@ -2,7 +2,13 @@
 
 当前优先级：保持 Hooke/RC 共享 official Autoware 启动结构，用 vehicle profile、sensor-kit profile 和官方 topic/message/frame 合约固定边界。自研模块只能作为显式候选接入，不作为隐藏默认链路。
 
+第一次接手仓库先读 `development_guide_zh.md`。它说明当前唯一可运行基线、`src/` 包责任、RC/Hooke/算法继续开发路径和验证命令。
+
 ## 文档结构
+
+`development_guide_zh.md`
+
+- `development_guide_zh.md`：开发入口、包责任表、继续开发 RC、迁移 Hooke、替换自研算法、修改文档时的验证要求。
 
 `architecture/`
 
@@ -26,6 +32,7 @@
 
 ## 阅读入口
 
+- 新人接手、继续开发、判断 `src/` 包责任，先看 `development_guide_zh.md`。
 - 架构或平台维护问题先看 `architecture/platform_and_stack_zh.md`。
 - 多车型 profile 状态、RC/Hooke 分工和脚本边界看 `architecture/profile_matrix_zh.md`。
 - 执行全链路前先过 `architecture/runtime_alignment_audit_zh.md`，确认架构、launch、topic 和平台差异没有漂移。
@@ -39,7 +46,8 @@
 ## 维护规则
 
 - 正式入口只写全流程会反复使用的内容，不为零散小测试新建长期文档。
-- 现场 IP、账号、密码、本机串口名不进入文档；用环境变量或命令参数描述。
+- 现场主机 IP、账号、密码、本机私有串口名不进入文档；硬件固定 IP、端口、topic 只能写在 reference/runbook，并且必须指向实际配置文件或脚本。
+- 文档必须能回答“当前能跑什么、这个包归谁管、下一步改哪里”；回答不了就更新 `development_guide_zh.md` 或删掉误导内容。
 - 如果文档内容和当前目标冲突，以 `architecture/platform_and_stack_zh.md` 的平台边界为准。
 - official Core/Universe 和自研候选算法的替换讨论只能作为后续共同迁移参考，不能覆盖当前 official baseline。
 - 过时计划和一次性执行记录不保留在正式 `docs/` 结构里；需要看历史时用 git log。

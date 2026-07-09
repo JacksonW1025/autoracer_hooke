@@ -44,7 +44,7 @@
 | Hooke seed | future Hooke localization profile | `autoware_gnss_poser` + `fixposition_seed_filter` | `/fixposition/fix`, `/fixposition/autoware_orientation` | `/localization/fixposition/seed_pose` | 待按 official profile 建立 |
 | Hooke NDT | `autoware_launch` localization component | `autoware_ndt_scan_matcher` | pointcloud + seed + map | `/localization/pose_with_covariance` | 待车端验证 |
 | Hooke upper stack | `autoware_launch` planning/control components | official Autoware packages or explicit local plugins | localization + map + route | gated control command | 与 RC 共享接口 |
-| Hooke adapter | `src/hooke2_vehicle/vehicle_launcher/hooke2_launch/launch/vehicle_interface.launch.xml` | `hooke2_interface` + SocketCAN | `/control/command/*` | CAN + `/vehicle/status/*` | 已映射到 Hooke2 launch |
+| Hooke adapter | `src/hooke2_vehicle/vehicle_launcher/hooke2_launch/launch/vehicle_interface.launch.xml` | `hooke2_interface` + SocketCAN | `/control/command/*` | CAN + `/vehicle/status/*` | 作为 Hooke reference material 保留；official Hooke profile 仍禁用 |
 
 ## RC 入口脚本与 Launch 参数
 

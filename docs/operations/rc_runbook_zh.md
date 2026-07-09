@@ -8,7 +8,7 @@
 
 ## 1. 主机与网络
 
-- 车端仓库在 `rc-car-migration` 分支。
+- 车端仓库必须和当前开发基线在同一 commit；当前基线分支是 `feature/official-autoware-launch`。
 - 车端已构建或至少能 source workspace。
 - LiDAR-facing 网口配置完成：
 

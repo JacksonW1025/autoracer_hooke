@@ -41,7 +41,6 @@ def test_rc_c32_host_defaults_use_reserved_link_address():
 
 def test_rc_user_docs_do_not_recommend_obsolete_host_address():
     canonical_link_docs = [
-        "README.md",
         "docs/reference/interfaces_and_topics_zh.md",
     ]
 

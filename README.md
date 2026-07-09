@@ -62,6 +62,7 @@ src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
 Start here:
 
 ```text
+docs/development_guide_zh.md
 docs/README_zh.md
 ```
 
@@ -76,7 +77,7 @@ docs/reference/     Topic, frame, vehicle, feedback, and calibration facts.
 ## First Bringup
 
 ```bash
-cd /home/corage/workspace/project/autoracer-hooke
+cd <repo>
 ./scripts/import_dependencies.sh
 ./scripts/install_rosdeps.sh
 ./scripts/build_minimal.sh
@@ -104,66 +105,18 @@ the workspace:
 COLCON_PARALLEL_WORKERS=1 MAKEFLAGS="-j2 -l2" ./scripts/build_minimal.sh
 ```
 
-When developing beside the old repository, dependencies can be copied locally instead
-of fetched:
-
-```bash
-IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
-```
-
 ## RC Flow Entrypoints
 
 RC vehicle-side flow scripts live under `scripts/rc/`. These are the stable
 operator-facing entry points; lower-level scripts in `scripts/` are helpers used
 by those flows.
 
-Prepare the C32 Ethernet link on the vehicle host:
-
-```bash
-sudo -E ./scripts/rc/rc_configure_lidar.sh
-```
-
-Mapping is performed on the development workstation, not on the vehicle host:
+Use the task docs instead of copying one-off field commands into this file:
 
 ```text
-/home/milesli/Desktop/RC/rc_mapping_ws
-/home/milesli/Desktop/RC/rc_mapping_data
-```
-
-Start only the mapping sensors and TF:
-
-```bash
-IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_sensors.sh
-```
-
-Capture a mapping bag with one command:
-
-```bash
-BAG_DURATION_SEC=60 IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_capture_mapping_bag.sh
-```
-
-For open-ended field capture, start and finish recording explicitly:
-
-```bash
-IMU_SERIAL_PORT=/dev/ttyUSB0 ./scripts/rc/rc_start_mapping_bag.sh
-./scripts/rc/rc_stop_mapping_bag.sh
-```
-
-Start localization-only against a complete official Autoware map directory:
-
-```bash
-MAP_PATH=/home/milesli/autoracer_maps/<map_name> \
-IMU_SERIAL_PORT=/dev/ttyUSB0 \
-./scripts/rc/rc_start_localization.sh
-```
-
-Prepare a map directory containing all official map files:
-
-```text
-lanelet2_map.osm
-pointcloud_map.pcd
-pointcloud_map_metadata.yaml
-map_projector_info.yaml
+docs/operations/mapping_workflow_zh.md
+docs/operations/rc_runbook_zh.md
+docs/operations/rc_full_chain_execution_zh.md
 ```
 
 Official Autoware startup should use `autoware_launch` with the RC vehicle and
@@ -213,9 +166,6 @@ adapter-facing safe command topic.
 Switch it to true only after TF, steering, velocity, localization, serial direction, and
 RC takeover behavior are verified.
 
-The helper scripts source `install/local_setup.bash` through `scripts/ros_env.sh` so this
-workspace does not accidentally run packages from `/home/corage/workspace/project/pilot-auto.x1`.
-
 ## RC Serial Vehicle Interface
 
 The RC vehicle interface replaces only the chassis transport. Official Autoware
@@ -230,25 +180,6 @@ adapter-facing safe command used by the serial node:
   -> 0x7B cmd1 cmd2 vx vy wz bcc 0x7D
   -> STM32 UART4
 ```
-
-Default serial parameters:
-
-```text
-SERIAL_PORT=/dev/<actual_chassis_tty>
-SERIAL_BAUDRATE=115200
-IMU_SERIAL_PORT=/dev/ttyUSB0
-IMU_BAUDRATE=115200
-WHEEL_BASE_M=0.6
-MAX_STEER_RAD=0.262
-MAX_SPEED_MPS=3.0
-LIDAR_HOST_IP=192.168.1.102
-LIDAR_SENSOR_IP=192.168.1.200
-```
-
-On the vehicle host, configure the C32 Ethernet link with
-`sudo -E ./scripts/rc/rc_configure_lidar.sh`. It assigns
-`192.168.1.102/32` on `enP8p1s0` plus a host route to `192.168.1.200/32`, keeping
-WiFi as the normal `192.168.1.0/24` route.
 
 This branch keeps one official runtime structure. Roll back by switching to the
 previous branch, not by launching a compatibility path inside this branch.

@@ -7,6 +7,7 @@ DOCS = ROOT / "docs"
 
 FORMAL_DOCS = [
     DOCS / "README_zh.md",
+    DOCS / "development_guide_zh.md",
     DOCS / "architecture" / "platform_and_stack_zh.md",
     DOCS / "architecture" / "profile_matrix_zh.md",
     DOCS / "architecture" / "official_launch_structure_zh.md",
@@ -45,6 +46,33 @@ def test_docs_readme_indexes_formal_docs():
         rel = path.relative_to(DOCS).as_posix()
         assert f"`{rel}`" in text
     assert "`superpowers/" not in text
+
+
+def test_root_readme_stays_as_repository_entrypoint():
+    text = read(ROOT / "README.md")
+
+    required_terms = [
+        "docs/development_guide_zh.md",
+        "docs/README_zh.md",
+        "scripts/rc/",
+        "vehicle_model:=autoracer_rc",
+        "sensor_model:=autoracer_rc_sensor_kit",
+        "docs/operations/mapping_workflow_zh.md",
+        "docs/operations/rc_runbook_zh.md",
+        "docs/operations/rc_full_chain_execution_zh.md",
+    ]
+    for term in required_terms:
+        assert term in text
+
+    stale_or_local_terms = [
+        "/home/",
+        "pilot-auto.x1",
+        "IMPORT_FROM_PILOT",
+        "rc_mapping_ws",
+        "autoracer_maps",
+    ]
+    for term in stale_or_local_terms:
+        assert term not in text
 
 
 def test_no_reader_role_table_or_old_doc_names():
@@ -90,6 +118,41 @@ def test_current_runtime_docs_default_to_official_planning_control_boundary():
         assert term not in current_runtime_docs
 
 
+def test_development_guide_explains_src_packages_and_continuation_paths():
+    text = read(DOCS / "development_guide_zh.md")
+
+    required_terms = [
+        "当前唯一可运行基线",
+        "feature/official-autoware-launch",
+        "active official RC profile",
+        "disabled Hooke official profile",
+        "vendored Hooke reference",
+        "local algorithm candidates",
+        "src/autoracer_rc_description",
+        "src/autoracer_rc_launch",
+        "src/autoracer_rc_sensor_kit_description",
+        "src/autoracer_rc_sensor_kit_launch",
+        "src/autoracer_hooke_description",
+        "src/hooke2_vehicle",
+        "src/autoracer_vehicle_interface",
+        "src/autoracer_sensing",
+        "src/autoracer_localization",
+        "src/autoracer_planning",
+        "src/autoracer_control",
+        "继续开发 RC",
+        "迁移 Hooke",
+        "替换或新增自研算法",
+        "修改文档",
+        "python3 -m pytest test -q",
+        "colcon list --names-only",
+    ]
+    for term in required_terms:
+        assert term in text
+
+    assert "按分支区分车型" not in text
+    assert "autoracer_bringup" not in text
+
+
 def test_profile_matrix_records_active_rc_and_disabled_hooke_profiles():
     text = read(DOCS / "architecture" / "profile_matrix_zh.md")
 
@@ -123,6 +186,8 @@ def test_formal_docs_do_not_keep_stale_host_or_old_control_language():
     stale_terms = [
         "树莓派",
         "192.168.1.136",
+        "rc-car-migration",
+        "/home/corage/workspace/project/autoracer-hooke",
         "raw control",
         "/autoracer/control/raw_control_cmd",
         "后续实现计划",
