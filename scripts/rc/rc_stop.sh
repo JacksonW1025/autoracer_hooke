@@ -22,9 +22,12 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
 patterns=(
   "[r]os2 launch autoware_launch autoware.launch.xml"
   "[r]un_official_autoware.sh"
+  "${ROOT_DIR}/install/[a]utoware_"
   "[t]opic_tools/relay"
   "[r]viz2"
   "[r]obot_state_publisher"
@@ -60,5 +63,5 @@ done
 sleep "${STOP_WAIT_SEC:-1}"
 
 ps -eo pid,comm,args |
-  grep -E "component_container|topic_tools/relay|lslidar|pointcloud|hipnuc|IMU_publisher|imu_filter|run_official_autoware|autoware.launch|ndt|map_loader|lanelet|pure_pursuit|command_gate|rc_serial|rviz2|robot_state|rosbag" |
+  grep -E "component_container|topic_tools/relay|lslidar|pointcloud|hipnuc|IMU_publisher|imu_filter|run_official_autoware|autoware.launch|autoware_|ndt|map_loader|lanelet|pure_pursuit|command_gate|rc_serial|rviz2|robot_state|rosbag" |
   grep -v grep || true

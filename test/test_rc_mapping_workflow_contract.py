@@ -91,6 +91,8 @@ def test_vehicle_mapping_scripts_exist_and_record_required_topics():
     assert "pkill" in stop_text
     assert "component_container" in stop_text
     assert "topic_tools/relay" in stop_text
+    assert "ROOT_DIR" in stop_text
+    assert "/install/[a]utoware_" in stop_text
 
 
 def test_official_sensor_kit_exposes_hipnuc_imu_arguments():
