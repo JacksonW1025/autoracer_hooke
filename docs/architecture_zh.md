@@ -1,6 +1,6 @@
-# RC/Hooke 官方架构说明
+# RC/Hooke 系统架构说明
 
-用途：定义当前仓库的长期架构边界，并说明从旧自定义启动框架迁移到官方 Autoware profile 框架后，开发者应该怎样继续改代码。非用途：不记录一次性排查日志，不保存过渡计划。
+用途：说明 RC/Hooke 在官方 Autoware profile 框架下的运行时系统架构，包括 profile 装配、node/topic/frame 数据流、控制边界和验证顺序。非用途：不解释仓库目录结构，不记录一次性排查日志，不保存过渡计划。项目结构和“应该改哪里”以 `README.md` 为准。
 
 ## 平台原则
 
@@ -35,33 +35,6 @@ ros2 launch autoware_launch autoware.launch.xml \
 
 `scripts/rc/` 是操作者入口，只做薄封装、检查和运行时参数传递。`scripts/common/` 只能放不依赖具体车辆硬件事实的 helper。`scripts/hooke/` 在 Hooke profile 完成前只能 fail-fast。
 
-## 给旧框架开发者的迁移说明
-
-旧框架是本仓库自定义总控：操作者脚本把环境变量拼成 launch 参数，然后由仓库自己的总 launch 决定 sensing、localization、planning、control、safety 和 vehicle interface 怎么串起来。它的优点是直接，缺点是车辆事实、传感器事实、算法选择和现场参数容易混在一个启动层里。
-
-新框架是官方 Autoware 总控：`autoware_launch` 负责装配 map、localization、planning、control、system、API、vehicle、sensing 等官方分层；本仓库只提供 RC 或 Hooke 的 official profile、少量 adapter 和操作脚本。
-
-这次重构后的理解方式：
-
-| 旧开发习惯 | 现在应该改哪里 |
-| --- | --- |
-| 在自定义总 launch 里加传感器节点 | 对应 sensor-kit launch，例如 `autoracer_rc_sensor_kit_launch`。 |
-| 在自定义 description 或脚本里调车辆尺寸 | 对应 vehicle description，例如 `autoracer_rc_description/config/vehicle_info.param.yaml`。 |
-| 在总 launch 里改 LiDAR/IMU 外参 | 对应 sensor-kit description，例如 `autoracer_rc_sensor_kit_description/config/sensor_kit_calibration.yaml`。 |
-| 在总 launch 里接底盘节点 | 对应 vehicle launch，例如 `autoracer_rc_launch/launch/vehicle_interface.launch.xml`。 |
-| 直接让本地 planning/control 成为默认 | 只能作为自研 planning/control 候选，在 profile/launch 层显式替换，并遵守官方 topic/message/frame contract。 |
-| 在脚本里写死现场参数 | 脚本只传 `MAP_PATH`、`SERIAL_PORT`、是否开 RViz、是否开 vehicle interface、是否允许 drive commands。 |
-
-以后怎么判断应该改哪里：
-
-- 车身尺寸、轴距、最大转角：改 vehicle description。
-- LiDAR/IMU 相对 `base_link` 的外参：改 sensor-kit description。
-- C32 驱动参数、盲区、距离裁剪、输出 frame/topic：改 sensor-kit launch/config。
-- IMU 串口、滤波、点云降采样：改 sensor-kit launch/config。
-- RC 串口车辆接口、安全门、真实底盘串口：改 vehicle launch 或 `autoracer_vehicle_interface`。
-- 地图路径、是否开 RViz、是否开车辆接口：用运行时环境变量，不写死进 profile。
-- official planning/control 不满足需求：新增或启用自研模块，但保持 `/planning/*`、`/control/command/*`、`/vehicle/status/*` 合约。
-
 ## Profile 状态
 
 | 平台 | `vehicle_model` | `sensor_model` | 状态 | 源码位置 | 脚本入口 | 当前责任 |
@@ -80,6 +53,16 @@ src/wd_msgs
 ```
 
 但不要让 RC wrapper 指向这些 reference package，也不要用 RC 参数伪装 Hooke profile 通过。
+
+## Nodeviewer/Dataflow 图
+
+离线 nodeviewer 风格图放在：
+
+```text
+docs/architecture/rc_official_runtime_graph.mmd
+```
+
+这张图描述运行时 node/topic/dataflow 关系，不是上车 HMI，也不是仓库目录结构说明。当前 `.mmd` 是人工维护的 Mermaid 源图，所以不放在 `generated/`。如果后续接入 nodeviewer 或 ROS graph 导出器，生成出来的 HTML/Mermaid/JSON 应该有可复现的生成命令，并和人工维护的源图分开命名。
 
 ## Hooke 底盘架构图
 

@@ -36,7 +36,8 @@ names. Pass those at launch time through environment variables such as
 ```text
 autoracer.repos            Dependency manifest for selected external packages.
 defaults.env               Runtime defaults shared by official RC wrappers.
-docs/                      Bringup and calibration notes.
+docs/                      Current development, operation, architecture, and calibration notes.
+docs/architecture/         Hand-maintained system architecture diagrams and node/topic/dataflow views.
 maps/                      Local map directory placeholder.
 scripts/                   Import, build, run, and smoke-test helpers.
 scripts/common/            Shared helper boundary; no vehicle-specific facts.
@@ -65,15 +66,37 @@ Start here:
 docs/development_guide_zh.md
 ```
 
-The docs are organized by task:
+This README is the canonical place for project structure: package layout,
+ownership boundaries, and where new work should go. System architecture means
+the running Autoware/RC stack: nodes, topics, frames, profiles, data flow, and
+control boundaries. Keep that runtime view in `docs/architecture_zh.md` and the
+Mermaid/nodeviewer-style diagrams under `docs/architecture/`.
+
+The docs are organized by purpose:
 
 ```text
-docs/architecture_zh.md
-docs/architecture_visualization_zh.md
-docs/operations/rc_runbook_zh.md
-docs/operations/mapping_workflow_zh.md
-docs/reference/interfaces_and_calibration_zh.md
+docs/development_guide_zh.md                    How to continue development.
+docs/architecture_zh.md                         System runtime architecture and data flow.
+docs/architecture/rc_official_runtime_graph.mmd Nodeviewer-style RC runtime graph source.
+docs/operations/rc_runbook_zh.md                On-car startup and validation flow.
+docs/operations/mapping_workflow_zh.md          Mapping and bag workflow.
+docs/reference/interfaces_and_calibration_zh.md Topic, frame, interface, and calibration reference.
 ```
+
+## Where To Change Things
+
+Use the official profile boundary instead of adding hidden glue to a large
+custom launch file:
+
+| Change | Location |
+| --- | --- |
+| Vehicle size, wheelbase, max steering angle | `src/autoracer_rc_description` or future `src/autoracer_hooke_description` |
+| LiDAR/IMU pose relative to `base_link` | matching `*_sensor_kit_description` |
+| C32/IMU driver parameters, filters, pointcloud output topics | matching `*_sensor_kit_launch` or `src/autoracer_sensing` |
+| RC UART or future Hooke CAN chassis adapter | `src/autoracer_vehicle_interface` and matching vehicle launch package |
+| Safety gate before the chassis adapter | `src/autoracer_safety` |
+| Runtime map path, serial device, RViz, drive-command enable flag | environment variables consumed by `scripts/rc/` |
+| Custom planning/control experiments | local algorithm packages, explicitly wired through official Autoware topic contracts |
 
 ## First Bringup
 
