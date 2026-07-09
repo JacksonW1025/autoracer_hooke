@@ -168,14 +168,15 @@ def test_official_branch_removes_legacy_track_entrypoints():
     assert "ros2 launch autoware_launch autoware.launch.xml" in run_official_text
 
 
-def test_rc_serial_defaults_match_current_orin_without_guessing_chassis_port():
+def test_rc_serial_defaults_match_current_orin_chassis_port():
     defaults_text = (ROOT / "defaults.env").read_text()
     run_script_text = (ROOT / "scripts" / "run_official_autoware.sh").read_text()
-    assert 'SERIAL_PORT:=}' in defaults_text
+    assert 'SERIAL_PORT:=/dev/ttyCH343USB0' in defaults_text
     assert 'IMU_SERIAL_PORT:=/dev/ttyUSB0' in defaults_text
     assert "SERIAL_PORT is required when LAUNCH_VEHICLE_INTERFACE=true" in run_script_text
 
     operator_files = [
+        ROOT / "defaults.env",
         ROOT / "README.md",
         ROOT / "docs" / "operations" / "rc_runbook_zh.md",
         ROOT / "src" / "autoracer_rc_launch" / "launch" / "vehicle_interface.launch.xml",

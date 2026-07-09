@@ -99,6 +99,7 @@ IMU_SERIAL_PORT=/dev/ttyUSB0 \
 - `command_gate` 的 adapter-facing control 输出是 `/autoracer/control/safe_control_cmd`，support commands 仍在 `/control/command/*` 表面。
 - `rc_serial_interface` 消费 `/autoracer/control/safe_control_cmd` 并转成 STM32 串口帧。
 - 默认 `ENABLE_DRIVE_COMMANDS=false`。
+- 当前 Orin RC 车的 STM32 下位机 USB-UART 是 `/dev/ttyCH343USB0`。
 - 第一轮实车建议 `MAX_SPEED_MPS=0.5~0.8`。
 
 完整启动：
@@ -110,7 +111,7 @@ MAP_PATH=/path/to/map ./scripts/rc/rc_start_autoware.sh
 低速使能前必须完成标定检查：
 
 ```bash
-MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
+MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyCH343USB0 ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
 ./scripts/request_autonomous_mode.sh
 ```
 

@@ -142,9 +142,9 @@ ros2 launch autoware_launch autoware.launch.xml \
 ```
 
 The operator wrapper uses that same official launch path. Leave the chassis
-interface disabled for map/replay checks, or set a real chassis serial device
-for vehicle runs. Drive commands remain disabled unless
-`ENABLE_DRIVE_COMMANDS=true` is set:
+interface disabled for map/replay checks. On the current Orin RC vehicle, the
+STM32 chassis USB-UART enumerates as `/dev/ttyCH343USB0`; drive commands remain
+disabled unless `ENABLE_DRIVE_COMMANDS=true` is set:
 
 ```bash
 MAP_PATH=/path/to/map LAUNCH_VEHICLE_INTERFACE=false ./scripts/rc/rc_start_autoware.sh
@@ -153,7 +153,7 @@ MAP_PATH=/path/to/map LAUNCH_VEHICLE_INTERFACE=false ./scripts/rc/rc_start_autow
 Low-speed vehicle run after calibration and bench validation:
 
 ```bash
-MAP_PATH=/path/to/map SERIAL_PORT=/dev/<actual_chassis_tty> ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
+MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyCH343USB0 ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
 ./scripts/request_autonomous_mode.sh
 ```
 

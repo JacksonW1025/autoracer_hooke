@@ -140,7 +140,8 @@ require_active_profile_pair
 
 if is_true "${LAUNCH_VEHICLE_INTERFACE}" && [[ -z "${SERIAL_PORT:-}" ]]; then
   echo "ERROR: SERIAL_PORT is required when LAUNCH_VEHICLE_INTERFACE=true." >&2
-  echo "Set SERIAL_PORT=/dev/<actual_chassis_tty> or LAUNCH_VEHICLE_INTERFACE=false." >&2
+  echo "Current Orin RC chassis port: SERIAL_PORT=/dev/ttyCH343USB0." >&2
+  echo "For map/replay checks, set LAUNCH_VEHICLE_INTERFACE=false." >&2
   exit 1
 fi
 
