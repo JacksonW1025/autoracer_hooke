@@ -42,6 +42,6 @@ Run these checks before setting `ENABLE_DRIVE_COMMANDS=true`.
 
 1. Keep wheels lifted or vehicle secured.
 2. Run with `ENABLE_DRIVE_COMMANDS=false`.
-3. Confirm route, trajectory, and raw control direction in RViz.
+3. Confirm route, trajectory, official control, and gated safe control direction in RViz.
 4. Enable drive commands at `MAX_SPEED_MPS=0.5` or another explicitly chosen low-speed limit.
-5. Verify stop on localization loss, raw command timeout, and route completion.
+5. Verify stop on localization loss, control command timeout, and route completion.

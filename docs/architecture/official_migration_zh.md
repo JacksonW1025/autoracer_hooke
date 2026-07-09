@@ -20,7 +20,7 @@
 | 层 | 本地实现 | 说明 |
 | --- | --- | --- |
 | Planning | `autoracer_planning/lanelet_route_planner.py` | 直接从 OSM 和 `/goal_pose` 生成 `/planning/trajectory`。 |
-| Control | `autoracer_control/pure_pursuit_controller.py` | 消费 `/planning/trajectory`、定位 pose、vehicle velocity，输出 raw control。 |
+| Control | `autoracer_control/pure_pursuit_controller.py` | 历史本地候选 controller；若重新启用，必须显式接入 `/planning/trajectory` 并产出 official control contract。 |
 | Gate | `autoracer_safety/command_gate.py` | 做 enable、timeout、限幅、gear/hazard/turn 输出。 |
 | Vehicle adapter | Hooke2 CAN 或 RC UART | 平台适配层，长期允许不同。 |
 

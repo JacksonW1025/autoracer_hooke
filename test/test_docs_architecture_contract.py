@@ -16,8 +16,6 @@ FORMAL_DOCS = [
     DOCS / "operations" / "mapping_workflow_zh.md",
     DOCS / "reference" / "interfaces_and_topics_zh.md",
     DOCS / "reference" / "calibration_zh.md",
-    DOCS / "superpowers" / "plans" / "2026-07-01-rc-full-chain-implementation.md",
-    DOCS / "superpowers" / "specs" / "2026-07-01-docs-structure-design.md",
 ]
 
 
@@ -45,6 +43,7 @@ def test_docs_readme_indexes_formal_docs():
             continue
         rel = path.relative_to(DOCS).as_posix()
         assert f"`{rel}`" in text
+    assert "`superpowers/" not in text
 
 
 def test_no_reader_role_table_or_old_doc_names():
@@ -88,6 +87,20 @@ def test_current_runtime_docs_default_to_official_planning_control_boundary():
     ]
     for term in stale_default_terms:
         assert term not in current_runtime_docs
+
+
+def test_formal_docs_do_not_keep_stale_host_or_old_control_language():
+    combined = "\n".join(read(path) for path in FORMAL_DOCS if path.exists())
+
+    stale_terms = [
+        "树莓派",
+        "192.168.1.136",
+        "raw control",
+        "/autoracer/control/raw_control_cmd",
+        "后续实现计划",
+    ]
+    for term in stale_terms:
+        assert term not in combined
 
 
 def test_current_phase_does_not_describe_future_state_fusion():
@@ -152,22 +165,6 @@ def test_full_chain_doc_preserves_audit_to_runtime_order():
     assert "完整官方地图目录" in text
 
 
-def test_full_chain_implementation_plan_has_engineering_gates():
-    text = read(DOCS / "superpowers" / "plans" / "2026-07-01-rc-full-chain-implementation.md")
-    required_terms = [
-        "阶段 1 文档基线",
-        "阶段 2 传感器 runtime",
-        "阶段 5 Super-LIO 建图",
-        "阶段 7 地图回灌和 localization-only",
-        "阶段 8 Full stack dry-run",
-        "阶段 10 低速动态验证",
-        "完成证据",
-        "没有保存产物或命令输出的阶段不能声明完成",
-    ]
-    for term in required_terms:
-        assert term in text
-
-
 def test_static_architecture_png_is_documented_as_preview():
     assert (DOCS / "architecture" / "image.png").exists()
     readme = read(DOCS / "README_zh.md")
@@ -179,18 +176,5 @@ def test_static_architecture_png_is_documented_as_preview():
     assert "runtime_alignment_audit_zh.md" in platform
 
 
-def test_docs_structure_spec_matches_current_docs():
-    text = read(DOCS / "superpowers" / "specs" / "2026-07-01-docs-structure-design.md")
-    required_terms = [
-        "operations/rc_full_chain_execution_zh.md",
-        "architecture/runtime_alignment_audit_zh.md",
-        "architecture/image.png",
-        "plans/2026-07-01-rc-full-chain-implementation.md",
-        "过时计划删除",
-    ]
-    for term in required_terms:
-        assert term in text
-
-
-def test_completed_architecture_alignment_plan_removed():
-    assert not (DOCS / "superpowers" / "plans" / "2026-07-01-architecture-launch-alignment.md").exists()
+def test_stale_superpowers_docs_are_removed_from_formal_docs():
+    assert not (DOCS / "superpowers").exists()

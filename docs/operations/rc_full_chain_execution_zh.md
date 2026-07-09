@@ -2,12 +2,12 @@
 
 定位：这是 RC 验证 Hooke/Autoware 链路的执行控制文件。它不替代架构审计、建图流程或上车手册，而是把这些工作按依赖顺序串起来，确保每一步都有入口、产物和验收标准。
 
-目标：让 RC 车尽可能跑通 Hooke 共享 upper stack，形成可复现的传感器采集、建图、地图回灌、定位、规划、控制、gate 和底盘适配验证流程。
+目标：让 RC 车尽可能跑通 Hooke/RC 共享 official Autoware 启动结构，形成可复现的传感器采集、建图、地图回灌、定位、规划、控制、gate 和底盘适配验证流程。
 
 ## 执行原则
 
 - 先审计差异，再执行链路；不在未确认接口和 topic 的情况下继续堆临时流程。
-- RC 不新增独立上层算法；差异收敛在 sensing/profile、车辆参数、外参、地图资产生产和 vehicle adapter。
+- RC 不新增独立默认上层算法；差异收敛在 sensing/profile、车辆参数、外参、地图资产生产和 vehicle adapter。
 - 固化脚本只服务长期全流程；一次性排查命令不升格为正式脚本。
 - x86 工作机负责 bag 检查、Super-LIO 建图、地图打包和静态检查；ARM 车端主机负责传感器、定位、upper stack、vehicle adapter 和实车验证。
 - official localization-only 也需要完整官方地图目录；没有底盘动力时只验证节点、topic、TF 和零速输出。
@@ -45,7 +45,7 @@
 | Autoware 地图打包 | `rc_mapping_ws/package_autoware_map.sh` | `autoware_maps/<map_name>/` | PCD metadata、Lanelet2、projector 文件齐全；localization-only 也使用完整官方地图目录 | 待地图资产 |
 | 地图回灌 | `rc_mapping_ws/sync_map_to_vehicle.sh <map_name>` | 车端地图目录 | `MAP_PATH` 指向可加载地图目录 | 待地图资产 |
 | Localization-only | `./scripts/rc/rc_start_localization.sh` | NDT pose、`map -> base_link` TF | `/initialpose` 后 `/localization/pose_with_covariance` 和 `/localization/kinematic_state` 稳定 | 待地图和车端验证 |
-| Full Autoware dry-run | `./scripts/rc/rc_start_autoware.sh` | trajectory、raw control、gated command | `ENABLE_DRIVE_COMMANDS=false` 时 upper stack 连通且底盘输出保持安全禁用 | 待地图和车端验证 |
+| Full Autoware dry-run | `./scripts/rc/rc_start_autoware.sh` | trajectory、official control、gated safe command | `ENABLE_DRIVE_COMMANDS=false` 时 official planning/control/gate 连通且底盘输出保持安全禁用 | Orin 已完成 no-sensor core smoke；待传感器/底盘条件下验证 |
 | 底盘适配验证 | `rc_serial_interface`、`./scripts/request_autonomous_mode.sh` | `/vehicle/status/*`、UART command | 速度符号、转角方向、gear、control mode 与 STM32 协议一致 | 待底盘供电验证 |
 | 低速动态验证 | `docs/operations/rc_runbook_zh.md` | bag/log/问题清单 | 低速短路线能停车、转向、跟踪，问题能归属到 sensing/localization/planning/control/gate/adapter | 待场地和动力条件 |
 
