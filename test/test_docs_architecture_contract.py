@@ -5,13 +5,19 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 
 
-FORMAL_DOCS = [
+FORMAL_MARKDOWN_DOCS = [
     DOCS / "development_guide_zh.md",
     DOCS / "architecture_zh.md",
     DOCS / "operations" / "rc_runbook_zh.md",
     DOCS / "operations" / "mapping_workflow_zh.md",
     DOCS / "reference" / "interfaces_and_calibration_zh.md",
 ]
+
+ARCHITECTURE_ASSETS = [
+    DOCS / "architecture" / "rc_official_runtime_graph.html",
+]
+
+FORMAL_DOCS = [*FORMAL_MARKDOWN_DOCS, *ARCHITECTURE_ASSETS]
 
 
 REMOVED_DOCS = [
@@ -25,6 +31,9 @@ REMOVED_DOCS = [
     DOCS / "operations" / "rc_full_chain_execution_zh.md",
     DOCS / "reference" / "interfaces_and_topics_zh.md",
     DOCS / "reference" / "calibration_zh.md",
+    DOCS / "architecture_visualization_zh.md",
+    DOCS / "architecture" / "generated" / "rc_official_runtime_graph.mmd",
+    DOCS / "architecture" / "rc_official_runtime_graph.mmd",
 ]
 
 
@@ -46,10 +55,10 @@ def read(path: Path) -> str:
 
 
 def combined_formal_docs() -> str:
-    return "\n".join(read(path) for path in FORMAL_DOCS)
+    return "\n".join(read(path) for path in FORMAL_MARKDOWN_DOCS)
 
 
-def test_docs_are_converged_to_five_formal_markdown_files():
+def test_docs_are_converged_to_formal_markdown_and_architecture_assets():
     tracked_docs = sorted(path.relative_to(ROOT).as_posix() for path in DOCS.rglob("*") if path.is_file())
     expected_docs = sorted(path.relative_to(ROOT).as_posix() for path in FORMAL_DOCS)
 
@@ -64,12 +73,15 @@ def test_root_readme_points_to_converged_docs_only():
     required_terms = [
         "docs/development_guide_zh.md",
         "docs/architecture_zh.md",
+        "docs/architecture/rc_official_runtime_graph.html",
         "docs/operations/mapping_workflow_zh.md",
         "docs/operations/rc_runbook_zh.md",
         "docs/reference/interfaces_and_calibration_zh.md",
         "scripts/rc/",
         "vehicle_model:=autoracer_rc",
         "sensor_model:=autoracer_rc_sensor_kit",
+        "Platform status is versioned per commit",
+        "Current branch status",
     ]
     for term in required_terms:
         assert term in text
@@ -91,12 +103,15 @@ def test_development_guide_explains_src_packages_and_continuation_paths():
     text = read(DOCS / "development_guide_zh.md")
 
     required_terms = [
-        "当前唯一可运行基线",
+        "平台开发契约",
         "feature/official-autoware-launch",
-        "active official RC profile",
-        "disabled Hooke official profile",
-        "vendored Hooke reference",
-        "local algorithm candidates",
+        "first-class platform target",
+        "Platform status is commit-scoped",
+        "Current branch status",
+        "active platform profile",
+        "integration pending",
+        "upstream/pinned dependency",
+        "local algorithm package",
         "src/autoracer_rc_description",
         "src/autoracer_rc_launch",
         "src/autoracer_rc_sensor_kit_description",
@@ -108,10 +123,10 @@ def test_development_guide_explains_src_packages_and_continuation_paths():
         "src/autoracer_localization",
         "src/autoracer_planning",
         "src/autoracer_control",
-        "继续开发 RC",
-        "迁移 Hooke",
-        "替换或新增自研算法",
-        "修改文档",
+        "新增或修改平台 Profile",
+        "底盘 Adapter",
+        "自研算法模块",
+        "文档维护规则",
         "python3 -m pytest test -q",
         "colcon list --names-only",
     ]
@@ -126,12 +141,14 @@ def test_architecture_doc_owns_platform_profile_launch_and_algorithm_boundaries(
     text = read(DOCS / "architecture_zh.md")
 
     required_terms = [
-        "## 平台原则",
-        "## 官方 Launch 结构",
-        "## 给旧框架开发者的迁移说明",
-        "## Profile 状态",
-        "## Hooke 底盘架构图",
-        "## RC 底盘架构图",
+        "## 系统边界",
+        "## Profile 装配",
+        "## 平台状态",
+        "Platform runtime status is commit-scoped",
+        "## Nodeviewer/Dataflow",
+        "## Shared Autoware Stack",
+        "## Hooke Platform Path",
+        "## RC Platform Path",
         "Shared official Autoware upper stack",
         "vehicle_model:=autoracer_rc",
         "sensor_model:=autoracer_rc_sensor_kit",
@@ -150,9 +167,6 @@ def test_architecture_doc_owns_platform_profile_launch_and_algorithm_boundaries(
         "src/external/autoware",
         "自研 planning/control 候选",
         "不在 `src/external/autoware` 里做隐形修改",
-        "旧框架是本仓库自定义总控",
-        "新框架是官方 Autoware 总控",
-        "以后怎么判断应该改哪里",
     ]
     for term in required_terms:
         assert term in text
@@ -162,6 +176,29 @@ def test_architecture_doc_owns_platform_profile_launch_and_algorithm_boundaries(
     assert "静态预览图" not in text
     assert "docs/architecture/image.png" not in text
     assert "按分支区分车型" not in text
+
+
+def test_architecture_graph_is_direct_open_html_not_mermaid_source():
+    html = read(DOCS / "architecture" / "rc_official_runtime_graph.html")
+
+    required_terms = [
+        "<!doctype html>",
+        "<svg",
+        "RC Official Autoware Runtime Graph",
+        "nodeviewer-style",
+        "RViz2",
+        "Foxglove",
+        "NDT localization",
+        "Official control",
+        "Safety gate",
+        "rc_serial_interface",
+        "/vehicle/status/*",
+    ]
+    for term in required_terms:
+        assert term in html
+
+    assert not (DOCS / "architecture" / "rc_official_runtime_graph.mmd").exists()
+    assert "https://" not in html
 
 
 def test_runtime_docs_default_to_official_planning_control_boundary():
@@ -276,6 +313,17 @@ def test_formal_docs_do_not_keep_stale_host_or_transition_language():
         "platform_and_stack_zh.md",
         "reference/interfaces_and_topics_zh.md",
         "reference/calibration_zh.md",
+        "当前唯一可运行基线",
+        "RC 是 Hooke",
+        "验证 Hooke",
+        "给旧框架开发者",
+        "旧框架是",
+        "新框架是",
+        "以后怎么判断",
+        "如何理解",
+        "交给 Hooke 负责人",
+        "未来 Hooke",
+        "当前 ARM 车辆主机是临时",
     ]
     for term in stale_terms:
         assert term not in combined

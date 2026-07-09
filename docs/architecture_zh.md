@@ -1,22 +1,36 @@
-# RC/Hooke 系统架构说明
+# Ackermann Autoware 系统架构
 
-用途：说明 RC/Hooke 在官方 Autoware profile 框架下的运行时系统架构，包括 profile 装配、node/topic/frame 数据流、控制边界和验证顺序。非用途：不解释仓库目录结构，不记录一次性排查日志，不保存过渡计划。项目结构和“应该改哪里”以 `README.md` 为准。
+用途：定义 RC/Hooke 平台接入同一套 Autoware 系统时的运行时边界、profile 装配规则、node/topic/dataflow、控制链路和算法替换边界。非用途：不描述仓库目录结构，不写现场操作步骤，不保留历史迁移说明。
 
-## 平台原则
+## 系统边界
 
-RC 不是一套新的自动驾驶栈。RC 是 Hooke/Autoware upper stack 的缩比验证平台，用来先验证 localization、official Autoware planning/control、gate 和 adapter 边界，再迁移到真实 Hooke 底盘。
+本仓库维护 Ackermann 车辆平台的 Autoware integration boundary。平台差异通过 vehicle profile、sensor-kit profile、calibration、sensing launch、vehicle adapter 和 operation runbook 表达；共享 autonomy 行为通过 official Autoware topic/message/frame/diagnostics contract 连接。
 
-长期边界：
+Core boundary:
 
-- Hooke 和 RC 共享 official Autoware planning/control、地图、定位 topic、控制 topic 和 vehicle status 语义。
-- CAN 与串口差异停留在 chassis/transport adapter 内；Hooke 用 CAN，RC 用 serial。
-- 车辆尺寸、传感器外参、驱动参数、底盘 adapter 放在对应 vehicle/sensor profile 和 adapter 包里。
-- 自研 planning/control 候选可以保留，但只能显式替换官方接口，不作为隐藏默认链路。
-- `src/external/autoware` 是 pinned upstream 依赖；不在 `src/external/autoware` 里做隐形修改。
+```text
+sensing profile
+  -> localization
+  -> mission planning
+  -> behavior and motion planning
+  -> official control
+  -> command_gate
+  -> platform vehicle adapter
+  -> chassis
+```
 
-## 官方 Launch 结构
+Rules:
 
-当前启动总控是官方 `autoware_launch/autoware.launch.xml`。本仓库按官方约定提供 vehicle profile 和 sensor-kit profile：
+- RC and Hooke are first-class platform targets.
+- Platform-specific facts stay in profile packages and adapter packages.
+- Shared planning/control behavior stays behind official Autoware contracts.
+- Chassis transport differences stay below the vehicle adapter boundary.
+- `src/external/autoware` is a pinned upstream dependency area; 不在 `src/external/autoware` 里做隐形修改.
+- 自研 planning/control 候选 must be explicitly wired through the same contracts.
+
+## Profile 装配
+
+Autoware launch discovers platform packages by `vehicle_model` and `sensor_model`.
 
 ```bash
 ros2 launch autoware_launch autoware.launch.xml \
@@ -24,27 +38,43 @@ ros2 launch autoware_launch autoware.launch.xml \
   sensor_model:=autoracer_rc_sensor_kit
 ```
 
-官方 launch 会按名字寻找这些包：
-
-| 参数 | 官方查找规则 | 当前 RC 包 | 责任 |
+| Launch argument | Package naming contract | RC package | Responsibility |
 | --- | --- | --- | --- |
-| `vehicle_model:=autoracer_rc` | `$(vehicle_model)_description` | `autoracer_rc_description` | 车辆尺寸、vehicle info、vehicle xacro。 |
-| `vehicle_model:=autoracer_rc` | `$(vehicle_model)_launch` | `autoracer_rc_launch` | vehicle interface、safety gate、RViz profile。 |
-| `sensor_model:=autoracer_rc_sensor_kit` | `$(sensor_model)_description` | `autoracer_rc_sensor_kit_description` | sensor kit xacro、LiDAR/IMU 外参。 |
-| `sensor_model:=autoracer_rc_sensor_kit` | `$(sensor_model)_launch` | `autoracer_rc_sensor_kit_launch` | C32、Hipnuc IMU、Madgwick、pointcloud filter。 |
+| `vehicle_model:=autoracer_rc` | `$(vehicle_model)_description` | `autoracer_rc_description` | Vehicle geometry, vehicle info, vehicle URDF/xacro. |
+| `vehicle_model:=autoracer_rc` | `$(vehicle_model)_launch` | `autoracer_rc_launch` | Vehicle interface launch, safety gate wiring, RViz profile. |
+| `sensor_model:=autoracer_rc_sensor_kit` | `$(sensor_model)_description` | `autoracer_rc_sensor_kit_description` | Sensor-kit URDF/xacro and sensor extrinsics. |
+| `sensor_model:=autoracer_rc_sensor_kit` | `$(sensor_model)_launch` | `autoracer_rc_sensor_kit_launch` | LiDAR/IMU drivers, filtering, sensing topics. |
 
-`scripts/rc/` 是操作者入口，只做薄封装、检查和运行时参数传递。`scripts/common/` 只能放不依赖具体车辆硬件事实的 helper。`scripts/hooke/` 在 Hooke profile 完成前只能 fail-fast。
+Hooke uses the same contract:
 
-## Profile 状态
+```text
+vehicle_model:=autoracer_hooke
+sensor_model:=autoracer_hooke_sensor_kit
+```
 
-| 平台 | `vehicle_model` | `sensor_model` | 状态 | 源码位置 | 脚本入口 | 当前责任 |
-| --- | --- | --- | --- | --- | --- | --- |
-| RC Ackermann | `autoracer_rc` | `autoracer_rc_sensor_kit` | active runtime baseline | `src/autoracer_rc_*` | `scripts/rc/` | 当前唯一可运行开发基线，继续用于 Orin 上的 RC 实车验证。 |
-| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | `disabled_placeholder` / not runtime ready | `src/autoracer_hooke_*` | `scripts/hooke/` | 交给 Hooke 负责人补真实 vehicle、sensor、CAN adapter、sensing launch。 |
+Operator scripts are thin entrypoints:
 
-Hooke official profile 当前只保留占位目录。每个 `src/autoracer_hooke_*` 目录都必须保留 `COLCON_IGNORE`，直到真实 Hooke 配置完成。占位目录没有 `package.xml`，目的就是避免 `colcon`、`autoware_launch` 或操作者误认为 Hooke 已经可运行。
+- `scripts/rc/` starts and stops RC runtime flows.
+- `scripts/hooke/` fails fast while Hooke profile packages are guarded.
+- `scripts/common/` contains shared helpers and must not encode vehicle facts.
 
-Hooke 负责人可以参考 vendored Hooke reference：
+## 平台状态
+
+| Platform | Vehicle model | Sensor model | Runtime status | Source boundary |
+| --- | --- | --- | --- | --- |
+| RC Ackermann | `autoracer_rc` | `autoracer_rc_sensor_kit` | active platform profile | `src/autoracer_rc_*` |
+| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | `disabled_placeholder` / not runtime ready | `src/autoracer_hooke_*` |
+
+Platform runtime status is commit-scoped. A commit may have one runnable
+platform, multiple runnable platforms, or no runnable platform while a shared
+contract is under modification. Runtime scripts must make that state explicit
+and must fail fast for non-runnable profiles.
+
+Hooke profile placeholders remain guarded by `COLCON_IGNORE` until the vehicle
+description, sensor-kit description, sensing launch, vehicle launch, adapter
+wiring, and calibration facts are present as coherent profile packages.
+
+Reference material for Hooke integration:
 
 ```text
 src/hooke2_vehicle
@@ -52,19 +82,57 @@ src/hardware_drivers
 src/wd_msgs
 ```
 
-但不要让 RC wrapper 指向这些 reference package，也不要用 RC 参数伪装 Hooke profile 通过。
+Reference material is not a runtime profile by itself. Runtime launch selection
+must use official profile packages.
 
-## Nodeviewer/Dataflow 图
+## Nodeviewer/Dataflow
 
-离线 nodeviewer 风格图放在：
+Direct-open nodeviewer-style graph:
 
 ```text
-docs/architecture/rc_official_runtime_graph.mmd
+docs/architecture/rc_official_runtime_graph.html
 ```
 
-这张图描述运行时 node/topic/dataflow 关系，不是上车 HMI，也不是仓库目录结构说明。当前 `.mmd` 是人工维护的 Mermaid 源图，所以不放在 `generated/`。如果后续接入 nodeviewer 或 ROS graph 导出器，生成出来的 HTML/Mermaid/JSON 应该有可复现的生成命令，并和人工维护的源图分开命名。
+The HTML graph is a static architecture view with embedded SVG. It opens in a
+browser without Mermaid, CDN access, or a separate rendering step. It describes
+node/topic/dataflow relationships; it is not an on-car HMI and not a repository
+layout document.
 
-## Hooke 底盘架构图
+## Shared Autoware Stack
+
+The shared stack boundary is the same for every platform profile:
+
+```text
+/sensing/lidar/concatenated/pointcloud
+/sensing/imu/imu_data
+/localization/pose_with_covariance
+/localization/kinematic_state
+/planning/mission_planning/route
+/planning/trajectory
+/control/command/control_cmd
+/autoracer/control/safe_control_cmd
+/vehicle/status/*
+```
+
+Control path:
+
+```text
+/planning/trajectory
+  -> official Autoware control
+  -> /control/command/control_cmd
+  -> autoracer_safety/command_gate
+  -> /autoracer/control/safe_control_cmd
+  -> platform vehicle adapter
+```
+
+Adapter responsibilities:
+
+- Consume `/autoracer/control/safe_control_cmd` as the adapter-facing command.
+- Publish `/vehicle/status/velocity_status`, `/vehicle/status/steering_status`, `/vehicle/status/gear_status`, and `/vehicle/status/control_mode`.
+- Preserve Autoware units and frame semantics.
+- Keep CAN/UART/byte protocol details inside the adapter.
+
+## Hooke Platform Path
 
 ```mermaid
 flowchart LR
@@ -77,7 +145,7 @@ flowchart LR
   subgraph H_Localization["Localization"]
     H_PC["/sensing/lidar/concatenated/pointcloud"]
     H_Filter["pointcloud_voxel_filter\n/sensing/lidar/filtered/pointcloud"]
-    H_Seed["/localization/fixposition/seed_pose\nor GNSS pose seed"]
+    H_Seed["/sensing/gnss/pose_with_covariance\nor localization seed"]
     H_NDT["autoware_ndt_scan_matcher"]
     H_Pose["/localization/pose_with_covariance"]
     H_State["/localization/kinematic_state"]
@@ -93,9 +161,9 @@ flowchart LR
   end
 
   subgraph H_Chassis["Hooke vehicle adapter"]
-    HookeIf["hooke2_interface"]
+    HookeIf["Hooke adapter"]
     CAN["SocketCAN can0\n500000 bps"]
-    HookeChassis["Hooke2 chassis"]
+    HookeChassis["Hooke chassis"]
     H_Status["/vehicle/status/*"]
   end
 
@@ -111,7 +179,7 @@ flowchart LR
   H_Status --> Ctrl
 ```
 
-## RC 底盘架构图
+## RC Platform Path
 
 ```mermaid
 flowchart LR
@@ -119,7 +187,7 @@ flowchart LR
     R_Lidar["Leishen C32\nlslidar_driver"]
     R_Imu["Hipnuc / N300 Pro\nimu_filter_madgwick"]
     R_SeedSrc["RViz / ROS /initialpose"]
-    R_Map["Autoware map\nSuper-LIO PCD + Lanelet2 + projector"]
+    R_Map["Autoware map\nPCD + Lanelet2 + projector"]
   end
 
   subgraph R_Localization["Localization"]
@@ -143,7 +211,7 @@ flowchart LR
 
   subgraph R_Chassis["RC vehicle adapter"]
     Serial["rc_serial_interface"]
-    UART["UART 11-byte command frame"]
+    UART["UART command frame"]
     STM32["STM32 firmware\nAckermann PWM"]
     R_Status["/vehicle/status/*"]
   end
@@ -162,30 +230,35 @@ flowchart LR
   R_Status --> Ctrl2
 ```
 
-两张图的中间 `Shared official Autoware upper stack` 必须保持一致。RC 与 Hooke 的差异只允许出现在 sensing/profile、seed 来源、vehicle profile、map asset 生产流程和 vehicle adapter。
+The `Shared official Autoware upper stack` section is the common contract. RC
+and Hooke differences are limited to sensing/profile facts, seed sources,
+calibration assets, map assets, and vehicle adapter transport.
 
-## 算法替换边界
+## Algorithm Boundary
 
-当前默认上层链路是 official Autoware planning/control。以下本地包只作为自研 planning/control 候选存在：
+Default upper-stack behavior uses official Autoware planning/control.
 
 ```text
 src/autoracer_planning
 src/autoracer_control
 ```
 
-启用自研候选的条件：
+These packages are 自研 planning/control 候选. They are valid extension points
+only when wired explicitly through the same official input/output contracts.
 
-- 输入输出 topic、message、frame、单位遵守 official Autoware contract。
-- 在 launch/profile 层显式替换，不通过脚本暗中切换。
-- 保留 `autoracer_safety` gate 和 vehicle adapter 的清晰边界。
-- Hooke/RC 共同维护接口，不给 RC 单独分叉 upper stack。
+Rules:
 
-## 验收顺序
+- Preserve message types, units, frames, and diagnostics contracts.
+- Replace modules in launch/profile configuration, not in shell wrappers.
+- Keep `autoracer_safety` between upstream control and chassis adapters.
+- Keep platform-specific forks below profile or adapter boundaries.
 
-1. Sensing/TF：点云、IMU、静态 TF、车辆状态 topic 可用。
-2. Localization：地图加载、manual seed、NDT pose、`kinematic_state` 可用。
-3. Planning：官方 planning route/goal 后生成 `/planning/trajectory`。
-4. Control：官方 control 输出 `/control/command/control_cmd`，方向、速度、转角合理。
-5. Gate：禁用时输出 stop，使能后输出 `/autoracer/control/safe_control_cmd` 和必要 support command。
-6. Vehicle adapter：串口/CAN 命令和反馈符号、单位、频率正确。
-7. Low-speed drive：低速闭环验证，形成 bag/log 和问题清单。
+## Runtime Acceptance Order
+
+1. Sensing/TF: pointcloud, IMU, static TF, and vehicle status topics are present.
+2. Localization: map assets load, seed pose is accepted, NDT pose and `kinematic_state` publish.
+3. Planning: route/goal generates `/planning/trajectory`.
+4. Control: official control publishes `/control/command/control_cmd`.
+5. Gate: disabled mode outputs stop; enabled mode publishes `/autoracer/control/safe_control_cmd`.
+6. Adapter: command direction, velocity sign, steering sign, gear/control mode, and timeout behavior are correct.
+7. Low-speed drive: run with explicit speed limits, collect bag/log evidence, and update reference facts if calibration changes.

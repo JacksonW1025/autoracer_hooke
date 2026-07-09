@@ -2,7 +2,7 @@
 
 用途：给现场运行者一个可重复的上车检查、启动、定位、规划、控制和低速验证流程。非用途：不讨论官方 Autoware 迁移，不记录一次性小测试。
 
-目标：用 RC 验证 Hooke/RC 共享 official Autoware planning/control + gate 边界，而不是先切回本地旧算法。
+目标：按 RC 平台 profile 启动 official Autoware planning/control、command gate 和 RC vehicle adapter，并完成定位、规划、控制和低速安全检查。
 
 本文件只写现场操作步骤；架构边界看 `docs/architecture_zh.md`，topic、frame、车辆参数和标定事实看 `docs/reference/interfaces_and_calibration_zh.md`。
 

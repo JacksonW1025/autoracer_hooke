@@ -1,104 +1,97 @@
 # Ackermann Autoware
 
-ROS 2 workspace for using the RC Ackermann car to validate the Autoracer
-Hooke/Autoware chain.
+Autoware integration workspace for Ackermann vehicle platforms.
 
-The current priority is to keep Hooke and RC on the same official Autoware upper
-stack and validate that stack on the RC platform first. Platform-specific work
-belongs in explicit vehicle/sensor profiles, vehicle adapters, and mapping
-workflow instead of hidden launch glue:
+This repository maintains platform profiles, sensor-kit profiles, chassis
+adapters, safety boundaries, runtime scripts, mapping workflow, and interface
+documentation for RC and Hooke vehicles. RC and Hooke are first-class platform
+targets. Shared autonomy behavior stays behind official Autoware topic,
+message, frame, parameter, and diagnostics contracts; platform-specific facts
+belong in profiles and adapters.
 
-```text
-Leishen C32 LiDAR + RViz/manual NDT seed + STM32 UART feedback
-  -> PCD/Lanelet2 map
-  -> LiDAR/NDT localization
-  -> /control/command/control_cmd
-  -> safety command gate
-  -> /autoracer/control/safe_control_cmd
-  -> rc_serial_interface
-  -> UART4 11-byte command frame
-  -> STM32 Ackermann PWM
+## Platform Targets
+
+| Platform | Vehicle profile | Sensor-kit profile | Status |
+| --- | --- | --- | --- |
+| RC Ackermann | `autoracer_rc` | `autoracer_rc_sensor_kit` | Active platform profile. |
+| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | Integration pending; placeholders are guarded by `COLCON_IGNORE`. |
+
+Platform status is versioned per commit. A repository revision may support one
+platform at runtime, multiple platforms at runtime, or no platform at runtime
+while shared interfaces are being changed. The status table is the coordination
+surface for that state; it describes current integration readiness without
+changing the long-term target list.
+
+Current branch status:
+
+- RC: active runtime profile and primary development path.
+- Hooke: profile integration pending; on-car validation is not available in the
+  current development environment.
+
+The active runtime path is the official Autoware launch path:
+
+```bash
+ros2 launch autoware_launch autoware.launch.xml \
+  vehicle_model:=autoracer_rc \
+  sensor_model:=autoracer_rc_sensor_kit \
+  launch_vehicle_interface:=false \
+  launch_perception:=false \
+  rviz:=false
 ```
 
-## Runtime Boundary
-
-This checkout may be edited and statically tested on a development computer, but
-hardware bringup must be validated on the current onboard compute. Target
-deployments should stay compatible with the AGX Orin vehicle-compute path; any
-temporary RC host is only a bringup host, not a new architecture boundary.
-
-Do not commit temporary host IPs, SSH credentials, or machine-local serial device
-names. Pass those at launch time through environment variables such as
-`SERIAL_PORT`, `MAP_PATH`, and the `LIDAR_*` settings.
+The RC operator wrappers under `scripts/rc/` call the same official launch path
+and add field checks, runtime defaults, and controlled shutdown.
 
 ## Repository Layout
 
 ```text
-autoracer.repos            Dependency manifest for selected external packages.
-defaults.env               Runtime defaults shared by official RC wrappers.
-docs/                      Current development, operation, architecture, and calibration notes.
-docs/architecture/         Hand-maintained system architecture diagrams and node/topic/dataflow views.
-maps/                      Local map directory placeholder.
-scripts/                   Import, build, run, and smoke-test helpers.
-scripts/common/            Shared helper boundary; no vehicle-specific facts.
-scripts/rc/                Active RC operator entrypoints.
-scripts/hooke/             Disabled Hooke handoff entrypoints; fail fast until real profiles exist.
-src/external/autoware      Pinned upstream Autoware packages; keep patches explicit.
-src/autoracer_rc_*         Current RC official Autoware vehicle/sensor profiles.
-src/autoracer_hooke_*      Disabled Hooke official-profile placeholders guarded by COLCON_IGNORE.
-src/autoracer_description  Shared frames, URDF helpers, and static TF assets.
-src/autoracer_sensing      Small sensor adapters used by the official profiles.
-src/autoracer_safety       Final command gate before a chassis adapter.
-src/autoracer_vehicle_interface RC UART chassis adapter and status bridge.
-src/autoracer_localization Localization adapters that preserve official topic contracts.
-src/autoracer_planning     Local algorithm candidates; do not use as hidden launch glue.
-src/autoracer_control      Local controller candidates; do not use as hidden launch glue.
-src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
-src/hooke2_vehicle         Vendored Hooke2 CAN adapter and legacy vehicle assets.
-src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
+autoracer.repos             Dependency manifest for selected external packages.
+defaults.env                Runtime defaults shared by operator wrappers.
+docs/                       Current architecture, development, operation, and reference docs.
+docs/architecture/          Direct-open node/topic/dataflow architecture views.
+maps/                       Local map directory placeholder.
+scripts/                    Import, build, run, and smoke-test helpers.
+scripts/common/             Shared helper boundary; no vehicle-specific facts.
+scripts/rc/                 RC operator entrypoints.
+scripts/hooke/              Hooke handoff entrypoints; fail fast until the profile is enabled.
+src/external/autoware       Pinned upstream Autoware packages; keep patches explicit.
+src/autoracer_rc_*          RC vehicle and sensor-kit profiles.
+src/autoracer_hooke_*       Hooke vehicle and sensor-kit profile placeholders.
+src/autoracer_description   Shared frames, URDF helpers, and static TF assets.
+src/autoracer_sensing       Small sensor adapters used by platform profiles.
+src/autoracer_safety        Final command gate before chassis adapters.
+src/autoracer_vehicle_interface
+                             Chassis adapters and vehicle status bridges.
+src/autoracer_localization  Localization adapters that preserve official topic contracts.
+src/autoracer_planning      Local algorithm packages; not hidden default launch glue.
+src/autoracer_control       Local controller packages; not hidden default launch glue.
+src/hardware_drivers        Vendored SocketCAN driver material used by Hooke integration.
+src/hooke2_vehicle          Vendored Hooke vehicle reference material.
+src/wd_msgs                 Vendored Hooke chassis messages and byte helpers.
 ```
 
 ## Documentation
 
-Start here:
-
 ```text
-docs/development_guide_zh.md
+docs/development_guide_zh.md                     Platform development contract.
+docs/architecture_zh.md                          Runtime system architecture and data flow.
+docs/architecture/rc_official_runtime_graph.html Direct-open nodeviewer-style RC runtime graph.
+docs/operations/rc_runbook_zh.md                 RC on-car startup and validation flow.
+docs/operations/mapping_workflow_zh.md           Mapping and bag workflow.
+docs/reference/interfaces_and_calibration_zh.md  Topic, frame, adapter, and calibration facts.
 ```
 
-This README is the canonical place for project structure: package layout,
-ownership boundaries, and where new work should go. System architecture means
-the running Autoware/RC stack: nodes, topics, frames, profiles, data flow, and
-control boundaries. Keep that runtime view in `docs/architecture_zh.md` and the
-Mermaid/nodeviewer-style diagrams under `docs/architecture/`.
+Documentation responsibilities:
 
-The docs are organized by purpose:
-
-```text
-docs/development_guide_zh.md                    How to continue development.
-docs/architecture_zh.md                         System runtime architecture and data flow.
-docs/architecture/rc_official_runtime_graph.mmd Nodeviewer-style RC runtime graph source.
-docs/operations/rc_runbook_zh.md                On-car startup and validation flow.
-docs/operations/mapping_workflow_zh.md          Mapping and bag workflow.
-docs/reference/interfaces_and_calibration_zh.md Topic, frame, interface, and calibration reference.
-```
-
-## Where To Change Things
-
-Use the official profile boundary instead of adding hidden glue to a large
-custom launch file:
-
-| Change | Location |
+| Scope | Owner document |
 | --- | --- |
-| Vehicle size, wheelbase, max steering angle | `src/autoracer_rc_description` or future `src/autoracer_hooke_description` |
-| LiDAR/IMU pose relative to `base_link` | matching `*_sensor_kit_description` |
-| C32/IMU driver parameters, filters, pointcloud output topics | matching `*_sensor_kit_launch` or `src/autoracer_sensing` |
-| RC UART or future Hooke CAN chassis adapter | `src/autoracer_vehicle_interface` and matching vehicle launch package |
-| Safety gate before the chassis adapter | `src/autoracer_safety` |
-| Runtime map path, serial device, RViz, drive-command enable flag | environment variables consumed by `scripts/rc/` |
-| Custom planning/control experiments | local algorithm packages, explicitly wired through official Autoware topic contracts |
+| Repository purpose, target platforms, package layout | `README.md` |
+| Platform development rules and package responsibilities | `docs/development_guide_zh.md` |
+| Runtime Autoware system boundaries and data flow | `docs/architecture_zh.md` |
+| On-car commands and field procedure | `docs/operations/*.md` |
+| Topic, frame, parameter, and calibration facts | `docs/reference/interfaces_and_calibration_zh.md` |
 
-## First Bringup
+## Build
 
 ```bash
 cd <repo>
@@ -108,8 +101,7 @@ cd <repo>
 source ./scripts/ros_env.sh
 ```
 
-The RC Autoware RViz profile uses official Autoware/Tier IV RViz plugins.
-Install the desktop/build dependencies before building those packages:
+Desktop/RViz plugin dependencies on a fresh Ubuntu 22.04 + ROS Humble host:
 
 ```bash
 sudo apt install -y \
@@ -120,104 +112,80 @@ sudo apt install -y \
   ros-humble-autoware-motion-utils \
   ros-humble-foxglove-bridge \
   ros-humble-rviz-2d-overlay-msgs \
-  ros-humble-rviz-2d-overlay-plugins
+  ros-humble-rviz-2d-overlay-plugins \
+  ros-humble-xacro \
+  libprotobuf-dev \
+  protobuf-compiler \
+  libpcap-dev
 ```
 
-On a resource-constrained onboard host, lower build parallelism without changing
-the workspace:
+On resource-constrained onboard compute:
 
 ```bash
 COLCON_PARALLEL_WORKERS=1 MAKEFLAGS="-j2 -l2" ./scripts/build_minimal.sh
 ```
 
-## RC Flow Entrypoints
+## Runtime Contract
 
-RC vehicle-side flow scripts live under `scripts/rc/`. These are the stable
-operator-facing entry points; lower-level scripts in `scripts/` are helpers used
-by those flows.
-
-Use the task docs instead of copying one-off field commands into this file:
+The platform side must preserve these shared Autoware surfaces:
 
 ```text
-docs/operations/mapping_workflow_zh.md
-docs/operations/rc_runbook_zh.md
+/sensing/lidar/concatenated/pointcloud
+/sensing/imu/imu_data
+/localization/pose_with_covariance
+/localization/kinematic_state
+/planning/trajectory
+/control/command/control_cmd
+/autoracer/control/safe_control_cmd
+/vehicle/status/*
 ```
 
-Official Autoware startup should use `autoware_launch` with the RC vehicle and
-sensor-kit profile names. Future Hooke profile packages should use the same
-official naming rule (`autoracer_hooke` / `autoracer_hooke_sensor_kit`) when
-their real vehicle and sensor configuration is migrated. Keep RViz disabled on
-the vehicle computer unless the machine is attached to a display; use Foxglove
-or a workstation for normal visualization:
+Chassis adapters must consume gated control commands, publish official vehicle
+status topics, and keep raw transport details inside the adapter boundary.
 
-Official-path build prerequisites on a fresh machine:
+Runtime host IPs, SSH credentials, and machine-local serial device names are not
+architecture facts. Pass them through environment variables such as `MAP_PATH`,
+`SERIAL_PORT`, `IMU_SERIAL_PORT`, and the `LIDAR_*` settings.
 
-```bash
-sudo apt install ros-humble-xacro libprotobuf-dev protobuf-compiler libpcap-dev
-```
+## RC Startup
 
-```bash
-ros2 launch autoware_launch autoware.launch.xml \
-  map_path:=/path/to/map \
-  vehicle_model:=autoracer_rc \
-  sensor_model:=autoracer_rc_sensor_kit \
-  launch_vehicle_interface:=false \
-  launch_perception:=false \
-  rviz:=false
-```
-
-The operator wrapper uses that same official launch path. Leave the chassis
-interface disabled for map/replay checks. On the current Orin RC vehicle, the
-STM32 chassis USB-UART enumerates as `/dev/ttyCH343USB0`; drive commands remain
-disabled unless `ENABLE_DRIVE_COMMANDS=true` is set:
+Map/replay checks without the chassis adapter:
 
 ```bash
 MAP_PATH=/path/to/map LAUNCH_VEHICLE_INTERFACE=false ./scripts/rc/rc_start_autoware.sh
 ```
 
-Low-speed vehicle run after calibration and bench validation:
+Full RC startup with RViz on a machine attached to a display:
 
 ```bash
-MAP_PATH=/path/to/map SERIAL_PORT=/dev/ttyCH343USB0 ENABLE_DRIVE_COMMANDS=true ./scripts/rc/rc_start_autoware.sh
+MAP_PATH=/path/to/map \
+SERIAL_PORT=/dev/ttyCH343USB0 \
+LAUNCH_RVIZ=true \
+ENABLE_DRIVE_COMMANDS=false \
+./scripts/rc/rc_start_autoware.sh
+```
+
+Low-speed run after TF, localization, steering direction, velocity sign, stop
+behavior, and takeover behavior are verified:
+
+```bash
+MAP_PATH=/path/to/map \
+SERIAL_PORT=/dev/ttyCH343USB0 \
+ENABLE_DRIVE_COMMANDS=true \
+./scripts/rc/rc_start_autoware.sh
+
 ./scripts/request_autonomous_mode.sh
 ```
 
-## Default Safety Position
+Stop RC Autoware processes:
 
-The default launch keeps `enable_drive_commands` false. The official Autoware
-planning/control chain can run, but the safety gate publishes stop commands to the
-adapter-facing safe command topic.
-Switch it to true only after TF, steering, velocity, localization, serial direction, and
-RC takeover behavior are verified.
-
-## RC Serial Vehicle Interface
-
-The RC vehicle interface replaces only the chassis transport. Official Autoware
-control remains on the standard command topic; the local gate publishes the
-adapter-facing safe command used by the serial node:
-
-```text
-/control/command/control_cmd
-  -> autoracer_safety/command_gate
-  -> /autoracer/control/safe_control_cmd
-  -> autoracer_vehicle_interface/rc_serial_interface
-  -> 0x7B cmd1 cmd2 vx vy wz bcc 0x7D
-  -> STM32 UART4
+```bash
+./scripts/rc/rc_stop.sh
 ```
 
-This branch keeps one official runtime structure. Roll back by switching to the
-previous branch, not by launching a compatibility path inside this branch.
+## Safety Default
 
-Runtime validation for the Autoware stack is ARM-side. The x86 development machine is
-used for mapping tools, scripts, static checks, and map packaging; it is not required to
-complete a full Autoware runtime build.
-
-The stable operator-facing shell entry points are the `scripts/rc/rc_*.sh` scripts.
-Ad-hoc diagnostics should stay as tests or documented commands unless they are part of
-the normal run flow.
-
-The STM32 firmware source uses the 11-byte ROS UART command frame and the
-24-byte telemetry frame. Flash the matching firmware before trusting vehicle
-feedback on `/vehicle/status/*`. Current RC constants use `0.600 m` wheelbase,
-`0.230 m` wheel diameter, `0.262 rad` max steering, `3.0 m/s` command caps, and
-a `0.05 m/s` low-speed deadband.
+`ENABLE_DRIVE_COMMANDS=false` is the default. In this mode the official
+Autoware planning/control chain may run, but the safety gate publishes stop
+commands to `/autoracer/control/safe_control_cmd`. Set it to true only during a
+controlled low-speed validation run.
