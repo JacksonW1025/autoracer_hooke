@@ -10,19 +10,6 @@ def _clamp(value, lower, upper):
     return max(lower, min(upper, value))
 
 
-def limit_signed_velocity(value, max_speed):
-    limit = abs(float(max_speed))
-    return _clamp(float(value), -limit, limit)
-
-
-def gear_command_for_velocity(*, safe, velocity, deadband_mps=0.05):
-    if not safe:
-        return GearCommand.NEUTRAL
-    if float(velocity) < -abs(float(deadband_mps)):
-        return GearCommand.REVERSE
-    return GearCommand.DRIVE
-
-
 def _as_bool(value):
     if isinstance(value, bool):
         return value
@@ -47,7 +34,6 @@ class CommandGate(Node):
         self.declare_parameter("max_decel_mps2", -1.5)
         self.declare_parameter("max_steer_rad", 0.488)
         self.declare_parameter("max_steer_rate_radps", 0.5)
-        self.declare_parameter("gear_deadband_mps", 0.05)
         self.declare_parameter("publish_rate_hz", 30.0)
 
         self._enabled = _as_bool(self.get_parameter("enable_drive_commands").value)
@@ -58,7 +44,6 @@ class CommandGate(Node):
         self._max_decel = float(self.get_parameter("max_decel_mps2").value)
         self._max_steer = float(self.get_parameter("max_steer_rad").value)
         self._max_steer_rate = float(self.get_parameter("max_steer_rate_radps").value)
-        self._gear_deadband = float(self.get_parameter("gear_deadband_mps").value)
 
         self._raw_command = None
         self._last_raw_time = None
@@ -114,7 +99,7 @@ class CommandGate(Node):
             command = self._stop_command()
             state = reason
 
-        self._publish_support_commands(reason is None, command)
+        self._publish_support_commands(reason is None)
         self._command_pub.publish(command)
         self._state_pub.publish(String(data=state))
 
@@ -137,8 +122,8 @@ class CommandGate(Node):
         command.lateral.stamp = stamp
         command.longitudinal.stamp = stamp
 
-        command.longitudinal.velocity = limit_signed_velocity(
-            raw.longitudinal.velocity, self._max_speed
+        command.longitudinal.velocity = _clamp(
+            raw.longitudinal.velocity, 0.0, self._max_speed
         )
         command.longitudinal.acceleration = _clamp(
             raw.longitudinal.acceleration, self._max_decel, self._max_accel
@@ -182,16 +167,12 @@ class CommandGate(Node):
         self._last_steer = 0.0
         return command
 
-    def _publish_support_commands(self, safe, command):
+    def _publish_support_commands(self, safe):
         stamp = self.get_clock().now().to_msg()
 
         gear = GearCommand()
         gear.stamp = stamp
-        gear.command = gear_command_for_velocity(
-            safe=safe,
-            velocity=command.longitudinal.velocity,
-            deadband_mps=self._gear_deadband,
-        )
+        gear.command = GearCommand.DRIVE if safe else GearCommand.NEUTRAL
         self._gear_pub.publish(gear)
 
         hazard = HazardLightsCommand()
@@ -217,3 +198,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

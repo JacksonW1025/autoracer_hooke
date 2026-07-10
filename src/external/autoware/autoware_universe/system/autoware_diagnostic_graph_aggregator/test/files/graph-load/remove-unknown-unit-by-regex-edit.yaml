@@ -1,2 +1,0 @@
-edits:
-  - { type: remove, regex: /wrong/path/.* }

@@ -20,8 +20,6 @@ setup(
     entry_points={
         "console_scripts": [
             "fixposition_seed_filter = autoracer_localization.fixposition_seed_filter:main",
-            "kinematic_state_publisher = autoracer_localization.kinematic_state_publisher:main",
-            "manual_seed_pose_publisher = autoracer_localization.manual_seed_pose_publisher:main",
             "ndt_initial_pose_predictor = autoracer_localization.ndt_initial_pose_predictor:main",
             "ndt_startup_helper = autoracer_localization.ndt_startup_helper:main",
             "pose_tf_broadcaster = autoracer_localization.pose_tf_broadcaster:main",

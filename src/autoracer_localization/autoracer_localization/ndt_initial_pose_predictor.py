@@ -4,7 +4,6 @@ import math
 import rclpy
 from autoware_vehicle_msgs.msg import SteeringReport, VelocityReport
 from geometry_msgs.msg import PoseWithCovarianceStamped
-from rclpy.duration import Duration
 from rclpy.node import Node
 
 
@@ -59,7 +58,6 @@ class NdtInitialPosePredictor(Node):
         self.declare_parameter("max_prediction_step_sec", 0.2)
         self.declare_parameter("process_xy_noise_per_m", 0.02)
         self.declare_parameter("process_yaw_noise_per_s", 0.0025)
-        self.declare_parameter("output_stamp_offset_sec", 0.0)
 
         self._map_frame = self.get_parameter("map_frame").value
         self._wheel_base = float(self.get_parameter("wheel_base_m").value)
@@ -73,9 +71,6 @@ class NdtInitialPosePredictor(Node):
         )
         self._process_yaw_noise_per_s = float(
             self.get_parameter("process_yaw_noise_per_s").value
-        )
-        self._output_stamp_offset = Duration(
-            nanoseconds=int(float(self.get_parameter("output_stamp_offset_sec").value) * 1e9)
         )
 
         self._state = None
@@ -216,7 +211,7 @@ class NdtInitialPosePredictor(Node):
 
     def _state_to_msg(self, stamp):
         msg = PoseWithCovarianceStamped()
-        msg.header.stamp = (stamp + self._output_stamp_offset).to_msg()
+        msg.header.stamp = stamp.to_msg()
         msg.header.frame_id = self._map_frame
         msg.pose.pose.position.x = self._state["x"]
         msg.pose.pose.position.y = self._state["y"]
