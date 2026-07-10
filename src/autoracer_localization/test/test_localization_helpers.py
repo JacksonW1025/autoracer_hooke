@@ -47,11 +47,14 @@ def make_status(*, init=True, rtk=True):
 class LocalizationHelperTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        rclpy.init()
+        cls._owns_rclpy_context = not rclpy.ok()
+        if cls._owns_rclpy_context:
+            rclpy.init()
 
     @classmethod
     def tearDownClass(cls):
-        rclpy.shutdown()
+        if cls._owns_rclpy_context and rclpy.ok():
+            rclpy.shutdown()
 
     def test_fixposition_status_gate(self):
         self.assertTrue(_status_is_good(make_status(init=True, rtk=True)))
@@ -148,6 +151,21 @@ class LocalizationHelperTest(unittest.TestCase):
 
             msg = node._state_to_msg(now)
             self.assertAlmostEqual(_yaw_from_quaternion(msg.pose.pose.orientation), 0.0)
+        finally:
+            node.destroy_node()
+
+    def test_predictor_can_backdate_output_stamp_for_lidar_latency(self):
+        node = NdtInitialPosePredictor()
+        try:
+            now = node.get_clock().now()
+            node._output_stamp_offset = Duration(nanoseconds=-100_000_000)
+            node._on_seed_pose(make_pose(now, x=1.0))
+
+            msg = node._state_to_msg(now)
+
+            stamp = rclpy.time.Time.from_msg(msg.header.stamp)
+            self.assertAlmostEqual((now - stamp).nanoseconds / 1e9, 0.1, places=3)
+            self.assertAlmostEqual(msg.pose.pose.position.x, 1.0)
         finally:
             node.destroy_node()
 

@@ -12,6 +12,24 @@ def _clamp(value, lower, upper):
     return max(lower, min(upper, value))
 
 
+def clamp_target_speed(value, max_speed):
+    limit = abs(float(max_speed))
+    return _clamp(float(value), -limit, limit)
+
+
+def target_is_in_motion_direction(local_x, target_speed, epsilon=1e-4):
+    direction = -1.0 if float(target_speed) < -abs(epsilon) else 1.0
+    return direction * float(local_x) > 0.0
+
+
+def steering_for_local_target(local_x, local_y, target_speed, wheel_base_m, max_steer_rad):
+    lookahead_sq = max(local_x * local_x + local_y * local_y, 0.01)
+    direction = -1.0 if float(target_speed) < -1e-4 else 1.0
+    curvature = direction * 2.0 * local_y / lookahead_sq
+    steer = math.atan(float(wheel_base_m) * curvature)
+    return _clamp(steer, -abs(float(max_steer_rad)), abs(float(max_steer_rad)))
+
+
 def _yaw_from_quaternion(q):
     siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
     cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
@@ -111,7 +129,7 @@ class PurePursuitController(Node):
             self._trajectory[-1][1] - self._pose[1],
         )
         target_speed = 0.0 if goal_distance < self._goal_tolerance else target[2]
-        target_speed = _clamp(target_speed, 0.0, self._max_speed)
+        target_speed = clamp_target_speed(target_speed, self._max_speed)
         accel = _clamp(self._kp * (target_speed - self._speed), self._max_decel, self._max_accel)
 
         command.lateral.steering_tire_angle = steer
@@ -138,7 +156,7 @@ class PurePursuitController(Node):
             dy = self._trajectory[index][1] - self._pose[1]
             local_x = math.cos(self._pose[2]) * dx + math.sin(self._pose[2]) * dy
             distance = math.hypot(dx, dy)
-            if local_x > 0.0 and distance >= lookahead:
+            if target_is_in_motion_direction(local_x, self._trajectory[index][2]) and distance >= lookahead:
                 return index
         return len(self._trajectory) - 1
 
@@ -148,10 +166,13 @@ class PurePursuitController(Node):
         yaw = self._pose[2]
         local_x = math.cos(yaw) * dx + math.sin(yaw) * dy
         local_y = -math.sin(yaw) * dx + math.cos(yaw) * dy
-        lookahead_sq = max(local_x * local_x + local_y * local_y, 0.01)
-        curvature = 2.0 * local_y / lookahead_sq
-        steer = math.atan(self._wheel_base * curvature)
-        return _clamp(steer, -self._max_steer, self._max_steer)
+        return steering_for_local_target(
+            local_x,
+            local_y,
+            target[2],
+            self._wheel_base,
+            self._max_steer,
+        )
 
     def _publish_stop(self, command):
         command.longitudinal.velocity = 0.0
@@ -173,4 +194,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

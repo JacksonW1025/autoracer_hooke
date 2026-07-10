@@ -34,6 +34,16 @@ repositories:
     url: https://github.com/autowarefoundation/autoware_lanelet2_extension.git
     version: 38b5af5ac8121989e018ef6e48a1d508119e0128
 
+  src/external/autoware/autoware_rviz_plugins:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_rviz_plugins.git
+    version: b3d59795932ee08cad52de5f1981cb8ef9d6d37c
+
+  src/external/autoware/launcher:
+    type: git
+    url: https://github.com/autowarefoundation/autoware_launch.git
+    version: 0.50.0
+
   src/external/autoware/core:
     type: git
     url: https://github.com/tier4/autoware_core.git

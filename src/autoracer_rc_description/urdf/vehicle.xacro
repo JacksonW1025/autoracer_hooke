@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:property name="vehicle_info" value="${xacro.load_yaml('$(find autoracer_rc_description)/config/vehicle_info.param.yaml')}"/>
+  <xacro:property name="wheel_base" value="${vehicle_info['/**']['ros__parameters']['wheel_base']}"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="${wheel_base / 2.0} 0 0.135" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.83 0.58 0.27"/>
+      </geometry>
+      <material name="autoracer_body">
+        <color rgba="0.10 0.22 0.85 0.35"/>
+      </material>
+    </visual>
+  </link>
+</robot>

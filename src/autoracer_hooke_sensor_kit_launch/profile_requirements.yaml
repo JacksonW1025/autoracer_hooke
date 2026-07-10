@@ -1,0 +1,16 @@
+status: disabled_placeholder
+vehicle_model: autoracer_hooke
+sensor_model: autoracer_hooke_sensor_kit
+package_name: autoracer_hooke_sensor_kit_launch
+not_runtime_ready: true
+enable_guard: Remove COLCON_IGNORE only after the real Hooke sensing launch is present.
+owner: unassigned
+required_before_enable:
+  - sensing.launch.xml
+  - Hesai driver configuration
+  - Fixposition launch and topic mapping
+  - official pointcloud and IMU topic contracts
+  - validated sensor frame IDs and timestamps
+forbidden_shortcuts:
+  - Do not launch the RC C32 driver for Hooke.
+  - Do not add package.xml until this is a real buildable Autoware profile.

@@ -45,6 +45,14 @@ copy_from_pilot_repo() {
     "src/external/autoware/tier4_autoware_msgs"
   copy_dir "${pilot_repo}/src/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs" \
     "src/external/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs"
+  copy_dir "${pilot_repo}/src/autoware/autoware_adapi_msgs/autoware_adapi_version_msgs" \
+    "src/external/autoware/autoware_adapi_msgs/autoware_adapi_version_msgs"
+  copy_dir "${pilot_repo}/src/autoware/core/api/autoware_default_adapi" \
+    "src/external/autoware/core/api/autoware_default_adapi"
+  copy_dir "${pilot_repo}/src/autoware/core/api/autoware_adapi_adaptors" \
+    "src/external/autoware/core/api/autoware_adapi_adaptors"
+  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_global_parameter_loader" \
+    "src/external/autoware/core/common/autoware_global_parameter_loader"
   copy_dir "${pilot_repo}/src/autoware/core/common/autoware_vehicle_info_utils" \
     "src/external/autoware/core/common/autoware_vehicle_info_utils"
   copy_dir "${pilot_repo}/src/autoware/core/common/autoware_agnocast_wrapper" \
@@ -63,14 +71,36 @@ copy_from_pilot_repo() {
     "src/external/autoware/core/localization/autoware_ndt_scan_matcher"
   copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_loader" \
     "src/external/autoware/core/map/autoware_map_loader"
+  copy_dir "${pilot_repo}/src/autoware/core/map/autoware_lanelet2_map_visualizer" \
+    "src/external/autoware/core/map/autoware_lanelet2_map_visualizer"
   copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_projection_loader" \
     "src/external/autoware/core/map/autoware_map_projection_loader"
   copy_dir "${pilot_repo}/src/autoware/core/sensing/autoware_gnss_poser" \
     "src/external/autoware/core/sensing/autoware_gnss_poser"
   copy_dir "${pilot_repo}/src/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension" \
     "src/external/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension"
+  copy_dir "${pilot_repo}/src/autoware/autoware_rviz_plugins" \
+    "src/external/autoware/autoware_rviz_plugins"
+  copy_dir "${pilot_repo}/src/autoware/universe/system/autoware_default_adapi_universe" \
+    "src/external/autoware/autoware_universe/system/autoware_default_adapi_universe"
+  copy_dir "${pilot_repo}/src/autoware/universe/evaluator/autoware_evaluation_adapter" \
+    "src/external/autoware/autoware_universe/evaluator/autoware_evaluation_adapter"
+  copy_dir "${pilot_repo}/src/autoware/universe/map/autoware_map_tf_generator" \
+    "src/external/autoware/autoware_universe/map/autoware_map_tf_generator"
   copy_dir "${pilot_repo}/src/autoware/universe/common/tier4_api_utils" \
     "src/external/autoware/universe/common/tier4_api_utils"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_control_mode_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_control_mode_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_adapi_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_adapi_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_datetime_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_datetime_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_planning_factor_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_planning_factor_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_state_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_state_rviz_plugin"
+  copy_dir "${pilot_repo}/src/autoware/universe/visualization/tier4_vehicle_rviz_plugin" \
+    "src/external/autoware/universe/visualization/tier4_vehicle_rviz_plugin"
   copy_dir "${pilot_repo}/src/vendor/nebula" \
     "src/external/vendor/nebula"
   copy_dir "${pilot_repo}/src/vendor/sync_tooling_msgs" \

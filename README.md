@@ -1,114 +1,191 @@
-# Autoracer Hooke
+# Ackermann Autoware
 
-Minimal ROS 2 workspace for closed-track autonomous driving on the Hooke2 chassis.
+Autoware integration workspace for Ackermann vehicle platforms.
 
-This workspace intentionally does not launch the full Autoware stack. It uses selected
-Autoware packages as libraries and keeps the vehicle task small:
+This repository maintains platform profiles, sensor-kit profiles, chassis
+adapters, safety boundaries, runtime scripts, mapping workflow, and interface
+documentation for RC and Hooke vehicles. RC and Hooke are first-class platform
+targets. Shared autonomy behavior stays behind official Autoware topic,
+message, frame, parameter, and diagnostics contracts; platform-specific facts
+belong in profiles and adapters.
 
-```text
-Pandar LiDAR + Fixposition + Hooke2 vehicle feedback
-  -> PCD/Lanelet2 map
-  -> LiDAR/GNSS localization
-  -> Lanelet centerline route
-  -> Pure pursuit + longitudinal PID
-  -> safety command gate
-  -> /control/command/control_cmd
-  -> hooke2_interface
-  -> CAN
+## Platform Targets
+
+| Platform | Vehicle profile | Sensor-kit profile | Status |
+| --- | --- | --- | --- |
+| RC Ackermann | `autoracer_rc` | `autoracer_rc_sensor_kit` | Active platform profile. |
+| Hooke | `autoracer_hooke` | `autoracer_hooke_sensor_kit` | Integration pending; placeholders are guarded by `COLCON_IGNORE`. |
+
+Platform status is versioned per commit. A repository revision may support one
+platform at runtime, multiple platforms at runtime, or no platform at runtime
+while shared interfaces are being changed. The status table is the coordination
+surface for that state; it describes current integration readiness without
+changing the long-term target list.
+
+Current branch status:
+
+- RC: active runtime profile and primary development path.
+- Hooke: profile integration pending; on-car validation is not available in the
+  current development environment.
+
+The active runtime path is the official Autoware launch path:
+
+```bash
+ros2 launch autoware_launch autoware.launch.xml \
+  vehicle_model:=autoracer_rc \
+  sensor_model:=autoracer_rc_sensor_kit \
+  launch_vehicle_interface:=false \
+  launch_perception:=false \
+  rviz:=false
 ```
+
+The RC operator wrappers under `scripts/rc/` call the same official launch path
+and add field checks, runtime defaults, and controlled shutdown.
 
 ## Repository Layout
 
 ```text
-autoracer.repos            Dependency manifest for selected external packages.
-defaults.env               Runtime defaults used by scripts/run_track.sh.
-docs/                      Bringup and calibration notes.
-maps/                      Local map directory placeholder.
-scripts/                   Import, build, run, and smoke-test helpers.
-src/autoracer_bringup      Top-level launches and Hooke2 configuration.
-src/autoracer_description  Minimal Hooke2 frames and static TF launch.
-src/autoracer_localization Localization helper nodes.
-src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
-src/autoracer_planning     Lanelet route and trajectory node.
-src/autoracer_control      Pure pursuit controller.
-src/autoracer_safety       Final command gate before the vehicle interface.
-src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
-src/hooke2_vehicle         Vendored Hooke2 interface, launch, and description.
-src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
+autoracer.repos             Dependency manifest for selected external packages.
+defaults.env                Runtime defaults shared by operator wrappers.
+docs/                       Current architecture, development, operation, and reference docs.
+docs/architecture/          Direct-open node/topic/dataflow architecture views.
+maps/                       Local map directory placeholder.
+scripts/                    Import, build, run, and smoke-test helpers.
+scripts/common/             Shared helper boundary; no vehicle-specific facts.
+scripts/rc/                 RC operator entrypoints.
+scripts/hooke/              Hooke handoff entrypoints; fail fast until the profile is enabled.
+src/external/autoware       Pinned upstream Autoware packages; keep patches explicit.
+src/autoracer_rc_*          RC vehicle and sensor-kit profiles.
+src/autoracer_hooke_*       Hooke vehicle and sensor-kit profile placeholders.
+src/autoracer_description   Shared frames, URDF helpers, and static TF assets.
+src/autoracer_sensing       Small sensor adapters used by platform profiles.
+src/autoracer_safety        Final command gate before chassis adapters.
+src/autoracer_vehicle_interface
+                             Chassis adapters and vehicle status bridges.
+src/autoracer_localization  Localization adapters that preserve official topic contracts.
+src/autoracer_planning      Local algorithm packages; not hidden default launch glue.
+src/autoracer_control       Local controller packages; not hidden default launch glue.
+src/hardware_drivers        Vendored SocketCAN driver material used by Hooke integration.
+src/hooke2_vehicle          Vendored Hooke vehicle reference material.
+src/wd_msgs                 Vendored Hooke chassis messages and byte helpers.
 ```
 
-## First Bringup
+## Documentation
+
+```text
+docs/development_guide_zh.md                     Platform development contract.
+docs/architecture_zh.md                          Runtime system architecture and data flow.
+docs/architecture/rc_official_runtime_graph.html Direct-open nodeviewer-style RC runtime graph.
+docs/operations/rc_runbook_zh.md                 RC on-car startup and validation flow.
+docs/operations/mapping_workflow_zh.md           Mapping and bag workflow.
+docs/reference/interfaces_and_calibration_zh.md  Topic, frame, adapter, and calibration facts.
+```
+
+Documentation responsibilities:
+
+| Scope | Owner document |
+| --- | --- |
+| Repository purpose, target platforms, package layout | `README.md` |
+| Platform development rules and package responsibilities | `docs/development_guide_zh.md` |
+| Runtime Autoware system boundaries and data flow | `docs/architecture_zh.md` |
+| On-car commands and field procedure | `docs/operations/*.md` |
+| Topic, frame, parameter, and calibration facts | `docs/reference/interfaces_and_calibration_zh.md` |
+
+## Build
 
 ```bash
-cd /home/corage/workspace/project/autoracer-hooke
+cd <repo>
 ./scripts/import_dependencies.sh
 ./scripts/install_rosdeps.sh
 ./scripts/build_minimal.sh
 source ./scripts/ros_env.sh
 ```
 
-When developing beside the old repository, dependencies can be copied locally instead
-of fetched:
+Desktop/RViz plugin dependencies on a fresh Ubuntu 22.04 + ROS Humble host:
 
 ```bash
-IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
+sudo apt install -y \
+  libpng++-dev \
+  libpng-dev \
+  nlohmann-json3-dev \
+  qtbase5-dev \
+  ros-humble-autoware-motion-utils \
+  ros-humble-foxglove-bridge \
+  ros-humble-rviz-2d-overlay-msgs \
+  ros-humble-rviz-2d-overlay-plugins \
+  ros-humble-xacro \
+  libprotobuf-dev \
+  protobuf-compiler \
+  libpcap-dev
 ```
 
-Bench validation for the current hardware stage:
+On resource-constrained onboard compute:
 
 ```bash
-IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
-./scripts/build_bench.sh
-./scripts/verify_sensing_feedback.sh
+COLCON_PARALLEL_WORKERS=1 MAKEFLAGS="-j2 -l2" ./scripts/build_minimal.sh
 ```
 
-Lightweight LiDAR visualization:
+## Runtime Contract
 
-```bash
-./scripts/run_lidar_rviz.sh
-```
-
-Map-only RViz check:
-
-```bash
-./scripts/run_map_rviz.sh
-```
-
-Mock LiDAR NDT localization check:
-
-```bash
-./scripts/run_mock_lidar_record_scenario.sh
-./scripts/run_mock_lidar_ndt_rviz.sh
-```
-
-Prepare a map directory containing:
+The platform side must preserve these shared Autoware surfaces:
 
 ```text
-lanelet2_map.osm
-pointcloud_map.pcd
-pointcloud_map_metadata.yaml
-map_projector_info.yaml
+/sensing/lidar/concatenated/pointcloud
+/sensing/imu/imu_data
+/localization/pose_with_covariance
+/localization/kinematic_state
+/planning/trajectory
+/control/command/control_cmd
+/autoracer/control/safe_control_cmd
+/vehicle/status/*
 ```
 
-Dry run, without sending effective drive commands:
+Chassis adapters must consume gated control commands, publish official vehicle
+status topics, and keep raw transport details inside the adapter boundary.
+
+Runtime host IPs, SSH credentials, and machine-local serial device names are not
+architecture facts. Pass them through environment variables such as `MAP_PATH`,
+`SERIAL_PORT`, `IMU_SERIAL_PORT`, and the `LIDAR_*` settings.
+
+## RC Startup
+
+Map/replay checks without the chassis adapter:
 
 ```bash
-MAP_PATH=/path/to/map ./scripts/run_track.sh
+MAP_PATH=/path/to/map LAUNCH_VEHICLE_INTERFACE=false ./scripts/rc/rc_start_autoware.sh
 ```
 
-Low-speed vehicle run after calibration and bench validation:
+Full RC startup with RViz on a machine attached to a display:
 
 ```bash
-MAP_PATH=/path/to/map ENABLE_DRIVE_COMMANDS=true MAX_SPEED_MPS=1.5 ./scripts/run_track.sh
+MAP_PATH=/path/to/map \
+SERIAL_PORT=/dev/ttyCH343USB0 \
+LAUNCH_RVIZ=true \
+ENABLE_DRIVE_COMMANDS=false \
+./scripts/rc/rc_start_autoware.sh
+```
+
+Low-speed run after TF, localization, steering direction, velocity sign, stop
+behavior, and takeover behavior are verified:
+
+```bash
+MAP_PATH=/path/to/map \
+SERIAL_PORT=/dev/ttyCH343USB0 \
+ENABLE_DRIVE_COMMANDS=true \
+./scripts/rc/rc_start_autoware.sh
+
 ./scripts/request_autonomous_mode.sh
 ```
 
-## Default Safety Position
+Stop RC Autoware processes:
 
-The default launch keeps `enable_drive_commands` false. The controller and planner
-will run, but the safety gate publishes stop commands to the real vehicle command topic.
-Switch it to true only after TF, steering, velocity, localization, and CAN direction are
-verified.
+```bash
+./scripts/rc/rc_stop.sh
+```
 
-The helper scripts source `install/local_setup.bash` through `scripts/ros_env.sh` so this
-workspace does not accidentally run packages from `/home/corage/workspace/project/pilot-auto.x1`.
+## Safety Default
+
+`ENABLE_DRIVE_COMMANDS=false` is the default. In this mode the official
+Autoware planning/control chain may run, but the safety gate publishes stop
+commands to `/autoracer/control/safe_control_cmd`. Set it to true only during a
+controlled low-speed validation run.

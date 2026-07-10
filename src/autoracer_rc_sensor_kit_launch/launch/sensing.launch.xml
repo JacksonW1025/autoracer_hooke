@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <arg name="launch_driver" default="true"/>
+  <arg name="vehicle_mirror_param_file" default="$(find-pkg-share autoracer_rc_description)/config/mirror.param.yaml"/>
+  <arg name="pointcloud_container_name" default="pointcloud_container"/>
+  <arg name="launch_imu" default="$(env LAUNCH_IMU true)"/>
+  <arg name="imu_serial_port" default="$(env IMU_SERIAL_PORT /dev/ttyUSB0)"/>
+  <arg name="imu_baudrate" default="$(env IMU_BAUDRATE 115200)"/>
+  <arg name="launch_pointcloud_filter" default="$(env LAUNCH_POINTCLOUD_FILTER true)"/>
+
+  <group if="$(var launch_driver)">
+    <node pkg="lslidar_driver" exec="lslidar_driver_node" namespace="cx" name="lslidar_driver_node" output="screen">
+      <param from="$(find-pkg-share autoracer_rc_sensor_kit_launch)/config/lslidar_cx.yaml"/>
+    </node>
+
+    <node pkg="autoracer_sensing" exec="pointcloud_voxel_filter" name="pointcloud_voxel_filter" output="screen" if="$(var launch_pointcloud_filter)">
+      <param name="input_topic" value="/sensing/lidar/concatenated/pointcloud"/>
+      <param name="output_topic" value="/sensing/lidar/filtered/pointcloud"/>
+      <param name="leaf_size_m" value="$(env POINTCLOUD_FILTER_LEAF_SIZE_M 0.25)"/>
+      <param name="min_range_m" value="$(env POINTCLOUD_FILTER_MIN_RANGE_M 0.15)"/>
+      <param name="max_range_m" value="$(env POINTCLOUD_FILTER_MAX_RANGE_M 60.0)"/>
+      <param name="max_points" value="$(env POINTCLOUD_FILTER_MAX_POINTS 1500)"/>
+    </node>
+
+    <node pkg="hipnuc_imu" exec="talker" name="IMU_publisher" output="screen" if="$(var launch_imu)">
+      <param name="serial_port" value="$(var imu_serial_port)"/>
+      <param name="baud_rate" value="$(var imu_baudrate)"/>
+      <param name="frame_id" value="imu_link"/>
+      <param name="imu_topic" value="/sensing/imu/imu_data_raw"/>
+    </node>
+
+    <node pkg="imu_filter_madgwick" exec="imu_filter_madgwick_node" name="imu_filter_madgwick_node" output="screen" if="$(var launch_imu)">
+      <param from="$(find-pkg-share autoracer_rc_sensor_kit_launch)/config/imu_filter_madgwick.yaml"/>
+      <remap from="imu/data_raw" to="/sensing/imu/imu_data_raw"/>
+      <remap from="imu/data" to="/sensing/imu/imu_data"/>
+    </node>
+  </group>
+</launch>
