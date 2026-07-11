@@ -5,11 +5,16 @@ from geometry_msgs.msg import Pose
 
 from autoracer_planning.local_trajectory_planner import (
     LocalPlannerConfig,
+    arrival_conditions_met,
+    build_local_from_prepared,
     build_local_trajectory,
     _is_shutdown_rcl_error,
+    prepare_global_trajectory,
     resample_points,
     sanitize_points,
     select_monotonic_nearest_index,
+    select_progress_index,
+    source_stamp_is_fresh,
     slice_points_around_ego,
 )
 
@@ -93,6 +98,33 @@ def test_select_monotonic_nearest_index_ignores_far_duplicate_crossing():
     assert nearest == 2
 
 
+def test_select_monotonic_nearest_index_never_moves_backward():
+    points = [_point(float(x), 0.0) for x in range(20)]
+
+    nearest = select_monotonic_nearest_index(
+        points,
+        ego_pose=_pose(1.0, 0.0),
+        previous_nearest_index=5,
+        max_forward_distance_m=10.0,
+    )
+
+    assert nearest == 5
+
+
+def test_progress_selection_fails_closed_outside_position_or_heading_gate():
+    prepared = prepare_global_trajectory(
+        _trajectory([(float(x), 0.0, 5.0, 0.0) for x in range(40)])
+    )
+    config = LocalPlannerConfig(
+        initial_search_distance_m=30.0,
+        nearest_position_gate_m=3.0,
+        heading_gate_rad=math.radians(30.0),
+    )
+
+    assert select_progress_index(prepared, _pose(0.0, 0.0, math.pi), None, config) is None
+    assert select_progress_index(prepared, _pose(100.0, 0.0), None, config) is None
+
+
 def test_resample_points_uses_fixed_distance_interval():
     points = [_point(0.0, 0.0), _point(3.0, 0.0)]
 
@@ -152,7 +184,54 @@ def test_build_local_trajectory_reduces_speed_on_curves():
     assert min(speeds[1:-1]) < config.max_speed_mps
 
 
+def test_nonterminal_local_window_keeps_forward_yaw_and_nonzero_end_speed():
+    config = LocalPlannerConfig(
+        lookahead_distance_m=20.0,
+        backward_distance_m=0.0,
+        max_speed_mps=5.0,
+    )
+    global_trajectory = _trajectory(
+        [(float(x), 0.0, 5.0, 0.0) for x in range(101)]
+    )
+    prepared = prepare_global_trajectory(global_trajectory)
+
+    local, nearest, includes_goal = build_local_from_prepared(
+        prepared,
+        ego_pose=_pose(0.0, 0.0),
+        current_speed_mps=5.0,
+        config=config,
+    )
+
+    assert nearest == 0
+    assert includes_goal is False
+    assert local.points[-1].longitudinal_velocity_mps > 0.0
+    assert abs(local.points[-1].pose.orientation.z) < 1e-9
+    assert local.points[-1].pose.orientation.w > 0.0
+
+
+def test_arrival_requires_endpoint_position_progress_and_low_speed():
+    prepared = prepare_global_trajectory(
+        _trajectory([(float(x), 0.0, 1.0, 0.0) for x in range(11)])
+    )
+
+    assert arrival_conditions_met(prepared, 10, _pose(10.0, 0.0), 0.05, 2.0, 0.1)
+    assert not arrival_conditions_met(
+        prepared, 10, _pose(10.0, 0.0), 1.0, 2.0, 0.1
+    )
+    assert not arrival_conditions_met(
+        prepared, 8, _pose(5.0, 0.0), 0.05, 2.0, 0.1
+    )
+
+
 def test_shutdown_rcl_error_matches_invalid_publisher_context():
     exc = RuntimeError("Failed to publish: publisher's context is invalid")
 
     assert _is_shutdown_rcl_error(exc)
+
+
+def test_source_stamp_freshness_is_fail_closed():
+    assert source_stamp_is_fresh(9.8, 10.0, 0.35)
+    assert source_stamp_is_fresh(10.04, 10.0, 0.35)
+    assert not source_stamp_is_fresh(9.6, 10.0, 0.35)
+    assert not source_stamp_is_fresh(10.06, 10.0, 0.35)
+    assert not source_stamp_is_fresh(math.nan, 10.0, 0.35)

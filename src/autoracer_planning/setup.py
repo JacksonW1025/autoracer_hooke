@@ -9,20 +9,20 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", [f"resource/{package_name}"]),
         (f"share/{package_name}", ["package.xml"]),
-        (f"share/{package_name}/launch", ["launch/planning.launch.py"]),
+        (f"share/{package_name}/launch", ["launch/fixed_course_planning.launch.py"]),
     ],
     install_requires=["setuptools"],
     tests_require=["pytest"],
     zip_safe=True,
     maintainer="Autoracer Team",
     maintainer_email="autoracer@example.com",
-    description="Lanelet route and trajectory generation for closed-track driving.",
+    description="Validated fixed-course trajectory generation for closed-track driving.",
     license="Apache-2.0",
     entry_points={
         "console_scripts": [
-            "lanelet_route_planner = autoracer_planning.lanelet_route_planner:main",
             "local_trajectory_planner = autoracer_planning.local_trajectory_planner:main",
-            "route_goal_publisher = autoracer_planning.route_goal_publisher:main",
+            "fixed_course_publisher = autoracer_planning.fixed_course_publisher:main",
+            "build_fixed_course = autoracer_planning.fixed_course:main",
         ],
     },
 )

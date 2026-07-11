@@ -65,11 +65,24 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "vehicle_info_param_file",
-                default_value="src/autoracer_bringup/config/hooke2/vehicle_info.param.yaml",
+                default_value=PathJoinSubstitution(
+                    [
+                        FindPackageShare("autoracer_control"),
+                        "config",
+                        "urbanroad_sim",
+                        "vehicle_info.param.yaml",
+                    ]
+                ),
             ),
             DeclareLaunchArgument(
                 "race_param_file",
-                default_value="src/autoracer_control/config/race_controller.param.yaml",
+                default_value=PathJoinSubstitution(
+                    [
+                        FindPackageShare("autoracer_control"),
+                        "config",
+                        "race_controller.param.yaml",
+                    ]
+                ),
             ),
             Node(
                 package="autoware_trajectory_follower_node",

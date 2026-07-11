@@ -30,12 +30,15 @@ def test_race_control_launch_declares_contract_arguments_and_remaps_all_io():
         "accel_topic": "/localization/acceleration",
         "operation_mode_topic": "/system/operation_mode/state",
         "raw_control_topic": "/autoracer/control/raw_control_cmd",
-        "vehicle_info_param_file": "src/autoracer_bringup/config/hooke2/vehicle_info.param.yaml",
-        "race_param_file": "src/autoracer_control/config/race_controller.param.yaml",
     }
     for name, default in expected_arguments.items():
         assert name in source
         assert default in source
+
+    assert 'FindPackageShare("autoracer_control")' in source
+    assert '"urbanroad_sim"' in source
+    assert '"vehicle_info.param.yaml"' in source
+    assert '"race_controller.param.yaml"' in source
 
     expected_remaps = {
         "~/input/reference_trajectory": "reference_trajectory_topic",
@@ -89,6 +92,7 @@ def test_autoracer_control_packaging_installs_bench_assets_and_dependencies():
         "race_control.launch.py",
         "race_control_bench.launch.py",
         "race_controller.param.yaml",
+        "config/urbanroad_sim/vehicle_info.param.yaml",
     ):
         assert asset in setup_source
 

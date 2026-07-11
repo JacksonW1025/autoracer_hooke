@@ -11,6 +11,9 @@ config_files = [
     "config/race_controller.param.yaml",
     "config/race_controller.closed_loop_candidate.param.yaml",
 ]
+urbanroad_sim_config_files = [
+    "config/urbanroad_sim/vehicle_info.param.yaml",
+]
 
 setup(
     name=package_name,
@@ -21,6 +24,7 @@ setup(
         (f"share/{package_name}", ["package.xml"]),
         (f"share/{package_name}/launch", launch_files),
         (f"share/{package_name}/config", config_files),
+        (f"share/{package_name}/config/urbanroad_sim", urbanroad_sim_config_files),
     ],
     install_requires=["setuptools"],
     zip_safe=True,

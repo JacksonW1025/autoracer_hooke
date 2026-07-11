@@ -26,11 +26,7 @@ def _workspace_root():
 
 def generate_launch_description():
     default_map_path = str(
-        _workspace_root().parent
-        / "SimProject_TianmenRace"
-        / "logs"
-        / "ndt_tiled_map_route271_20260602_031639"
-        / "tile20"
+        _workspace_root() / "maps" / "urbanroad_route271_20260710"
     )
     map_path = LaunchConfiguration("localization_map_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
@@ -41,7 +37,6 @@ def generate_launch_description():
     )
 
     map_projector_info = PathJoinSubstitution([map_path, "map_projector_info.yaml"])
-    lanelet2_map = PathJoinSubstitution([map_path, "lanelet2_map.osm"])
     pointcloud_metadata = PathJoinSubstitution([map_path, "pointcloud_map_metadata.yaml"])
 
     localization_launch = PathJoinSubstitution(
@@ -70,7 +65,7 @@ def generate_launch_description():
             parameters=[
                 {
                     "map_projector_info_path": map_projector_info,
-                    "lanelet2_map_path": lanelet2_map,
+                    "lanelet2_map_path": "",
                 }
             ],
         ),
