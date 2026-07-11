@@ -34,7 +34,6 @@ def generate_launch_description():
     )
     map_path = LaunchConfiguration("localization_map_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
-    raw_input_pointcloud = LaunchConfiguration("raw_input_pointcloud")
     input_pointcloud = LaunchConfiguration("input_pointcloud")
     initial_pose = LaunchConfiguration("initial_pose")
     localization_pointcloud_container_name = LaunchConfiguration(
@@ -157,21 +156,55 @@ def generate_launch_description():
         ),
         Node(
             package="autoracer_sensing",
-            executable="pointcloud_xyzi_to_xyzirc",
-            name="carmaker_pointcloud_xyzi_to_xyzirc",
-            output="screen",
-            parameters=[
-                {
-                    "input_topic": raw_input_pointcloud,
-                    "output_topic": input_pointcloud,
-                }
-            ],
-        ),
-        Node(
-            package="autoracer_sensing",
             executable="localization_adapi_bridge",
             name="localization_adapi_bridge",
             output="screen",
+            parameters=[
+                {
+                    "min_initialize_stamp_sec": ParameterValue(
+                        EnvironmentVariable(
+                            "CM_LOCALIZATION_AUTO_INIT_MIN_STAMP_SEC",
+                            default_value="6.0",
+                        ),
+                        value_type=float,
+                    ),
+                    "max_auto_retry_attempts": ParameterValue(
+                        EnvironmentVariable(
+                            "CM_LOCALIZATION_AUTO_RETRY_MAX_ATTEMPTS",
+                            default_value="1",
+                        ),
+                        value_type=int,
+                    ),
+                    "auto_retry_max_gnss_xy_m": ParameterValue(
+                        EnvironmentVariable(
+                            "CM_LOCALIZATION_AUTO_RETRY_MAX_GNSS_XY_M",
+                            default_value="0.0",
+                        ),
+                        value_type=float,
+                    ),
+                    "auto_retry_max_gnss_yaw_deg": ParameterValue(
+                        EnvironmentVariable(
+                            "CM_LOCALIZATION_AUTO_RETRY_MAX_GNSS_YAW_DEG",
+                            default_value="0.0",
+                        ),
+                        value_type=float,
+                    ),
+                    "auto_retry_delay_sec": ParameterValue(
+                        EnvironmentVariable(
+                            "CM_LOCALIZATION_AUTO_RETRY_DELAY_SEC",
+                            default_value="0.2",
+                        ),
+                        value_type=float,
+                    ),
+                    "auto_retry_initialpose_timeout_sec": ParameterValue(
+                        EnvironmentVariable(
+                            "CM_LOCALIZATION_AUTO_RETRY_INITIALPOSE_TIMEOUT_SEC",
+                            default_value="3.0",
+                        ),
+                        value_type=float,
+                    ),
+                }
+            ],
         ),
         IncludeLaunchDescription(
             AnyLaunchDescriptionSource(localization_launch),
@@ -251,12 +284,8 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument("use_sim_time", default_value="true"),
             DeclareLaunchArgument(
-                "raw_input_pointcloud",
-                default_value="/sensing/lidar/concatenated/pointcloud",
-            ),
-            DeclareLaunchArgument(
                 "input_pointcloud",
-                default_value="/sensing/lidar/concatenated/pointcloud_xyzirc",
+                default_value="/sensing/lidar/concatenated/pointcloud",
             ),
             DeclareLaunchArgument(
                 "localization_pointcloud_container_name",

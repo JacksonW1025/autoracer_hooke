@@ -97,6 +97,15 @@ class LaneletRoutePlanner(Node):
         with projector_path.open("r", encoding="utf-8") as stream:
             projector_info = yaml.safe_load(stream) or {}
         projector_type = projector_info.get("projector_type", "")
+        local_centerline = self._try_load_local_centerline(osm_path)
+        if local_centerline is not None:
+            self._local_centerline = local_centerline
+            self.get_logger().info(
+                f"Loaded local_xy Lanelet2 route corridor: {osm_path} "
+                f"projector_type={projector_type} points={len(self._local_centerline)}"
+            )
+            return
+
         if projector_type == "Local":
             self._local_centerline = self._load_local_centerline(osm_path)
             self.get_logger().info(
@@ -161,6 +170,12 @@ class LaneletRoutePlanner(Node):
                     return centerline
 
         raise RuntimeError(f"Local lanelet2_map.osm does not contain a centerline way: {osm_path}")
+
+    def _try_load_local_centerline(self, osm_path):
+        try:
+            return self._load_local_centerline(osm_path)
+        except RuntimeError:
+            return None
 
     def _on_current_pose(self, msg):
         self._current_pose = msg.pose.pose

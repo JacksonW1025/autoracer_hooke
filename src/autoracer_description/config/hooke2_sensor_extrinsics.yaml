@@ -1,10 +1,13 @@
 transforms:
   # Old Hooke2/X1 sensor heights were ground-referenced.
   # Convert them into the vehicle base_link frame by subtracting wheel_radius=0.313 m.
+  # CarMaker LidarRSI Sensor.2.rot is +90deg yaw relative to Fr1A/base_link.
+  # Runtime pointclouds are already published in base_link, but keeping this
+  # static TF aligned avoids contradictory diagnostics/tools.
   - parent: base_link
     child: lidar_top_base_link
     translation: {x: 1.90, y: 0.0, z: 1.337}
-    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 1.57079632679}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 1.5707963267948966}
 
   - parent: lidar_top_base_link
     child: lidar_top
