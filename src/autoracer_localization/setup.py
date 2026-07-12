@@ -37,6 +37,8 @@ setup(
             "autoracer_localization.startup_pose_initializer_once:main",
             "ndt_axis_seed_fuser = autoracer_localization.ndt_axis_seed_fuser:main",
             "ndt_initial_pose_predictor = autoracer_localization.ndt_initial_pose_predictor:main",
+            "ndt_pose_consistency_guard = "
+            "autoracer_localization.ndt_pose_consistency_guard:main",
             "pure_lidar_fixed_lag_tracker = "
             "autoracer_localization.pure_lidar_fixed_lag_tracker:main",
             "candidate_observer = autoracer_localization.candidate_observer:main",

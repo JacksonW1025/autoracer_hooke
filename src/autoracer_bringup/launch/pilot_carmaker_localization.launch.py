@@ -3,8 +3,14 @@ from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource, PythonLaunchDescriptionSource
-from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    EnvironmentVariable,
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node, SetParameter
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -34,6 +40,22 @@ def generate_launch_description():
     initial_pose = LaunchConfiguration("initial_pose")
     localization_pointcloud_container_name = LaunchConfiguration(
         "localization_pointcloud_container_name"
+    )
+    enable_ndt_pose_guard = LaunchConfiguration("enable_ndt_pose_guard")
+    ndt_raw_pose_topic = (
+        "/localization/pose_estimator/ndt_scan_matcher/pose_with_covariance"
+    )
+    ekf_input_pose_topic = "/localization/pose_estimator/pose_with_covariance"
+    ndt_output_pose_topic = PythonExpression(
+        [
+            "'",
+            ndt_raw_pose_topic,
+            "' if '",
+            enable_ndt_pose_guard,
+            "' == 'true' else '",
+            ekf_input_pose_topic,
+            "'",
+        ]
     )
 
     map_projector_info = PathJoinSubstitution([map_path, "map_projector_info.yaml"])
@@ -212,6 +234,7 @@ def generate_launch_description():
                 "localization_pointcloud_container_name": (
                     localization_pointcloud_container_name
                 ),
+                "ndt_output_pose_with_covariance_topic": ndt_output_pose_topic,
                 "ndt_scan_matcher/ndt_scan_matcher_param_path": _localization_param(
                     "ndt_scan_matcher", "ndt_scan_matcher.param.yaml"
                 ),
@@ -265,6 +288,44 @@ def generate_launch_description():
                 ),
             }.items(),
         ),
+        Node(
+            package="autoracer_localization",
+            executable="ndt_pose_consistency_guard",
+            name="ndt_pose_consistency_guard_shadow",
+            output="screen",
+            condition=UnlessCondition(enable_ndt_pose_guard),
+            parameters=[
+                _localization_param("ndt_pose_consistency_guard.param.yaml"),
+                {
+                    "input_pose_topic": ekf_input_pose_topic,
+                    "output_pose_topic": (
+                        "/localization/ndt_pose_consistency_guard/shadow_pose"
+                    ),
+                    "status_topic": (
+                        "/localization/ndt_pose_consistency_guard/shadow_status"
+                    ),
+                    "enable_ndt_relocalization": False,
+                }
+            ],
+        ),
+        Node(
+            package="autoracer_localization",
+            executable="ndt_pose_consistency_guard",
+            name="ndt_pose_consistency_guard",
+            output="screen",
+            condition=IfCondition(enable_ndt_pose_guard),
+            parameters=[
+                _localization_param("ndt_pose_consistency_guard.param.yaml"),
+                {
+                    "input_pose_topic": ndt_raw_pose_topic,
+                    "output_pose_topic": ekf_input_pose_topic,
+                    "status_topic": (
+                        "/localization/ndt_pose_consistency_guard/status"
+                    ),
+                    "enable_ndt_relocalization": True,
+                }
+            ],
+        ),
     ]
 
     return LaunchDescription(
@@ -285,6 +346,15 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "localization_pointcloud_container_name",
                 default_value="/pointcloud_container",
+            ),
+            DeclareLaunchArgument(
+                "enable_ndt_pose_guard",
+                default_value="false",
+                choices=["true", "false"],
+                description=(
+                    "Route raw NDT observations through the wheel/IMU consistency "
+                    "guard before EKF fusion."
+                ),
             ),
             DeclareLaunchArgument("initial_pose", default_value="[]"),
             GroupAction(runtime_actions),

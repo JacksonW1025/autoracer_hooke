@@ -67,7 +67,18 @@ def test_scenario_specs_keep_smoke_and_add_v15_full_validation():
         "arc_r20_90deg_v1",
         "s_curve_100m_v1",
         "speed_step_120m_v1",
+        "straight_120m_v3",
+        "arc_r30_90deg_v3",
+        "s_curve_120m_v3",
+        "straight_160m_v5",
+        "arc_r40_90deg_v5",
+        "s_curve_160m_v5",
     } <= set(FULL_VALIDATION_SCENARIOS)
+
+    for name in FULL_VALIDATION_SCENARIOS:
+        spec = get_scenario_spec(name)
+        assert spec.max_speed <= 5.2
+        assert spec.completion_threshold >= 0.98
 
     straight = get_scenario_spec("straight_120m_v1")
     speed_step = get_scenario_spec("speed_step_120m_v1")

@@ -29,7 +29,7 @@ def test_race_control_launch_declares_contract_arguments_and_remaps_all_io():
         "steering_topic": "/vehicle/status/steering_status",
         "accel_topic": "/localization/acceleration",
         "operation_mode_topic": "/system/operation_mode/state",
-        "raw_control_topic": "/autoracer/control/raw_control_cmd",
+        "raw_control_topic": "/control/trajectory_follower/control_cmd",
     }
     for name, default in expected_arguments.items():
         assert name in source

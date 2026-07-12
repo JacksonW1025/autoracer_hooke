@@ -15,12 +15,18 @@ def generate_launch_description():
     localization_map_path = LaunchConfiguration("localization_map_path")
     course_path = LaunchConfiguration("course_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
+    enable_ndt_pose_guard = LaunchConfiguration("enable_ndt_pose_guard")
 
     return LaunchDescription(
         [
             DeclareLaunchArgument("localization_map_path"),
             DeclareLaunchArgument("course_path"),
             DeclareLaunchArgument("use_sim_time", default_value="true"),
+            DeclareLaunchArgument(
+                "enable_ndt_pose_guard",
+                default_value="false",
+                choices=["true", "false"],
+            ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _launch_file(
@@ -30,6 +36,7 @@ def generate_launch_description():
                 launch_arguments={
                     "localization_map_path": localization_map_path,
                     "use_sim_time": use_sim_time,
+                    "enable_ndt_pose_guard": enable_ndt_pose_guard,
                 }.items(),
             ),
             IncludeLaunchDescription(

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import math
 import time
 
-from autoware_internal_planning_msgs.msg import VelocityLimit, VelocityLimitClearCommand
 from autoware_adapi_v1_msgs.msg import LocalizationInitializationState
 from autoware_planning_msgs.msg import RouteState, Trajectory, TrajectoryPoint
 from builtin_interfaces.msg import Duration
@@ -37,6 +36,7 @@ class LocalPlannerConfig:
     z_gate_m: float = 3.0
     command_latency_sec: float = 0.2
     stopping_margin_m: float = 5.0
+    departure_speed_mps: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -340,10 +340,6 @@ class LocalTrajectoryPlanner(Node):
         self.declare_parameter("trajectory_topic", "/planning/trajectory")
         self.declare_parameter("route_state_topic", "/planning/route_state")
         self.declare_parameter("marker_topic", "/planning/local_trajectory_marker")
-        self.declare_parameter("velocity_limit_topic", "/planning/race_guard/velocity_limit")
-        self.declare_parameter(
-            "velocity_limit_clear_topic", "/planning/race_guard/velocity_limit_clear"
-        )
         self.declare_parameter("publish_rate_hz", 10.0)
         self.declare_parameter("lookahead_distance_m", 40.0)
         self.declare_parameter("backward_distance_m", 2.0)
@@ -361,6 +357,7 @@ class LocalTrajectoryPlanner(Node):
         self.declare_parameter("z_gate_m", 3.0)
         self.declare_parameter("command_latency_sec", 0.2)
         self.declare_parameter("stopping_margin_m", 5.0)
+        self.declare_parameter("departure_speed_mps", 0.1)
         self.declare_parameter("arrived_distance_m", 2.0)
         self.declare_parameter("arrived_speed_mps", 0.1)
         self.declare_parameter("arrived_dwell_sec", 2.0)
@@ -393,13 +390,12 @@ class LocalTrajectoryPlanner(Node):
             z_gate_m=float(self.get_parameter("z_gate_m").value),
             command_latency_sec=float(self.get_parameter("command_latency_sec").value),
             stopping_margin_m=float(self.get_parameter("stopping_margin_m").value),
+            departure_speed_mps=float(self.get_parameter("departure_speed_mps").value),
         )
         self._prepared = None
         self._odometry = None
         self._nearest_index = None
         self._last_odom_stamp = -1.0
-        self._velocity_limits = {}
-        self._velocity_limit_stamps = {}
         self._route_state = RouteState.UNSET
         self._localization_initialized = False
         self._arrival_candidate_since = None
@@ -444,22 +440,10 @@ class LocalTrajectoryPlanner(Node):
             ),
         )
         self.create_subscription(
-            VelocityLimit,
-            str(self.get_parameter("velocity_limit_topic").value),
-            self._on_velocity_limit,
-            volatile_qos,
-        )
-        self.create_subscription(
             LocalizationInitializationState,
             str(self.get_parameter("localization_state_topic").value),
             self._on_localization_state,
             state_qos,
-        )
-        self.create_subscription(
-            VelocityLimitClearCommand,
-            str(self.get_parameter("velocity_limit_clear_topic").value),
-            self._on_velocity_limit_clear,
-            volatile_qos,
         )
         period = 1.0 / max(float(self.get_parameter("publish_rate_hz").value), 0.1)
         self.create_timer(period, self._on_timer)
@@ -509,26 +493,6 @@ class LocalTrajectoryPlanner(Node):
             msg.state == LocalizationInitializationState.INITIALIZED
         )
 
-    def _on_velocity_limit(self, msg):
-        stamp = _stamp_seconds(msg.stamp)
-        sender = str(msg.sender)
-        if not sender or not math.isfinite(float(msg.max_velocity)) or msg.max_velocity < 0.0:
-            return
-        if stamp < self._velocity_limit_stamps.get(sender, -1.0):
-            return
-        self._velocity_limit_stamps[sender] = stamp
-        self._velocity_limits[sender] = float(msg.max_velocity)
-
-    def _on_velocity_limit_clear(self, msg):
-        if not msg.command:
-            return
-        stamp = _stamp_seconds(msg.stamp)
-        sender = str(msg.sender)
-        if not sender or stamp < self._velocity_limit_stamps.get(sender, -1.0):
-            return
-        self._velocity_limit_stamps[sender] = stamp
-        self._velocity_limits.pop(sender, None)
-
     def _on_timer(self):
         if (
             self._prepared is None
@@ -545,9 +509,7 @@ class LocalTrajectoryPlanner(Node):
             return
         started = time.perf_counter()
         speed = abs(float(self._odometry.twist.twist.linear.x))
-        effective_limit = min(
-            [self._config.max_speed_mps, *self._velocity_limits.values()]
-        )
+        effective_limit = self._config.max_speed_mps
         trajectory, nearest_index, _ = build_local_from_prepared(
             self._prepared,
             self._odometry.pose.pose,
@@ -755,6 +717,14 @@ def _apply_local_velocity_envelope(
         for point in points
     ]
     speeds[0] = min(speeds[0], max(0.0, current_speed_mps))
+    if speeds[0] <= 1e-3:
+        next_positive_speed = next((speed for speed in speeds[1:] if speed > 1e-3), 0.0)
+        if next_positive_speed > 0.0:
+            speeds[0] = min(
+                next_positive_speed,
+                effective_limit,
+                max(max(0.0, current_speed_mps), config.departure_speed_mps),
+            )
     if includes_goal:
         speeds[-1] = 0.0
     decel = abs(config.max_decel_mps2)

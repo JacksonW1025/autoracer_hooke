@@ -34,6 +34,8 @@ def test_closed_loop_launch_wires_real_controller_fixture_plant_and_monitor():
         "scenario_type",
         "max_duration_sec",
         "completion_threshold",
+        'DeclareLaunchArgument("use_sim_time", default_value="false")',
+        '"use_sim_time": use_sim_time',
     ):
         assert required in source
 

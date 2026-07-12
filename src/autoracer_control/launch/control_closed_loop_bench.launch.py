@@ -33,6 +33,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument("scenario", default_value="straight_lateral_offset"),
             DeclareLaunchArgument("summary_root", default_value="logs/control_closed_loop"),
+            DeclareLaunchArgument("use_sim_time", default_value="false"),
             OpaqueFunction(function=_launch_setup),
         ]
     )
@@ -41,6 +42,7 @@ def generate_launch_description():
 def _launch_setup(context, *args, **kwargs):
     scenario_name = LaunchConfiguration("scenario").perform(context)
     summary_root = LaunchConfiguration("summary_root")
+    use_sim_time = LaunchConfiguration("use_sim_time")
     if scenario_name not in SCENARIO_SPECS:
         raise ValueError(f"unsupported closed-loop scenario: {scenario_name}")
     scenario_spec = get_scenario_spec(scenario_name)
@@ -66,6 +68,7 @@ def _launch_setup(context, *args, **kwargs):
                 "scenario": scenario_name,
                 "reference_trajectory_topic": BENCH_TOPICS["reference_trajectory_topic"],
                 "operation_mode_topic": BENCH_TOPICS["operation_mode_topic"],
+                "use_sim_time": ParameterValue(use_sim_time, value_type=bool),
             }
         ],
     )
@@ -86,7 +89,7 @@ def _launch_setup(context, *args, **kwargs):
                 "initial_v": scenario_spec.initial_v,
                 "initial_delta": 0.0,
                 "initial_a": 0.0,
-                "wheel_base": 1.9,
+                "wheel_base": 2.537,
                 "max_steer": 0.488,
                 "max_steer_rate": 1.0,
                 "steer_tau": 0.15,
@@ -100,6 +103,7 @@ def _launch_setup(context, *args, **kwargs):
                 "dt": 0.05,
                 "fixed_speed_mode": False,
                 "fixed_speed": scenario_spec.initial_v,
+                "use_sim_time": ParameterValue(use_sim_time, value_type=bool),
             }
         ],
     )
@@ -138,6 +142,7 @@ def _launch_setup(context, *args, **kwargs):
                 "min_jerk": -4.0,
                 "max_lateral_error_hard_m": 2.0,
                 "longitudinal_validated": True,
+                "use_sim_time": ParameterValue(use_sim_time, value_type=bool),
             }
         ],
     )
@@ -153,6 +158,7 @@ def _launch_setup(context, *args, **kwargs):
                     "operation_mode_topic": BENCH_TOPICS["operation_mode_topic"],
                     "raw_control_topic": BENCH_TOPICS["raw_control_topic"],
                     "race_param_file": race_param_file,
+                    "use_sim_time": use_sim_time,
                 }.items(),
             ),
             fixture_node,

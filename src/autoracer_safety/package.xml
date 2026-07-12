@@ -3,18 +3,23 @@
 <package format="3">
   <name>autoracer_safety</name>
   <version>0.1.0</version>
-  <description>Final command gate and limits before Hooke2 vehicle output.</description>
+  <description>Compact race runtime management and final vehicle command gate.</description>
   <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
   <exec_depend>autoware_control_msgs</exec_depend>
+  <exec_depend>autoware_adapi_v1_msgs</exec_depend>
   <exec_depend>autoware_planning_msgs</exec_depend>
   <exec_depend>autoware_vehicle_msgs</exec_depend>
+  <exec_depend>autoracer_planning</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>tier4_control_msgs</exec_depend>
+  <exec_depend>tier4_external_api_msgs</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

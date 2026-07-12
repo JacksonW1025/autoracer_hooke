@@ -184,6 +184,28 @@ def test_build_local_trajectory_reduces_speed_on_curves():
     assert min(speeds[1:-1]) < config.max_speed_mps
 
 
+def test_local_trajectory_seeds_departure_without_removing_terminal_stop():
+    config = LocalPlannerConfig(
+        lookahead_distance_m=20.0,
+        backward_distance_m=0.0,
+        resample_interval_m=0.5,
+        departure_speed_mps=0.1,
+    )
+    global_trajectory = _trajectory(
+        [(0.0, 0.0, 0.0), (0.5, 0.0, 0.9), (10.0, 0.0, 2.0)]
+    )
+
+    local = build_local_trajectory(
+        global_trajectory,
+        ego_pose=_pose(0.0, 0.0),
+        current_speed_mps=0.0,
+        config=config,
+    )
+
+    assert math.isclose(local.points[0].longitudinal_velocity_mps, 0.1)
+    assert local.points[-1].longitudinal_velocity_mps == 0.0
+
+
 def test_nonterminal_local_window_keeps_forward_yaw_and_nonzero_end_speed():
     config = LocalPlannerConfig(
         lookahead_distance_m=20.0,

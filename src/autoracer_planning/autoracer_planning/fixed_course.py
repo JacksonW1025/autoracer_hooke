@@ -864,6 +864,12 @@ def main() -> None:
     parser.add_argument("--road-file", type=Path, required=True)
     parser.add_argument("--road-extents", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--version", default=CourseBuildConfig().version)
+    parser.add_argument(
+        "--max-lateral-accel-mps2",
+        type=float,
+        default=CourseBuildConfig().max_lateral_accel_mps2,
+    )
     args = parser.parse_args()
     manifest = build_asset(
         args.build_vehicle_state,
@@ -873,7 +879,10 @@ def main() -> None:
         args.source_testrun,
         args.map_path,
         args.output,
-        CourseBuildConfig(),
+        CourseBuildConfig(
+            version=args.version,
+            max_lateral_accel_mps2=args.max_lateral_accel_mps2,
+        ),
         args.road_file,
         args.road_extents,
     )
