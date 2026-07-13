@@ -16,7 +16,7 @@ def generate_launch_description():
             DeclareLaunchArgument("course_path"),
             DeclareLaunchArgument("map_path"),
             DeclareLaunchArgument("use_sim_time", default_value="true"),
-            DeclareLaunchArgument("max_speed_mps", default_value="5.0"),
+            DeclareLaunchArgument("max_speed_mps", default_value="100.0"),
             SetParameter(
                 name="use_sim_time",
                 value=ParameterValue(use_sim_time, value_type=bool),
@@ -56,6 +56,7 @@ def generate_launch_description():
                         "max_decel_mps2": -1.5,
                         "departure_speed_mps": 0.1,
                         "nearest_search_forward_distance_m": 3.0,
+                        "nearest_search_forward_time_sec": 0.35,
                         "nearest_position_gate_m": 3.0,
                         "publish_markers": False,
                     }

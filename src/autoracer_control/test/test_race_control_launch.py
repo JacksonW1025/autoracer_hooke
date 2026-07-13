@@ -82,6 +82,9 @@ def test_race_controller_param_overlay_has_required_bench_contract_values():
     assert "ego_nearest_dist_threshold:" in source
     assert "ego_nearest_yaw_threshold:" in source
     assert "enable_control_cmd_horizon_pub:" in source
+    assert "mpc_weight_lat_error: 5.0" in source
+    assert "mpc_weight_terminal_lat_error: 5.0" in source
+    assert "mpc_low_curvature_" not in source
 
 
 def test_autoracer_control_packaging_installs_bench_assets_and_dependencies():

@@ -10,6 +10,7 @@ from autoracer_planning.local_trajectory_planner import (
     build_local_trajectory,
     _is_shutdown_rcl_error,
     prepare_global_trajectory,
+    progress_search_forward_distance,
     resample_points,
     sanitize_points,
     select_monotonic_nearest_index,
@@ -123,6 +124,35 @@ def test_progress_selection_fails_closed_outside_position_or_heading_gate():
 
     assert select_progress_index(prepared, _pose(0.0, 0.0, math.pi), None, config) is None
     assert select_progress_index(prepared, _pose(100.0, 0.0), None, config) is None
+
+
+def test_progress_search_window_scales_with_speed_without_relaxing_pose_gate():
+    prepared = prepare_global_trajectory(
+        _trajectory([(float(x), 0.0, 40.0, 0.0) for x in range(80)])
+    )
+    config = LocalPlannerConfig(
+        nearest_search_forward_distance_m=3.0,
+        nearest_search_forward_time_sec=0.35,
+        nearest_position_gate_m=3.0,
+    )
+
+    assert progress_search_forward_distance(40.0, config) == 14.0
+    local, nearest, _ = build_local_from_prepared(
+        prepared,
+        ego_pose=_pose(10.0, 0.0),
+        current_speed_mps=40.0,
+        config=config,
+        previous_nearest_index=0,
+    )
+    assert nearest == 10
+    assert len(local.points) >= 2
+    assert select_progress_index(
+        prepared,
+        _pose(10.0, 5.0),
+        0,
+        config,
+        progress_search_forward_distance(40.0, config),
+    ) is None
 
 
 def test_resample_points_uses_fixed_distance_interval():

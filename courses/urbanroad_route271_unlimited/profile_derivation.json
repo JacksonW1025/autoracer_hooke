@@ -1,0 +1,22 @@
+{
+  "ceiling_binding_rows": 0,
+  "derived": {
+    "path": "autoracer_hooke/courses/urbanroad_route271_unlimited/course.csv",
+    "sha256": "e899b8a271257d94f79d3cb596bd4097a4978144851e039d45b2afda3c7d1128"
+  },
+  "derived_peak_speed_mps": 43.61339266466815,
+  "geometry_fields_byte_equal": true,
+  "ideal_profile_time_sec": 744.1083676118186,
+  "max_accel_mps2": 0.8000000000003407,
+  "max_decel_mps2": -1.5000000000003395,
+  "max_lateral_accel_mps2": 0.7500000000000002,
+  "mode": "non_binding_ceiling",
+  "non_binding_ceiling_mps": 100.0,
+  "row_count": 21598,
+  "schema_version": 2,
+  "source": {
+    "path": "autoracer_hooke/courses/urbanroad_route271_v2/course.csv",
+    "sha256": "bfd0cde3c9bf29c82eb39e04ef14b034068d5b1f3371fa92f7d015b8cea9563a"
+  },
+  "status": "PASS"
+}

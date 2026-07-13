@@ -16,12 +16,14 @@ def generate_launch_description():
     course_path = LaunchConfiguration("course_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
     enable_ndt_pose_guard = LaunchConfiguration("enable_ndt_pose_guard")
+    max_speed_mps = LaunchConfiguration("max_speed_mps")
 
     return LaunchDescription(
         [
             DeclareLaunchArgument("localization_map_path"),
             DeclareLaunchArgument("course_path"),
             DeclareLaunchArgument("use_sim_time", default_value="true"),
+            DeclareLaunchArgument("max_speed_mps", default_value="5.0"),
             DeclareLaunchArgument(
                 "enable_ndt_pose_guard",
                 default_value="false",
@@ -49,7 +51,7 @@ def generate_launch_description():
                     "course_path": course_path,
                     "map_path": localization_map_path,
                     "use_sim_time": use_sim_time,
-                    "max_speed_mps": "5.0",
+                    "max_speed_mps": max_speed_mps,
                 }.items(),
             ),
         ]

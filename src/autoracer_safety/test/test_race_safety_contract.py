@@ -59,7 +59,7 @@ def test_gate_safe_profile_has_complete_equal_length_filter_arrays():
     for profile_name in ("nominal", "on_transition"):
         profile = params[profile_name]
         count = len(profile["reference_speed_points"])
-        assert profile["vel_lim"] == pytest.approx(5.0)
+        assert profile["vel_lim"] == pytest.approx(100.0)
         for key in (
             "steer_cmd_lim",
             "steer_rate_lim_for_steer_cmd",

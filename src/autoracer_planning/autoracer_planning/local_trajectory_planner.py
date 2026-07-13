@@ -30,6 +30,7 @@ class LocalPlannerConfig:
     goal_tolerance_m: float = 1.0
     nearest_search_backward_distance_m: float = 0.0
     nearest_search_forward_distance_m: float = 3.0
+    nearest_search_forward_time_sec: float = 0.35
     initial_search_distance_m: float = 30.0
     nearest_position_gate_m: float = 3.0
     heading_gate_rad: float = math.radians(60.0)
@@ -161,6 +162,7 @@ def select_progress_index(
     ego_pose: Pose,
     previous_index,
     config: LocalPlannerConfig,
+    forward_distance_m=None,
 ):
     if previous_index is None:
         end_index = max(
@@ -170,9 +172,14 @@ def select_progress_index(
         candidates = range(0, min(end_index, len(prepared.points)))
     else:
         previous_index = min(max(int(previous_index), 0), len(prepared.points) - 1)
+        forward_distance = (
+            config.nearest_search_forward_distance_m
+            if forward_distance_m is None
+            else max(float(forward_distance_m), 0.0)
+        )
         max_s = (
             prepared.distances[previous_index]
-            + config.nearest_search_forward_distance_m
+            + forward_distance
         )
         end_index = bisect.bisect_right(prepared.distances, max_s)
         candidates = range(previous_index, max(previous_index + 1, end_index))
@@ -194,6 +201,13 @@ def select_progress_index(
     if not gated:
         return None
     return min(gated, key=lambda index: _pose_distance(prepared.points[index].pose, ego_pose))
+
+
+def progress_search_forward_distance(current_speed_mps, config: LocalPlannerConfig):
+    return max(
+        config.nearest_search_forward_distance_m,
+        max(float(current_speed_mps), 0.0) * config.nearest_search_forward_time_sec,
+    )
 
 
 def resample_points(points, interval_m: float):
@@ -257,7 +271,11 @@ def build_local_from_prepared(
     output = Trajectory()
     output.header = copy.deepcopy(prepared.header)
     nearest_index = select_progress_index(
-        prepared, ego_pose, previous_nearest_index, config
+        prepared,
+        ego_pose,
+        previous_nearest_index,
+        config,
+        progress_search_forward_distance(current_speed_mps, config),
     )
     if nearest_index is None:
         return output, None, False
@@ -351,6 +369,7 @@ class LocalTrajectoryPlanner(Node):
         self.declare_parameter("max_decel_mps2", -1.5)
         self.declare_parameter("goal_tolerance_m", 1.0)
         self.declare_parameter("nearest_search_forward_distance_m", 3.0)
+        self.declare_parameter("nearest_search_forward_time_sec", 0.35)
         self.declare_parameter("initial_search_distance_m", 30.0)
         self.declare_parameter("nearest_position_gate_m", 3.0)
         self.declare_parameter("heading_gate_rad", math.radians(60.0))
@@ -379,6 +398,9 @@ class LocalTrajectoryPlanner(Node):
             goal_tolerance_m=float(self.get_parameter("goal_tolerance_m").value),
             nearest_search_forward_distance_m=float(
                 self.get_parameter("nearest_search_forward_distance_m").value
+            ),
+            nearest_search_forward_time_sec=float(
+                self.get_parameter("nearest_search_forward_time_sec").value
             ),
             initial_search_distance_m=float(
                 self.get_parameter("initial_search_distance_m").value

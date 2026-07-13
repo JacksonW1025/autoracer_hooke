@@ -7,5 +7,3 @@
     enable_control_cmd_horizon_pub: false
     mpc_weight_lat_error: 5.0
     mpc_weight_terminal_lat_error: 5.0
-    mpc_low_curvature_thresh_curvature: 0.01
-    mpc_low_curvature_weight_lat_error: 0.5
