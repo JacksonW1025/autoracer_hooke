@@ -102,6 +102,7 @@ if [[ "${mode}" == "pilot" || "${mode}" == "network" ]]; then
     }
     temporary_checkout="$(mktemp -d)"
     trap 'rm -rf "${temporary_checkout}"' EXIT
+    mkdir -p "${temporary_checkout}/src"
     vcs import "${temporary_checkout}/src" < "${REPOSITORY_MANIFEST}"
     copy_curated_packages "${temporary_checkout}/src"
   fi
