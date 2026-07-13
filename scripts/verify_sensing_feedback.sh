@@ -223,7 +223,7 @@ fi
 log ""
 log "Package resolution"
 require_pkg autoracer_hooke2_bringup || true
-require_pkg autoracer_description || true
+require_pkg hooke2_description || true
 if is_true "$LAUNCH_LIDAR"; then
   require_pkg nebula_hesai || true
 fi

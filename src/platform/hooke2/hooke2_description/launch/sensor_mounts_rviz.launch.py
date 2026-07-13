@@ -7,9 +7,9 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    share_dir = Path(get_package_share_directory("autoracer_description"))
-    model_path = share_dir / "urdf" / "hooke2_sensor_mounts.urdf.xacro"
-    rviz_config = share_dir / "rviz" / "hooke2_sensor_mounts.rviz"
+    share_dir = Path(get_package_share_directory("hooke2_description"))
+    model_path = share_dir / "urdf" / "sensor_mounts.urdf.xacro"
+    rviz_config = share_dir / "rviz" / "sensor_mounts.rviz"
 
     return LaunchDescription(
         [

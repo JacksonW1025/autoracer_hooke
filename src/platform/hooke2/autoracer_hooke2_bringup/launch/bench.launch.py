@@ -49,15 +49,10 @@ def generate_launch_description():
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
-                ),
-                condition=IfCondition(launch_static_tf),
-            ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_hooke2_bringup", "launch", "sensing.launch.py")
                 ),
                 launch_arguments={
+                    "launch_static_tf": launch_static_tf,
                     "launch_lidar": launch_lidar,
                     "launch_fixposition": launch_fixposition,
                     "lidar_host_ip": lidar_host_ip,

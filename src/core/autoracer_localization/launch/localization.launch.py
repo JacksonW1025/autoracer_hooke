@@ -56,11 +56,6 @@ def generate_launch_description():
             name="use_sim_time",
             value=ParameterValue(use_sim_time, value_type=bool),
         ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
-            )
-        ),
         Node(
             package="autoware_map_projection_loader",
             executable="autoware_map_projection_loader_node",

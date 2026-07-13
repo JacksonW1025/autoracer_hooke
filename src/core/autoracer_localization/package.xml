@@ -3,14 +3,13 @@
 <package format="3">
   <name>autoracer_localization</name>
   <version>0.1.0</version>
-  <description>Shared NDT and EKF localization composition for simulation and Hooke2.</description>
+  <description>Platform-neutral NDT and EKF localization composition.</description>
   <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>autoracer_description</exec_depend>
   <exec_depend>autoracer_sensing</exec_depend>
   <exec_depend>autoware_adapi_specs</exec_depend>
   <exec_depend>autoware_automatic_pose_initializer</exec_depend>

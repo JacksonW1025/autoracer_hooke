@@ -32,8 +32,8 @@ Fixposition VRTK2：
 ### 2.1 真车外参
 
 ```text
-autoracer_hooke/src/core/autoracer_description/urdf/hooke2_sensor_mounts.urdf.xacro
-autoracer_hooke/src/core/autoracer_description/config/hooke2_sensor_extrinsics.yaml
+autoracer_hooke/src/platform/hooke2/hooke2_description/urdf/sensor_mounts.urdf.xacro
+autoracer_hooke/src/platform/hooke2/hooke2_description/config/sensor_extrinsics.yaml
 ```
 
 当前真车外参：
@@ -292,8 +292,8 @@ Sensor.2.rot ≈ 0 0 90 deg
 更新：
 
 ```text
-autoracer_hooke/src/core/autoracer_description/urdf/hooke2_sensor_mounts.urdf.xacro
-autoracer_hooke/src/core/autoracer_description/config/hooke2_sensor_extrinsics.yaml
+autoracer_hooke/src/platform/hooke2/hooke2_description/urdf/sensor_mounts.urdf.xacro
+autoracer_hooke/src/platform/hooke2/hooke2_description/config/sensor_extrinsics.yaml
 ```
 
 要求：

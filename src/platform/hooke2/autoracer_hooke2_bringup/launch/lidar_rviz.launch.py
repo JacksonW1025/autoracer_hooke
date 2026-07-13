@@ -30,11 +30,6 @@ def generate_launch_description():
             DeclareLaunchArgument("rviz_config", default_value=default_rviz_config),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
-                    _pkg_file("autoracer_description", "launch", "static_tf.launch.py")
-                )
-            ),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
                     _pkg_file("autoracer_hooke2_bringup", "launch", "sensing.launch.py")
                 ),
                 launch_arguments={

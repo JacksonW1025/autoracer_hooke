@@ -52,9 +52,9 @@ def _launch_setup(context, *args, **kwargs):
 
 def generate_launch_description():
     default_config = (
-        Path(get_package_share_directory("autoracer_description"))
+        Path(get_package_share_directory("hooke2_description"))
         / "config"
-        / "hooke2_sensor_extrinsics.yaml"
+        / "sensor_extrinsics.yaml"
     )
 
     return LaunchDescription(
@@ -63,4 +63,3 @@ def generate_launch_description():
             OpaqueFunction(function=_launch_setup),
         ]
     )
-

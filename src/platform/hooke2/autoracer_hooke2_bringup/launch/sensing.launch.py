@@ -1,7 +1,8 @@
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
@@ -9,6 +10,7 @@ from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 
 
 def generate_launch_description():
+    launch_static_tf = LaunchConfiguration("launch_static_tf")
     launch_lidar = LaunchConfiguration("launch_lidar")
     launch_fixposition = LaunchConfiguration("launch_fixposition")
     lidar_param_file = LaunchConfiguration("lidar_param_file")
@@ -99,6 +101,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            DeclareLaunchArgument("launch_static_tf", default_value="true"),
             DeclareLaunchArgument("launch_lidar", default_value="true"),
             DeclareLaunchArgument("launch_fixposition", default_value="true"),
             DeclareLaunchArgument("lidar_param_file", default_value=default_lidar_param_file),
@@ -113,6 +116,18 @@ def generate_launch_description():
                 "fixposition_stream", default_value="tcpcli://192.168.1.200:21000"
             ),
             DeclareLaunchArgument("fixposition_speed_topic", default_value="/fixposition/speed"),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    PathJoinSubstitution(
+                        [
+                            get_package_share_directory("hooke2_description"),
+                            "launch",
+                            "static_tf.launch.py",
+                        ]
+                    )
+                ),
+                condition=IfCondition(launch_static_tf),
+            ),
             fixposition_node,
             fixposition_speed_bridge,
             lidar_container,
