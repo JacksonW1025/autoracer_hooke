@@ -1,15 +1,15 @@
-# Autoracer Hooke
+# Autoracer
 
-精简的 ROS 2 封闭赛道竞速栈。产品仓只版本化自研算法、Hooke2 平台适配、已验证资源和
+精简的 ROS 2 封闭赛道竞速栈。产品仓只版本化自研算法、薄平台适配、已验证资源和
 依赖定义；Autoware 等第三方源码位于仓内可再生的 `vendor_ws` underlay，不混入产品源码树。
 
 ```text
-CarMaker / Hooke2 sensors
+Hooke2 / CarMaker / RC sensors
   -> pilot-compatible NDT + EKF localization
   -> validated fixed-course local trajectory
   -> Autoware MPC lateral + PID longitudinal control
   -> thin race runtime manager + Autoware vehicle command gate
-  -> CarMaker Bridge / Hooke2 CAN interface
+  -> Hooke2 CAN / CarMaker Bridge / RC UART interface
 ```
 
 ## 目录边界
@@ -22,11 +22,13 @@ autoracer_hooke/
   scripts/                         导入、构建、环境和硬件诊断脚本
   src/core/                        平台无关的定位、规划、控制和运行管理
   src/platform/hooke2/             Hooke2 CAN、车辆接口、消息和实车启动
-  vendor_ws/                       99 个第三方 ROS 包的可再生 underlay（Git 忽略）
+  src/platform/rc/                 RC 传感、UART、车辆参数和薄启动组合
+  vendor_ws/                       103 个第三方 ROS 包的可再生 underlay（Git 忽略）
 ```
 
-`src/core` 不依赖 CarMaker 或 Hooke2 私有实现。仿真和实车共用同一套定位、规划、
-控制和命令门控，仅在传感器输入与车辆执行边界处切换平台适配。
+`src/core` 不依赖 CarMaker、Hooke2 或 RC 私有实现。两个平台共用同一套定位、规划、
+控制和命令门控，仅在传感器输入、车辆执行与物理参数边界处切换平台适配。RC 的详细
+接口见 `docs/rc_platform_contract.md`，上车前检查见 `docs/rc_bench_validation.md`。
 
 ## 依赖与构建
 
@@ -55,6 +57,16 @@ source ./scripts/ros_env.sh
 `dependencies/versions.lock.yaml` 固定上游提交；
 `dependencies/patches/vehicle_cmd_gate_volatile_commands.patch` 是唯一产品所需上游补丁。
 
+产品构建通过一个显式平台选择器复用同一源码图：
+
+```bash
+AUTORACER_PLATFORM=hooke2 ./scripts/build_product.sh
+AUTORACER_PLATFORM=rc ./scripts/build_product.sh
+AUTORACER_PLATFORM=all ./scripts/build_product.sh
+```
+
+默认值仍为 `hooke2`。平台选择只改变构建目标，不改变 core 源码或算法组合。
+
 ## 运行入口
 
 - 仿真：双击桌面 `10km` 启动器，或运行
@@ -67,6 +79,19 @@ source ./scripts/ros_env.sh
     localization_map_path:=/path/to/map \
     course_path:=/path/to/course
   ```
+
+- RC（设备路径必须由当前机器提供）：
+
+  ```bash
+  ros2 launch autoracer_rc_bringup race.launch.py \
+    localization_map_path:=/path/to/validated/rc/map \
+    course_path:=/path/to/validated/rc/course \
+    serial_port:=/dev/serial/by-id/rc-controller \
+    imu_device:=/dev/serial/by-id/hipnuc-imu
+  ```
+
+RC 默认限速 `0.5 m/s`，且 `enable_drive_commands=false`。没有测量几何、传感器外参、
+固件协议与低速闭环证据前，不得提高速度或打开驱动输出。
 
 当前仿真资源为 `maps/urbanroad_route271_20260710` 和
 `courses/urbanroad_route271_unlimited`。RViz 与硬件 smoke 脚本只用于诊断，不构成第二套运行栈。

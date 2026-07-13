@@ -3,6 +3,26 @@ set -euo pipefail
 
 PRODUCT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+case "${AUTORACER_PLATFORM:-hooke2}" in
+  hooke2)
+    PACKAGE_TARGETS=(autoracer_bringup autoracer_hooke2_bringup)
+    ;;
+  rc)
+    PACKAGE_TARGETS=(autoracer_bringup autoracer_rc_bringup)
+    ;;
+  all)
+    PACKAGE_TARGETS=(
+      autoracer_bringup
+      autoracer_hooke2_bringup
+      autoracer_rc_bringup
+    )
+    ;;
+  *)
+    echo "Usage: AUTORACER_PLATFORM={hooke2|rc|all} $0" >&2
+    exit 2
+    ;;
+esac
+
 AUTORACER_SOURCE_VENDOR_SETUP=true
 AUTORACER_SOURCE_PRODUCT_SETUP=false
 # shellcheck source=scripts/ros_env.sh
@@ -13,5 +33,5 @@ colcon build \
   --base-paths src/core src/platform \
   --symlink-install \
   --parallel-workers "${COLCON_PARALLEL_WORKERS:-4}" \
-  --packages-up-to autoracer_bringup autoracer_hooke2_bringup \
+  --packages-up-to "${PACKAGE_TARGETS[@]}" \
   --cmake-args -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
