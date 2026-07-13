@@ -1,8 +1,0 @@
-{
-  "derived_start_s_m": 10100.262066354,
-  "purpose": "development-only W106 localization/control regression",
-  "rows": 1397,
-  "schema_version": 1,
-  "source_manifest_sha256": "0006dc37923db30094a320067866c90a697137b15aa48e1c1323a34e3701f583",
-  "status": "PASS"
-}

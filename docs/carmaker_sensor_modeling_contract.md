@@ -32,8 +32,8 @@ Fixposition VRTK2：
 ### 2.1 真车外参
 
 ```text
-autoracer_hooke/src/autoracer_description/urdf/hooke2_sensor_mounts.urdf.xacro
-autoracer_hooke/src/autoracer_description/config/hooke2_sensor_extrinsics.yaml
+autoracer_hooke/src/core/autoracer_description/urdf/hooke2_sensor_mounts.urdf.xacro
+autoracer_hooke/src/core/autoracer_description/config/hooke2_sensor_extrinsics.yaml
 ```
 
 当前真车外参：
@@ -64,7 +64,7 @@ base_link -> imu_link
 
 ```text
 autoracer_hooke/docs/Pandar40P_产品手册.pdf
-autoracer_hooke/src/autoracer_bringup/config/hooke2/lidar_top.param.yaml
+autoracer_hooke/src/core/autoracer_bringup/config/hooke2/lidar_top.param.yaml
 ```
 
 必须按这些关键参数建模：
@@ -108,7 +108,7 @@ range accuracy: about 2cm for 1~200m
 当前仓库已有 Nebula 默认 Pandar40P calibration：
 
 ```text
-autoracer_hooke/src/external/vendor/nebula/src/nebula_hesai/nebula_hesai_decoders/calibration/Pandar40P.csv
+autoracer_hooke/vendor_ws/src/vendor/nebula/src/nebula_hesai/nebula_hesai_decoders/calibration/Pandar40P.csv
 ```
 
 该 CSV 可作为 C0 beam 角度来源，但仍必须验证 CarMaker beam azimuth 正方向与 ROS `lidar_top` 坐标轴、Nebula 解码约定一致。
@@ -292,8 +292,8 @@ Sensor.2.rot ≈ 0 0 90 deg
 更新：
 
 ```text
-autoracer_hooke/src/autoracer_description/urdf/hooke2_sensor_mounts.urdf.xacro
-autoracer_hooke/src/autoracer_description/config/hooke2_sensor_extrinsics.yaml
+autoracer_hooke/src/core/autoracer_description/urdf/hooke2_sensor_mounts.urdf.xacro
+autoracer_hooke/src/core/autoracer_description/config/hooke2_sensor_extrinsics.yaml
 ```
 
 要求：

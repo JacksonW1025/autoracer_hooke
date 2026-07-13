@@ -11,7 +11,8 @@ point cloud topic:
 /sensing/lidar/concatenated/pointcloud  sensor_msgs/msg/PointCloud2
 ```
 
-The default parameter file is `src/autoracer_bringup/config/hooke2/lidar_top.param.yaml`.
+The default parameter file is
+`src/platform/hooke2/autoracer_hooke2_bringup/config/hooke2/lidar_top.param.yaml`.
 The current Pandar 60 unit is decoded with Nebula's `Pandar40P` model and `lidar_top`
 frame; this was the live configuration that produced point clouds. Override with
 `LIDAR_SENSOR_MODEL` when the unit reports a different Nebula-supported model.
@@ -50,7 +51,7 @@ tools. `hooke2_interface` already converts CAN feedback to Autoware vehicle stat
 /vehicle/status/control_mode           autoware_vehicle_msgs/msg/ControlModeReport
 ```
 
-The only adapter added here is `velocity_to_fixposition_speed`, which bridges
+The platform adapter `autoracer_hooke2_adapter/velocity_to_fixposition_speed` bridges
 `/vehicle/status/velocity_status` to `/fixposition/speed` as a single `RC`
 wheelspeed measurement in millimeters per second.
 
@@ -62,7 +63,7 @@ Use the standalone bench launch when the goal is only to prove the live data sou
 ./scripts/verify_sensing_feedback.sh
 ```
 
-It starts `autoracer_bringup bench_verification.launch.py`, checks LiDAR point cloud
+It starts `autoracer_hooke2_bringup bench.launch.py`, checks LiDAR point cloud
 rate, Fixposition samples, Hooke2 Autoware status topics, and raw CAN frames, then
 writes artifacts under `log/bench_verify_*`.
 
@@ -73,4 +74,4 @@ For the lightest visual check, use:
 ```
 
 This launches only static TF, the Hesai driver, and RViz with
-`src/autoracer_bringup/rviz/lidar_pointcloud.rviz`.
+`src/platform/hooke2/autoracer_hooke2_bringup/rviz/lidar_pointcloud.rviz`.

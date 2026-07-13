@@ -1,114 +1,72 @@
 # Autoracer Hooke
 
-Minimal ROS 2 workspace for closed-track autonomous driving on the Hooke2 chassis.
-
-This workspace intentionally does not launch the full Autoware stack. It uses selected
-Autoware packages as libraries and keeps the vehicle task small:
+精简的 ROS 2 封闭赛道竞速栈。产品仓只版本化自研算法、Hooke2 平台适配、已验证资源和
+依赖定义；Autoware 等第三方源码位于仓内可再生的 `vendor_ws` underlay，不混入产品源码树。
 
 ```text
-Pandar LiDAR + Fixposition + Hooke2 vehicle feedback
-  -> PCD/Lanelet2 map
-  -> LiDAR/GNSS localization
-  -> Lanelet centerline route
-  -> Pure pursuit + longitudinal PID
-  -> safety command gate
-  -> /control/command/control_cmd
-  -> hooke2_interface
-  -> CAN
+CarMaker / Hooke2 sensors
+  -> pilot-compatible NDT + EKF localization
+  -> validated fixed-course local trajectory
+  -> Autoware MPC lateral + PID longitudinal control
+  -> thin race runtime manager + Autoware vehicle command gate
+  -> CarMaker Bridge / Hooke2 CAN interface
 ```
 
-## Repository Layout
+## 目录边界
 
 ```text
-autoracer.repos            Dependency manifest for selected external packages.
-defaults.env               Runtime defaults used by scripts/run_track.sh.
-docs/                      Bringup and calibration notes.
-maps/                      Local map directory placeholder.
-scripts/                   Import, build, run, and smoke-test helpers.
-src/autoracer_bringup      Top-level launches and Hooke2 configuration.
-src/autoracer_description  Minimal Hooke2 frames and static TF launch.
-src/autoracer_localization Localization helper nodes.
-src/autoracer_sensing      Minimal sensor/vehicle feedback adapters.
-src/autoracer_planning     Lanelet route and trajectory node.
-src/autoracer_control      Pure pursuit controller.
-src/autoracer_safety       Final command gate before the vehicle interface.
-src/hardware_drivers       Vendored SocketCAN driver used by Hooke2.
-src/hooke2_vehicle         Vendored Hooke2 interface, launch, and description.
-src/wd_msgs                Vendored Hooke2 chassis messages and byte helpers.
+autoracer_hooke/
+  courses/                         已验证固定赛道轨迹
+  maps/                            当前点云地图
+  dependencies/                    精确依赖清单、版本锁和最小补丁
+  scripts/                         导入、构建、环境和硬件诊断脚本
+  src/core/                        平台无关的定位、规划、控制和运行管理
+  src/platform/hooke2/             Hooke2 CAN、车辆接口、消息和实车启动
+  vendor_ws/                       99 个第三方 ROS 包的可再生 underlay（Git 忽略）
 ```
 
-## First Bringup
+`src/core` 不依赖 CarMaker 或 Hooke2 私有实现。仿真和实车共用同一套定位、规划、
+控制和命令门控，仅在传感器输入与车辆执行边界处切换平台适配。
+
+## 依赖与构建
+
+默认复用实车仓 `pilot-auto.x1` 中与版本锁一致的源码：
 
 ```bash
-cd /home/corage/workspace/project/autoracer-hooke
-./scripts/import_dependencies.sh
+cd /opt/ipg/carmaker/linux64-15.1/autoracer_hooke
+./scripts/import_dependencies.sh --refresh
 ./scripts/install_rosdeps.sh
-./scripts/build_minimal.sh
+./scripts/build.sh
 source ./scripts/ros_env.sh
 ```
 
-When developing beside the old repository, dependencies can be copied locally instead
-of fetched:
+需要重新从实车仓同步依赖时：
 
 ```bash
-IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
+./scripts/import_dependencies.sh --refresh
 ```
 
-Bench validation for the current hardware stage:
+只有明确需要联网重建第三方工作区时才使用：
 
 ```bash
-IMPORT_FROM_PILOT=true ./scripts/import_dependencies.sh
-./scripts/build_bench.sh
-./scripts/verify_sensing_feedback.sh
+./scripts/import_dependencies.sh --network
 ```
 
-Lightweight LiDAR visualization:
+`dependencies/versions.lock.yaml` 固定上游提交；
+`dependencies/patches/vehicle_cmd_gate_volatile_commands.patch` 是唯一产品所需上游补丁。
 
-```bash
-./scripts/run_lidar_rviz.sh
-```
+## 运行入口
 
-Map-only RViz check:
+- 仿真：双击桌面 `10km` 启动器，或运行
+  `../SimProject_TianmenRace/run_pilot_localization_gui.sh`。该入口管理 CarMaker、Bridge、
+  定位、规划、控制、运行管理、命令门控和 IPGMovie。
+- 实车：
 
-```bash
-./scripts/run_map_rviz.sh
-```
+  ```bash
+  ros2 launch autoracer_hooke2_bringup race.launch.py \
+    localization_map_path:=/path/to/map \
+    course_path:=/path/to/course
+  ```
 
-Mock LiDAR NDT localization check:
-
-```bash
-./scripts/run_mock_lidar_record_scenario.sh
-./scripts/run_mock_lidar_ndt_rviz.sh
-```
-
-Prepare a map directory containing:
-
-```text
-lanelet2_map.osm
-pointcloud_map.pcd
-pointcloud_map_metadata.yaml
-map_projector_info.yaml
-```
-
-Dry run, without sending effective drive commands:
-
-```bash
-MAP_PATH=/path/to/map ./scripts/run_track.sh
-```
-
-Low-speed vehicle run after calibration and bench validation:
-
-```bash
-MAP_PATH=/path/to/map ENABLE_DRIVE_COMMANDS=true MAX_SPEED_MPS=1.5 ./scripts/run_track.sh
-./scripts/request_autonomous_mode.sh
-```
-
-## Default Safety Position
-
-The default launch keeps `enable_drive_commands` false. The controller and planner
-will run, but the safety gate publishes stop commands to the real vehicle command topic.
-Switch it to true only after TF, steering, velocity, localization, and CAN direction are
-verified.
-
-The helper scripts source `install/local_setup.bash` through `scripts/ros_env.sh` so this
-workspace does not accidentally run packages from `/home/corage/workspace/project/pilot-auto.x1`.
+当前仿真资源为 `maps/urbanroad_route271_20260710` 和
+`courses/urbanroad_route271_unlimited`。RViz 与硬件 smoke 脚本只用于诊断，不构成第二套运行栈。

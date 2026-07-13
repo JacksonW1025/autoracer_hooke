@@ -1,6 +1,6 @@
 # Calibration Checklist
 
-Run these checks before setting `ENABLE_DRIVE_COMMANDS=true`.
+Run these checks before allowing autonomous commands to reach the chassis.
 
 ## Frames
 
@@ -22,8 +22,7 @@ Run these checks before setting `ENABLE_DRIVE_COMMANDS=true`.
 ## Low-Speed Test
 
 1. Keep wheels lifted or vehicle secured.
-2. Run with `ENABLE_DRIVE_COMMANDS=false`.
+2. Run `RUN_LAUNCH=false ./scripts/verify_sensing_feedback.sh`.
 3. Confirm route, trajectory, and raw control direction in RViz.
-4. Enable drive commands at `MAX_SPEED_MPS=0.5`.
+4. Run `./scripts/hooke2_autoware_control_smoke_test.sh 0.5`.
 5. Verify stop on localization loss, raw command timeout, and route completion.
-

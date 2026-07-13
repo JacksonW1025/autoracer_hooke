@@ -70,7 +70,7 @@ require_pkg() {
     mark_fail "ROS package missing in this workspace: ${package}"
     return 1
   fi
-  if [[ "$prefix" == "${AUTORACER_OLD_REPO:-/home/corage/workspace/project/pilot-auto.x1}"* ]]; then
+  if [[ "$prefix" == "${PILOT_REPO:-/opt/ipg/carmaker/linux64-15.1/pilot-auto.x1}"* ]]; then
     mark_fail "Package ${package} resolves to old repo: ${prefix}"
     return 1
   fi
@@ -202,7 +202,7 @@ check_topic_hz() {
 
 log "Autoracer Hooke bench verification"
 log "run dir: ${RUN_DIR}"
-log "old underlay guard: ${AUTORACER_OLD_REPO:-/home/corage/workspace/project/pilot-auto.x1}"
+log "pilot underlay guard: ${PILOT_REPO:-/opt/ipg/carmaker/linux64-15.1/pilot-auto.x1}"
 log ""
 log "Preflight"
 probe_ping "LiDAR" "${LIDAR_SENSOR_IP:-192.168.1.130}"
@@ -222,14 +222,14 @@ fi
 
 log ""
 log "Package resolution"
-require_pkg autoracer_bringup || true
+require_pkg autoracer_hooke2_bringup || true
 require_pkg autoracer_description || true
 if is_true "$LAUNCH_LIDAR"; then
   require_pkg nebula_hesai || true
 fi
 if is_true "$LAUNCH_FIXPOSITION"; then
   require_pkg fixposition_driver_ros2 || true
-  require_pkg autoracer_sensing || true
+  require_pkg autoracer_hooke2_adapter || true
 fi
 if is_true "$LAUNCH_VEHICLE"; then
   require_pkg can_driver || true
@@ -244,7 +244,7 @@ fi
 
 log ""
 log "Starting ROS bench launch"
-setsid ros2 launch autoracer_bringup bench_verification.launch.py \
+setsid ros2 launch autoracer_hooke2_bringup bench.launch.py \
   launch_lidar:="$LAUNCH_LIDAR" \
   launch_fixposition:="$LAUNCH_FIXPOSITION" \
   launch_vehicle:="$LAUNCH_VEHICLE" \

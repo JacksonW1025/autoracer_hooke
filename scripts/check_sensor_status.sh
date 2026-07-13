@@ -56,7 +56,7 @@ fail() {
 
 collect_launched_pids() {
   {
-    pgrep -f "autoracer_bringup bench_verification.launch.py" || true
+    pgrep -f "autoracer_hooke2_bringup bench.launch.py" || true
     pgrep -f "fixposition_driver_ros2_exec" || true
     pgrep -f "velocity_to_fixposition_speed" || true
     pgrep -f "component_container_mt.*autoracer_lidar_container" || true
@@ -129,7 +129,7 @@ require_pkg() {
     fail "ROS package 缺失：${package}"
     return 1
   fi
-  if [[ "$prefix" == "${AUTORACER_OLD_REPO:-/home/corage/workspace/project/pilot-auto.x1}"* ]]; then
+  if [[ "$prefix" == "${AUTORACER_OLD_REPO:-/opt/ipg/carmaker/linux64-15.1/pilot-auto.x1}"* ]]; then
     fail "Package ${package} 解析到了旧仓：${prefix}"
     return 1
   fi
@@ -237,7 +237,7 @@ fi
 
 log ""
 log "2) ROS package 检查"
-require_pkg autoracer_bringup || true
+require_pkg autoracer_hooke2_bringup || true
 require_pkg nebula_hesai || true
 require_pkg fixposition_driver_ros2 || true
 require_pkg can_driver || true
@@ -251,7 +251,7 @@ fi
 
 log ""
 log "3) 启动 LiDAR + Fixposition + Hooke2 底盘反馈 launch/node"
-setsid ros2 launch autoracer_bringup bench_verification.launch.py \
+setsid ros2 launch autoracer_hooke2_bringup bench.launch.py \
   launch_static_tf:=true \
   launch_lidar:=true \
   launch_fixposition:=true \

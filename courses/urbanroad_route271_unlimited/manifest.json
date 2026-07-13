@@ -53,6 +53,7 @@
     "road_file_sha256": "0ca8da1a2073207fb55c7d8b2103c6ba253d54866007ba7491af98d5446fd178",
     "speed_profile_source": {
       "course_sha256": "bfd0cde3c9bf29c82eb39e04ef14b034068d5b1f3371fa92f7d015b8cea9563a",
+      "retention": "git_history",
       "version": "urbanroad_route271_v2"
     },
     "testrun": "AutoracerCollection_UrbanRoad",

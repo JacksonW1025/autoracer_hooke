@@ -26,7 +26,7 @@ Test options:
 
 Environment overrides:
   WORKSPACE_ROOT                 Workspace root. Default: parent of this script directory.
-  LAUNCH_INTERFACE               1 to launch autoracer_bringup vehicle.launch.py. Default: 1.
+  LAUNCH_INTERFACE               1 to launch autoracer_hooke2_bringup vehicle.launch.py. Default: 1.
   SHOW_LAUNCH_OUTPUT             1 to show raw launch/node output. Default: 0.
   LAUNCH_LOG_FILE                Raw launch/node output path. Default: /tmp/hooke2_autoware_control_*.log.
   KEEP_LAUNCH_ALIVE              1 to leave launched nodes running after test. Default: 0.
@@ -63,7 +63,7 @@ WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 SETUP_FILE="${SETUP_FILE:-}"
 
 LAUNCH_INTERFACE="${LAUNCH_INTERFACE:-1}"
-LAUNCH_PACKAGE="${LAUNCH_PACKAGE:-autoracer_bringup}"
+LAUNCH_PACKAGE="${LAUNCH_PACKAGE:-autoracer_hooke2_bringup}"
 LAUNCH_FILE="${LAUNCH_FILE:-vehicle.launch.py}"
 KEEP_LAUNCH_ALIVE="${KEEP_LAUNCH_ALIVE:-0}"
 SHOW_LAUNCH_OUTPUT="${SHOW_LAUNCH_OUTPUT:-0}"

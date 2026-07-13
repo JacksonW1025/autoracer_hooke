@@ -14,7 +14,7 @@ fi
 # shellcheck source=scripts/ros_env.sh
 source "$ROOT_DIR/scripts/ros_env.sh"
 
-ros2 launch autoracer_bringup lidar_rviz.launch.py \
+ros2 launch autoracer_hooke2_bringup lidar_rviz.launch.py \
   lidar_host_ip:="${LIDAR_HOST_IP}" \
   lidar_sensor_ip:="${LIDAR_SENSOR_IP}" \
   lidar_data_port:="${LIDAR_DATA_PORT}" \

@@ -40,7 +40,7 @@ Minimal vehicle-only launch:
 
 ```bash
 source ./scripts/ros_env.sh
-ros2 launch autoracer_bringup vehicle.launch.py
+ros2 launch autoracer_hooke2_bringup vehicle.launch.py
 ```
 
 For read-only bench feedback validation, prefer:
@@ -48,12 +48,6 @@ For read-only bench feedback validation, prefer:
 ```bash
 RUN_LAUNCH=false ./scripts/verify_sensing_feedback.sh
 ./scripts/verify_sensing_feedback.sh
-```
-
-The legacy-compatible local launch is also available:
-
-```bash
-ros2 launch hooke2_launch vehicle_interface.launch.xml
 ```
 
 Use the smoke test only with a safety operator, working E-stop, and clear wheels:

@@ -14,7 +14,7 @@ if [[ -f "${ROOT_DIR}/defaults.env" ]]; then
   set +a
 fi
 
-MAP_PATH="${MAP_PATH:-${ROOT_DIR}/maps/whale_map_20251107}"
+MAP_PATH="${MAP_PATH:-${ROOT_DIR}/maps/urbanroad_route271_20260710}"
 MAP_RVIZ_LEAF_SIZE="${MAP_RVIZ_LEAF_SIZE:-0.5}"
 
 ros2 launch autoracer_bringup map_rviz.launch.py \

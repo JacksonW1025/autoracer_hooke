@@ -15,7 +15,8 @@
   "row_count": 21598,
   "schema_version": 2,
   "source": {
-    "path": "autoracer_hooke/courses/urbanroad_route271_v2/course.csv",
+    "artifact": "urbanroad_route271_v2/course.csv",
+    "retention": "git_history",
     "sha256": "bfd0cde3c9bf29c82eb39e04ef14b034068d5b1f3371fa92f7d015b8cea9563a"
   },
   "status": "PASS"
