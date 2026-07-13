@@ -1,0 +1,9 @@
+/**:
+  ros__parameters:
+    lateral_controller_mode: "mpc"
+    longitudinal_controller_mode: "pid"
+    ego_nearest_dist_threshold: 3.0
+    ego_nearest_yaw_threshold: 1.046
+    enable_control_cmd_horizon_pub: false
+    mpc_weight_lat_error: 5.0
+    mpc_weight_terminal_lat_error: 5.0

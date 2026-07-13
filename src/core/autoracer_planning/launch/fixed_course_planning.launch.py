@@ -10,6 +10,10 @@ def generate_launch_description():
     map_path = LaunchConfiguration("map_path")
     use_sim_time = LaunchConfiguration("use_sim_time")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
+    max_accel_mps2 = LaunchConfiguration("max_accel_mps2")
+    max_decel_mps2 = LaunchConfiguration("max_decel_mps2")
+    command_latency_sec = LaunchConfiguration("command_latency_sec")
+    stopping_margin_m = LaunchConfiguration("stopping_margin_m")
 
     return LaunchDescription(
         [
@@ -17,6 +21,10 @@ def generate_launch_description():
             DeclareLaunchArgument("map_path"),
             DeclareLaunchArgument("use_sim_time", default_value="true"),
             DeclareLaunchArgument("max_speed_mps", default_value="100.0"),
+            DeclareLaunchArgument("max_accel_mps2", default_value="0.8"),
+            DeclareLaunchArgument("max_decel_mps2", default_value="-1.5"),
+            DeclareLaunchArgument("command_latency_sec", default_value="0.2"),
+            DeclareLaunchArgument("stopping_margin_m", default_value="5.0"),
             SetParameter(
                 name="use_sim_time",
                 value=ParameterValue(use_sim_time, value_type=bool),
@@ -51,8 +59,18 @@ def generate_launch_description():
                         "lookahead_distance_m": 40.0,
                         "backward_distance_m": 2.0,
                         "max_speed_mps": ParameterValue(max_speed_mps, value_type=float),
-                        "max_accel_mps2": 0.8,
-                        "max_decel_mps2": -1.5,
+                        "max_accel_mps2": ParameterValue(
+                            max_accel_mps2, value_type=float
+                        ),
+                        "max_decel_mps2": ParameterValue(
+                            max_decel_mps2, value_type=float
+                        ),
+                        "command_latency_sec": ParameterValue(
+                            command_latency_sec, value_type=float
+                        ),
+                        "stopping_margin_m": ParameterValue(
+                            stopping_margin_m, value_type=float
+                        ),
                         "departure_speed_mps": 0.1,
                         "nearest_search_forward_distance_m": 3.0,
                         "nearest_search_forward_time_sec": 0.35,

@@ -17,6 +17,10 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration("use_sim_time")
     system_run_mode = LaunchConfiguration("system_run_mode")
     max_speed_mps = LaunchConfiguration("max_speed_mps")
+    max_accel_mps2 = LaunchConfiguration("max_accel_mps2")
+    max_decel_mps2 = LaunchConfiguration("max_decel_mps2")
+    command_latency_sec = LaunchConfiguration("command_latency_sec")
+    stopping_margin_m = LaunchConfiguration("stopping_margin_m")
 
     return LaunchDescription(
         [
@@ -29,6 +33,10 @@ def generate_launch_description():
                 choices=["online", "logging_simulation"],
             ),
             DeclareLaunchArgument("max_speed_mps", default_value="5.0"),
+            DeclareLaunchArgument("max_accel_mps2", default_value="0.8"),
+            DeclareLaunchArgument("max_decel_mps2", default_value="-1.5"),
+            DeclareLaunchArgument("command_latency_sec", default_value="0.2"),
+            DeclareLaunchArgument("stopping_margin_m", default_value="5.0"),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _launch_file("autoracer_localization", "localization.launch.py")
@@ -50,6 +58,10 @@ def generate_launch_description():
                     "map_path": localization_map_path,
                     "use_sim_time": use_sim_time,
                     "max_speed_mps": max_speed_mps,
+                    "max_accel_mps2": max_accel_mps2,
+                    "max_decel_mps2": max_decel_mps2,
+                    "command_latency_sec": command_latency_sec,
+                    "stopping_margin_m": stopping_margin_m,
                 }.items(),
             ),
         ]

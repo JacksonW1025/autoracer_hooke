@@ -47,3 +47,40 @@ def test_core_manifests_do_not_depend_on_platform_packages():
     assert "autoracer_hooke2" not in manifests
     assert "autoracer_rc" not in manifests
     assert "hooke2_" not in manifests
+
+
+def test_shared_race_exposes_platform_parameter_contract():
+    race_source = (CORE_ROOT / "autoracer_bringup" / "launch" / "race.launch.py").read_text(
+        encoding="utf-8"
+    )
+    planning_source = (
+        CORE_ROOT / "autoracer_bringup" / "launch" / "planning.launch.py"
+    ).read_text(encoding="utf-8")
+    planner_source = (
+        CORE_ROOT
+        / "autoracer_planning"
+        / "launch"
+        / "fixed_course_planning.launch.py"
+    ).read_text(encoding="utf-8")
+
+    for argument in (
+        "vehicle_info_param_file",
+        "control_param_file",
+        "gate_param_file",
+        "runtime_param_file",
+        "max_speed_mps",
+        "max_accel_mps2",
+        "max_decel_mps2",
+        "command_latency_sec",
+        "stopping_margin_m",
+    ):
+        assert f'LaunchConfiguration("{argument}")' in race_source
+
+    for argument in (
+        "max_accel_mps2",
+        "max_decel_mps2",
+        "command_latency_sec",
+        "stopping_margin_m",
+    ):
+        assert f'LaunchConfiguration("{argument}")' in planning_source
+        assert f'LaunchConfiguration("{argument}")' in planner_source
