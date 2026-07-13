@@ -1,2 +1,0 @@
-std_msgs/Header header
-autoware_internal_planning_msgs/PlanningFactor[] factors

@@ -1,7 +1,0 @@
-builtin_interfaces/Time stamp
-string hostname
-CpuTemperature cpu_temperature
-MemoryStatus memory_status
-GpuStatus gpu_status
-NetworkStatus network_status
-HddStatus hdd_status

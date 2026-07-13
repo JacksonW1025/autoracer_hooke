@@ -1,113 +1,119 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT_DIR"
+PRODUCT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(dirname "${PRODUCT_ROOT}")"
+VENDOR_WS="${AUTORACER_VENDOR_WS:-${PRODUCT_ROOT}/vendor_ws}"
+PILOT_REPO="${PILOT_REPO:-${ROOT_DIR}/pilot-auto.x1}"
+PACKAGE_MANIFEST="${PRODUCT_ROOT}/dependencies/vendor-packages.tsv"
+REPOSITORY_MANIFEST="${PRODUCT_ROOT}/dependencies/autoracer.repos"
+PATCH_DIR="${PRODUCT_ROOT}/dependencies/patches"
 
-mkdir -p src/external
+mode="reuse"
+case "${1:-}" in
+  "") ;;
+  --refresh) mode="pilot" ;;
+  --network) mode="network" ;;
+  --verify-only) mode="verify" ;;
+  *)
+    echo "Usage: $0 [--refresh|--network|--verify-only]" >&2
+    exit 2
+    ;;
+esac
 
-copy_from_pilot_repo() {
-  local pilot_repo="${PILOT_REPO:-/home/corage/workspace/project/pilot-auto.x1}"
-  if [[ ! -d "${pilot_repo}" ]]; then
-    echo "PILOT_REPO does not exist: ${pilot_repo}" >&2
-    exit 1
-  fi
-  if ! command -v rsync >/dev/null 2>&1; then
-    echo "rsync is required for IMPORT_FROM_PILOT=true." >&2
-    exit 1
-  fi
-
-  copy_dir() {
-    local src_dir="$1"
-    local dst_dir="$2"
-    if [[ ! -d "${src_dir}" ]]; then
-      echo "Missing source directory: ${src_dir}" >&2
-      exit 1
-    fi
-    mkdir -p "$(dirname "${dst_dir}")"
-    rsync -a --delete \
-      --exclude ".git" \
-      --exclude "build" \
-      --exclude "install" \
-      --exclude "log" \
-      "${src_dir}/" "${dst_dir}/"
-  }
-
-  copy_dir "${pilot_repo}/src/autoware/autoware_cmake" \
-    "src/external/autoware/autoware_cmake"
-  copy_dir "${pilot_repo}/src/autoware/autoware_utils" \
-    "src/external/autoware/autoware_utils"
-  copy_dir "${pilot_repo}/src/autoware/autoware_msgs" \
-    "src/external/autoware/autoware_msgs"
-  copy_dir "${pilot_repo}/src/autoware/autoware_internal_msgs" \
-    "src/external/autoware/autoware_internal_msgs"
-  copy_dir "${pilot_repo}/src/autoware/tier4_autoware_msgs" \
-    "src/external/autoware/tier4_autoware_msgs"
-  copy_dir "${pilot_repo}/src/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs" \
-    "src/external/autoware/autoware_adapi_msgs/autoware_adapi_v1_msgs"
-  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_vehicle_info_utils" \
-    "src/external/autoware/core/common/autoware_vehicle_info_utils"
-  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_agnocast_wrapper" \
-    "src/external/autoware/core/common/autoware_agnocast_wrapper"
-  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_component_interface_specs" \
-    "src/external/autoware/core/common/autoware_component_interface_specs"
-  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_geography_utils" \
-    "src/external/autoware/core/common/autoware_geography_utils"
-  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_lanelet2_utils" \
-    "src/external/autoware/core/common/autoware_lanelet2_utils"
-  copy_dir "${pilot_repo}/src/autoware/core/common/autoware_qos_utils" \
-    "src/external/autoware/core/common/autoware_qos_utils"
-  copy_dir "${pilot_repo}/src/autoware/core/localization/autoware_localization_util" \
-    "src/external/autoware/core/localization/autoware_localization_util"
-  copy_dir "${pilot_repo}/src/autoware/core/localization/autoware_ndt_scan_matcher" \
-    "src/external/autoware/core/localization/autoware_ndt_scan_matcher"
-  copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_loader" \
-    "src/external/autoware/core/map/autoware_map_loader"
-  copy_dir "${pilot_repo}/src/autoware/core/map/autoware_map_projection_loader" \
-    "src/external/autoware/core/map/autoware_map_projection_loader"
-  copy_dir "${pilot_repo}/src/autoware/core/sensing/autoware_gnss_poser" \
-    "src/external/autoware/core/sensing/autoware_gnss_poser"
-  copy_dir "${pilot_repo}/src/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension" \
-    "src/external/autoware/autoware_lanelet2_extension/autoware_lanelet2_extension"
-  copy_dir "${pilot_repo}/src/autoware/universe/common/tier4_api_utils" \
-    "src/external/autoware/universe/common/tier4_api_utils"
-  copy_dir "${pilot_repo}/src/vendor/nebula" \
-    "src/external/vendor/nebula"
-  copy_dir "${pilot_repo}/src/vendor/sync_tooling_msgs" \
-    "src/external/vendor/sync_tooling_msgs"
-  copy_dir "${pilot_repo}/src/vendor/boost_transport_drivers" \
-    "src/external/vendor/boost_transport_drivers"
-  copy_dir "${pilot_repo}/src/vendor/generate_parameter_library" \
-    "src/external/vendor/generate_parameter_library"
-  copy_dir "${pilot_repo}/src/whale_components/hardware_drivers/gnss/fixposition_driver" \
-    "src/external/whale_components/hardware_drivers/gnss/fixposition_driver"
-}
-
-if [[ "${IMPORT_FROM_PILOT:-false}" == "true" ]]; then
-  copy_from_pilot_repo
-else
-  if ! command -v vcs >/dev/null 2>&1; then
-    echo "vcs is required. Install python3-vcstool first." >&2
-    exit 1
-  fi
-  vcs import src < autoracer.repos
+if [[ ! -s "${PACKAGE_MANIFEST}" ]]; then
+  echo "Missing package manifest: ${PACKAGE_MANIFEST}" >&2
+  exit 1
 fi
 
-# The Hooke2 chassis control chain is vendored in this repository under src/.
-# Keep the external whale_components checkout available for other drivers, but
-# hide duplicate package names from colcon if the full repo is imported.
-for package_dir in \
-  src/external/whale_components/hardware_drivers/can_driver \
-  src/external/whale_components/hardware_drivers/gnss/fixposition_driver/fixposition_driver_ros1 \
-  src/external/whale_components/hardware_drivers/gnss/fixposition_driver/fixposition-sdk/examples/ros1_fpsdk_demo \
-  src/external/whale_components/hardware_drivers/gnss/fixposition_driver/fixposition-sdk/fpsdk_ros1 \
-  src/external/whale_components/vehicle/interfaces/hooke2_interface/hooke2_interface \
-  src/external/whale_components/vehicle/vehicle_launcher/hooke2_launch/hooke2_description \
-  src/external/whale_components/vehicle/vehicle_launcher/hooke2_launch/hooke2_launch \
-  src/external/whale_components/wd_msgs/vehicle_interface_msgs/hooke2_msgs \
-  src/external/whale_components/wd_msgs/vehicle_interface_msgs/wd_byte
-do
-  if [[ -d "${package_dir}" ]]; then
-    touch "${package_dir}/COLCON_IGNORE"
+copy_curated_packages() {
+  local source_root="$1"
+  local package relative_path source_dir destination_dir
+
+  while IFS=$'\t' read -r package relative_path; do
+    [[ -n "${package}" && -n "${relative_path}" ]] || continue
+    source_dir="${source_root}/${relative_path}"
+    destination_dir="${VENDOR_WS}/src/${relative_path}"
+    if [[ ! -f "${source_dir}/package.xml" ]]; then
+      echo "Missing ${package} in dependency source: ${source_dir}" >&2
+      exit 1
+    fi
+    mkdir -p "$(dirname "${destination_dir}")"
+    rsync -a --delete \
+      --exclude='.git' \
+      --exclude='build' \
+      --exclude='install' \
+      --exclude='log' \
+      --exclude='COLCON_IGNORE' \
+      --exclude='*.db3' \
+      "${source_dir}/" "${destination_dir}/"
+  done < "${PACKAGE_MANIFEST}"
+}
+
+apply_patch_once() {
+  local patch_file="$1"
+  if patch --batch --forward --dry-run --silent -d "${VENDOR_WS}" -p1 \
+    < "${patch_file}" >/dev/null 2>&1
+  then
+    patch --batch --forward --silent -d "${VENDOR_WS}" -p1 < "${patch_file}"
+  elif patch --batch --reverse --dry-run --silent -d "${VENDOR_WS}" -p1 \
+    < "${patch_file}" >/dev/null 2>&1
+  then
+    printf 'already applied: %s\n' "$(basename "${patch_file}")"
+  else
+    echo "Patch does not apply cleanly: ${patch_file}" >&2
+    exit 1
   fi
-done
+}
+
+verify_package_set() {
+  local expected actual
+  expected="$(mktemp)"
+  actual="$(mktemp)"
+  cut -f1 "${PACKAGE_MANIFEST}" | sort -u > "${expected}"
+  colcon list --base-paths "${VENDOR_WS}/src" --names-only | sort -u > "${actual}"
+  if ! diff -u "${expected}" "${actual}"; then
+    rm -f "${expected}" "${actual}"
+    echo "Vendor package set differs from ${PACKAGE_MANIFEST}" >&2
+    return 1
+  fi
+  printf 'verified vendor package set: %s packages\n' "$(wc -l < "${actual}")"
+  rm -f "${expected}" "${actual}"
+}
+
+if [[ "${mode}" == "pilot" || "${mode}" == "network" ]]; then
+  if [[ -z "${VENDOR_WS}" || "${VENDOR_WS}" == "/" || "${VENDOR_WS}" == "${HOME}" ]]; then
+    echo "Refusing unsafe vendor workspace path: ${VENDOR_WS}" >&2
+    exit 1
+  fi
+  rm -rf "${VENDOR_WS}/src"
+  mkdir -p "${VENDOR_WS}/src"
+
+  if [[ "${mode}" == "pilot" ]]; then
+    if [[ ! -d "${PILOT_REPO}/src" ]]; then
+      echo "Missing real-vehicle source repository: ${PILOT_REPO}" >&2
+      exit 1
+    fi
+    copy_curated_packages "${PILOT_REPO}/src"
+  else
+    command -v vcs >/dev/null || {
+      echo "vcs is required for --network" >&2
+      exit 1
+    }
+    temporary_checkout="$(mktemp -d)"
+    trap 'rm -rf "${temporary_checkout}"' EXIT
+    vcs import "${temporary_checkout}/src" < "${REPOSITORY_MANIFEST}"
+    copy_curated_packages "${temporary_checkout}/src"
+  fi
+elif [[ ! -d "${VENDOR_WS}/src" ]]; then
+  echo "Missing vendor workspace. Run $0 --refresh." >&2
+  exit 1
+fi
+
+if [[ "${mode}" != "verify" ]]; then
+  while IFS= read -r patch_file; do
+    apply_patch_once "${patch_file}"
+  done < <(find "${PATCH_DIR}" -maxdepth 1 -type f -name '*.patch' -print | sort)
+fi
+
+verify_package_set

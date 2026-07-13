@@ -1,0 +1,57 @@
+--- a/src/autoware/universe/control/autoware_vehicle_cmd_gate/src/vehicle_cmd_gate.cpp
++++ b/src/autoware/universe/control/autoware_vehicle_cmd_gate/src/vehicle_cmd_gate.cpp
+@@ -57,37 +57,39 @@
+   prev_hazard_light_ = nullptr;
+   prev_gear_ = nullptr;
+ 
+-  rclcpp::QoS durable_qos{1};
+-  durable_qos.transient_local();
++  rclcpp::QoS command_qos{1};
++  command_qos.reliable().durability_volatile();
++  rclcpp::QoS state_qos{1};
++  state_qos.reliable().transient_local();
+ 
+   // Stop Checker
+   vehicle_stop_checker_ = std::make_unique<VehicleStopChecker>(this);
+ 
+   // Publisher
+   vehicle_cmd_emergency_pub_ =
+-    create_publisher<VehicleEmergencyStamped>("output/vehicle_cmd_emergency", durable_qos);
+-  control_cmd_pub_ = create_publisher<Control>("output/control_cmd", durable_qos);
+-  gear_cmd_pub_ = create_publisher<GearCommand>("output/gear_cmd", durable_qos);
++    create_publisher<VehicleEmergencyStamped>("output/vehicle_cmd_emergency", command_qos);
++  control_cmd_pub_ = create_publisher<Control>("output/control_cmd", command_qos);
++  gear_cmd_pub_ = create_publisher<GearCommand>("output/gear_cmd", command_qos);
+   turn_indicator_cmd_pub_ =
+-    create_publisher<TurnIndicatorsCommand>("output/turn_indicators_cmd", durable_qos);
++    create_publisher<TurnIndicatorsCommand>("output/turn_indicators_cmd", command_qos);
+   hazard_light_cmd_pub_ =
+-    create_publisher<HazardLightsCommand>("output/hazard_lights_cmd", durable_qos);
++    create_publisher<HazardLightsCommand>("output/hazard_lights_cmd", command_qos);
+ 
+-  gate_mode_pub_ = create_publisher<GateMode>("output/gate_mode", durable_qos);
+-  engage_pub_ = create_publisher<EngageMsg>("output/engage", durable_qos);
+-  pub_external_emergency_ = create_publisher<Emergency>("output/external_emergency", durable_qos);
+-  operation_mode_pub_ = create_publisher<OperationModeState>("output/operation_mode", durable_qos);
++  gate_mode_pub_ = create_publisher<GateMode>("output/gate_mode", state_qos);
++  engage_pub_ = create_publisher<EngageMsg>("output/engage", state_qos);
++  pub_external_emergency_ = create_publisher<Emergency>("output/external_emergency", state_qos);
++  operation_mode_pub_ = create_publisher<OperationModeState>("output/operation_mode", state_qos);
+   processing_time_pub_ = this->create_publisher<autoware_internal_debug_msgs::msg::Float64Stamped>(
+     "~/debug/processing_time_ms", 1);
+ 
+   is_filter_activated_pub_ =
+-    create_publisher<IsFilterActivated>("~/is_filter_activated", durable_qos);
++    create_publisher<IsFilterActivated>("~/is_filter_activated", state_qos);
+   filter_activated_marker_pub_ =
+-    create_publisher<MarkerArray>("~/is_filter_activated/marker", durable_qos);
++    create_publisher<MarkerArray>("~/is_filter_activated/marker", state_qos);
+   filter_activated_marker_raw_pub_ =
+-    create_publisher<MarkerArray>("~/is_filter_activated/marker_raw", durable_qos);
++    create_publisher<MarkerArray>("~/is_filter_activated/marker_raw", state_qos);
+   filter_activated_flag_pub_ =
+-    create_publisher<BoolStamped>("~/is_filter_activated/flag", durable_qos);
++    create_publisher<BoolStamped>("~/is_filter_activated/flag", state_qos);
+ 
+   // Subscriber
+   external_emergency_stop_heartbeat_sub_ = create_subscription<Heartbeat>(

@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-// A status indicating that there is no issue
-message Ok {
-  // An optional message providing more information
-  optional string msg = 1;
-}

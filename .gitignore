@@ -2,6 +2,7 @@ build/
 /build-gcc/
 install/
 log/
+/vendor_ws/
 
 *.pyc
 __pycache__/
@@ -12,6 +13,8 @@ __pycache__/
 *.db3
 
 .serena/
+.cache/
+.spec-workflow/
 scripts/.spec-workflow/
 
 maps/*
