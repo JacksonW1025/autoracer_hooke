@@ -120,34 +120,6 @@ def generate_launch_description():
                 )
             ]
         ),
-        GroupAction(
-            [
-                IncludeLaunchDescription(
-                    AnyLaunchDescriptionSource(
-                        _pkg_file("autoware_gnss_poser", "launch", "gnss_poser.launch.xml")
-                    ),
-                    launch_arguments={
-                        "input_topic_fix": "/fixposition/fix",
-                        "input_topic_orientation": "/fixposition/autoware_orientation",
-                        "output_topic_gnss_pose": "/sensing/gnss/pose",
-                        "output_topic_gnss_pose_cov": "/sensing/gnss/pose_with_covariance",
-                        "output_topic_gnss_fixed": "/sensing/gnss/fixed",
-                    }.items(),
-                )
-            ]
-        ),
-        Node(
-            package="topic_tools",
-            executable="relay",
-            name="fixposition_rawimu_to_sensing_imu_relay",
-            output="screen",
-            parameters=[
-                {
-                    "input_topic": "/fixposition/rawimu",
-                    "output_topic": "/sensing/imu/imu_data",
-                }
-            ],
-        ),
         Node(
             package="autoracer_sensing",
             executable="localization_adapi_bridge",

@@ -34,6 +34,11 @@ Only the topics needed by localization are part of the minimal contract:
 `autoware_gnss_poser`, which publishes `/sensing/gnss/pose_with_covariance` for NDT
 initialization and regularization.
 
+The driver is optional at launch time, but normalization remains active in Hooke2
+sensing so the same conversion consumes `/fixposition/*` published by CarMaker Bridge.
+Set `launch_fixposition_driver:=false` for external simulated data; do not duplicate
+the GNSS poser or IMU relay in core localization.
+
 The driver may also advertise diagnostic FPA topics such as
 `/fixposition/fpa/odomstatus`. They are useful for status inspection, but are not
 required for the first localization contract above.

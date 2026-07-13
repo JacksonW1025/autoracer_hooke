@@ -2,7 +2,10 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.launch_description_sources import (
+    AnyLaunchDescriptionSource,
+    PythonLaunchDescriptionSource,
+)
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import ComposableNodeContainer, Node
 from launch_ros.descriptions import ComposableNode
@@ -13,6 +16,7 @@ def generate_launch_description():
     launch_static_tf = LaunchConfiguration("launch_static_tf")
     launch_lidar = LaunchConfiguration("launch_lidar")
     launch_fixposition = LaunchConfiguration("launch_fixposition")
+    launch_fixposition_driver = LaunchConfiguration("launch_fixposition_driver")
     lidar_param_file = LaunchConfiguration("lidar_param_file")
     lidar_host_ip = LaunchConfiguration("lidar_host_ip")
     lidar_sensor_ip = LaunchConfiguration("lidar_sensor_ip")
@@ -34,7 +38,7 @@ def generate_launch_description():
                 "speed_topic": ParameterValue(fixposition_speed_topic, value_type=str),
             },
         ],
-        condition=IfCondition(launch_fixposition),
+        condition=IfCondition(launch_fixposition_driver),
     )
 
     fixposition_speed_bridge = Node(
@@ -49,7 +53,39 @@ def generate_launch_description():
                 "sensor_location": "RC",
             }
         ],
-        condition=IfCondition(launch_fixposition),
+        condition=IfCondition(launch_fixposition_driver),
+    )
+
+    fixposition_gnss_normalization = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    get_package_share_directory("autoware_gnss_poser"),
+                    "launch",
+                    "gnss_poser.launch.xml",
+                ]
+            )
+        ),
+        launch_arguments={
+            "input_topic_fix": "/fixposition/fix",
+            "input_topic_orientation": "/fixposition/autoware_orientation",
+            "output_topic_gnss_pose": "/sensing/gnss/pose",
+            "output_topic_gnss_pose_cov": "/sensing/gnss/pose_with_covariance",
+            "output_topic_gnss_fixed": "/sensing/gnss/fixed",
+        }.items(),
+    )
+
+    fixposition_imu_normalization = Node(
+        package="topic_tools",
+        executable="relay",
+        name="fixposition_rawimu_to_sensing_imu_relay",
+        output="screen",
+        parameters=[
+            {
+                "input_topic": "/fixposition/rawimu",
+                "output_topic": "/sensing/imu/imu_data",
+            }
+        ],
     )
 
     lidar_container = ComposableNodeContainer(
@@ -104,6 +140,14 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_static_tf", default_value="true"),
             DeclareLaunchArgument("launch_lidar", default_value="true"),
             DeclareLaunchArgument("launch_fixposition", default_value="true"),
+            DeclareLaunchArgument(
+                "launch_fixposition_driver",
+                default_value=launch_fixposition,
+                description=(
+                    "Start the physical Fixposition driver. The legacy "
+                    "launch_fixposition argument remains its default for compatibility."
+                ),
+            ),
             DeclareLaunchArgument("lidar_param_file", default_value=default_lidar_param_file),
             DeclareLaunchArgument("lidar_host_ip", default_value="192.168.1.120"),
             DeclareLaunchArgument("lidar_sensor_ip", default_value="192.168.1.130"),
@@ -130,6 +174,8 @@ def generate_launch_description():
             ),
             fixposition_node,
             fixposition_speed_bridge,
+            fixposition_gnss_normalization,
+            fixposition_imu_normalization,
             lidar_container,
         ]
     )
