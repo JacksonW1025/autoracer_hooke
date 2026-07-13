@@ -22,11 +22,11 @@ from .rc_serial_protocol import Telemetry, TelemetryParser, encode_control_frame
 
 
 GEAR_NONE = 0
-GEAR_PARK = 1
-GEAR_REVERSE = 2
-GEAR_NEUTRAL = 3
-GEAR_DRIVE = 4
-GEAR_LOW = 5
+GEAR_NEUTRAL = 1
+GEAR_DRIVE = 2
+GEAR_REVERSE = 20
+GEAR_PARK = 22
+GEAR_LOW = 23
 
 Motion = Tuple[float, float, float, bool]
 

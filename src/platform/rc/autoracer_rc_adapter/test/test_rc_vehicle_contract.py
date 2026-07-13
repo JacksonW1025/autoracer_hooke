@@ -18,13 +18,23 @@ import pytest
 
 from autoracer_rc_adapter.rc_serial_interface import (
     GEAR_DRIVE,
+    GEAR_LOW,
     GEAR_NEUTRAL,
+    GEAR_PARK,
     GEAR_REVERSE,
     command_or_stop,
     control_to_motion,
     telemetry_to_status,
 )
 from autoracer_rc_adapter.rc_serial_protocol import Telemetry
+
+
+def test_gear_values_match_locked_autoware_messages():
+    assert GEAR_NEUTRAL == 1
+    assert GEAR_DRIVE == 2
+    assert GEAR_REVERSE == 20
+    assert GEAR_PARK == 22
+    assert GEAR_LOW == 23
 
 
 def test_drive_control_uses_ackermann_yaw_rate():
