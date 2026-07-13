@@ -17,6 +17,7 @@ __pycache__/
 .spec-workflow/
 scripts/.spec-workflow/
 docs/superpowers/
+.worktrees/
 
 maps/*
 !maps/.gitkeep
