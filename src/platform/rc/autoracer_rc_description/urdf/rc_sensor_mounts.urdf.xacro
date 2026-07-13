@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="rc_sensor_mounts">
+  <!-- Transform values intentionally live only in config/sensor_extrinsics.yaml. -->
+  <link name="base_link"/>
+  <link name="lidar_top"/>
+  <link name="imu_link"/>
+</robot>
