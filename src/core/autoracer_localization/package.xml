@@ -36,6 +36,8 @@
   <exec_depend>tier4_localization_launch</exec_depend>
   <exec_depend>topic_tools</exec_depend>
 
+  <test_depend>ament_cmake_pytest</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
