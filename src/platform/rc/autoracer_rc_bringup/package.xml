@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>autoracer_rc_bringup</name>
+  <version>0.1.0</version>
+  <description>Thin RC sensing, vehicle, and race composition.</description>
+  <maintainer email="codex@openai.com">Autoracer Team</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>autoracer_bringup</exec_depend>
+  <exec_depend>autoracer_rc_adapter</exec_depend>
+  <exec_depend>autoracer_rc_description</exec_depend>
+  <exec_depend>hipnuc_imu</exec_depend>
+  <exec_depend>imu_filter_madgwick</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>lslidar_driver</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

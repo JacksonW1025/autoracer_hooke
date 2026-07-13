@@ -1,0 +1,5 @@
+/**:
+  ros__parameters:
+    max_speed_mps: 0.5
+    max_accel_mps2: 0.4
+    max_decel_mps2: -0.8

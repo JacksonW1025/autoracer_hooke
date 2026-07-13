@@ -1,3 +1,17 @@
+# Copyright 2026 OpenAI
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Normalize LeiShen C32 PointCloud2 messages to Autoware PointXYZIRC."""
 
 import numpy as np
@@ -117,12 +131,12 @@ def main(args=None):
             self._return_type = int(self.get_parameter("default_return_type").value)
             self._publisher = self.create_publisher(
                 PointCloud2,
-                "/sensing/lidar/concatenated/pointcloud",
+                "output",
                 qos_profile_sensor_data,
             )
             self.create_subscription(
                 PointCloud2,
-                "/sensing/lidar/raw/pointcloud",
+                "input",
                 self._on_cloud,
                 qos_profile_sensor_data,
             )

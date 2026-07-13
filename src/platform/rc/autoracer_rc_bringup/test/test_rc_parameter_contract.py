@@ -1,3 +1,17 @@
+# Copyright 2026 OpenAI
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from pathlib import Path
 import math
 
@@ -6,6 +20,7 @@ import yaml
 
 RC_ROOT = Path(__file__).resolve().parents[2]
 DESCRIPTION = RC_ROOT / "autoracer_rc_description"
+BRINGUP = RC_ROOT / "autoracer_rc_bringup"
 
 
 def load_yaml(path):
@@ -49,3 +64,25 @@ def test_urdf_does_not_duplicate_extrinsic_numbers():
     for frame in ("base_link", "lidar_top", "imu_link"):
         assert f'name="{frame}"' in source
     assert "<origin" not in source
+
+
+def test_rc_overlays_never_exceed_physical_or_initial_safety_limits():
+    vehicle = load_yaml(DESCRIPTION / "config/vehicle_info.param.yaml")["/**"][
+        "ros__parameters"
+    ]
+    gate = load_yaml(BRINGUP / "config/rc/vehicle_cmd_gate.param.yaml")["/**"][
+        "ros__parameters"
+    ]
+    runtime = load_yaml(BRINGUP / "config/rc/race_runtime.param.yaml")[
+        "race_runtime_manager"
+    ]["ros__parameters"]
+    assert gate["nominal"]["vel_lim"] <= 0.5
+    assert gate["on_transition"]["vel_lim"] <= 0.5
+    for mode in ("nominal", "on_transition"):
+        assert max(gate[mode]["steer_cmd_lim"]) <= vehicle["max_steer_angle"]
+    assert runtime["vehicle_status_timeout_sec"] <= 0.5
+    assert runtime["emergency_acceleration_mps2"] <= -0.8
+    overlay_source = "\n".join(
+        path.read_text(encoding="utf-8") for path in (BRINGUP / "config/rc").glob("*.yaml")
+    )
+    assert "100.0" not in overlay_source

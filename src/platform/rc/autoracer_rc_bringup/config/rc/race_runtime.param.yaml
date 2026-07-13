@@ -1,0 +1,12 @@
+race_runtime_manager:
+  ros__parameters:
+    update_rate_hz: 20.0
+    auto_start: false
+    startup_timeout_sec: 90.0
+    localization_timeout_sec: 0.20
+    trajectory_timeout_sec: 0.35
+    control_timeout_sec: 0.20
+    vehicle_status_timeout_sec: 0.25
+    stop_speed_mps: 0.05
+    service_retry_sec: 0.25
+    emergency_acceleration_mps2: -0.8
