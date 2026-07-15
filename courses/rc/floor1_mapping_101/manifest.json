@@ -1,0 +1,64 @@
+{
+  "assets": {
+    "course.csv": {
+      "rows": 1052,
+      "sha256": "47552aa7a89ce2d5e01fea8c2cc54a49ec9e094bd135379e4fa8c4dde4652113"
+    },
+    "validation.json": {
+      "sha256": "2af9820072296f9143c21cacfde9fdc0b4e547015268d4d9ac40fab19ea992ae"
+    }
+  },
+  "frame_id": "map",
+  "limitations": [
+    "The course is the recorded driven line, not a surveyed drivable-area model.",
+    "Offsets are configured conservative metadata and are not online planning bounds."
+  ],
+  "map": {
+    "id": "floor1_mapping_101",
+    "manifest_sha256": "7d4c2c214100ed82676a0c7b295bad57e829fcd30e95ced3c3bc7de5c9e278d4"
+  },
+  "map_id": "floor1_mapping_101",
+  "processing": {
+    "departure_speed_mps": 0.1,
+    "left_offset_m": 0.4,
+    "max_accel_mps2": 0.4,
+    "max_decel_mps2": -0.8,
+    "max_lateral_accel_mps2": 0.4,
+    "max_speed_mps": 0.5,
+    "maximum_smoothing_displacement_m": 0.05,
+    "maximum_step_m": 2,
+    "minimum_point_spacing_m": 0.01,
+    "right_offset_m": 0.4,
+    "sample_interval_m": 0.2,
+    "smoothing_radius": 2,
+    "stationary_step_m": 0.02
+  },
+  "producer": {
+    "evidence": {
+      "bag_metadata_sha256": "57d47712f7b8035492f7ef25a275eb8283786bf0e6de3eb298d3321819326f98",
+      "odometry_bag_metadata_sha256": "107730529e1e6a983d0c2d9d2f0012687f698831052b2bd3c19f389d93360d1f",
+      "super_lio_config_sha256": "ce170ce6471c8a177c4ad58aaf9838bc74c56acc50b595b37ad9313c749e1097"
+    },
+    "method": "rc_recorded_super_lio"
+  },
+  "runtime_contract": "fixed_course_v1",
+  "schema_version": 3,
+  "source_frame": "world",
+  "validation": {
+    "course_length_m": 210.0086414698084,
+    "duplicate_points_removed": 75,
+    "duplicate_timestamps_removed": 0,
+    "internal_segments_removed": 0,
+    "invalid_points_removed": 0,
+    "map_frame": "map",
+    "maximum_smoothing_displacement_m": 0.019649382178709148,
+    "output_point_count": 1052,
+    "single_direction_recording": true,
+    "source_frame": "world",
+    "source_pose_count": 3705,
+    "stationary_prefix_removed": 2,
+    "stationary_suffix_removed": 49,
+    "status": "PASS",
+    "terminal_stop": true
+  }
+}

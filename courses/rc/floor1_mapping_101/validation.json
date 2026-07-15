@@ -1,0 +1,17 @@
+{
+  "course_length_m": 210.0086414698084,
+  "duplicate_points_removed": 75,
+  "duplicate_timestamps_removed": 0,
+  "internal_segments_removed": 0,
+  "invalid_points_removed": 0,
+  "map_frame": "map",
+  "maximum_smoothing_displacement_m": 0.019649382178709148,
+  "output_point_count": 1052,
+  "single_direction_recording": true,
+  "source_frame": "world",
+  "source_pose_count": 3705,
+  "stationary_prefix_removed": 2,
+  "stationary_suffix_removed": 49,
+  "status": "PASS",
+  "terminal_stop": true
+}
