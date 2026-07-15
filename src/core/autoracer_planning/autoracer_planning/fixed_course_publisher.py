@@ -10,10 +10,7 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
-from autoracer_planning.fixed_course import (
-    load_course_asset,
-    validate_course_map_contract,
-)
+from autoracer_planning.course_asset import load_runtime_course_asset
 
 
 def _duration_from_seconds(seconds: float) -> Duration:
@@ -68,11 +65,10 @@ class FixedCoursePublisher(Node):
         if not course_path_value:
             raise RuntimeError("course_path parameter is required")
         course_path = Path(course_path_value)
-        manifest, samples = load_course_asset(course_path)
         map_path_value = str(self.get_parameter("map_path").value)
         if not map_path_value:
             raise RuntimeError("map_path parameter is required")
-        validate_course_map_contract(manifest, Path(map_path_value))
+        manifest, samples = load_runtime_course_asset(course_path, Path(map_path_value))
         if manifest.get("frame_id") != "map":
             raise RuntimeError(f"fixed course frame must be map: {manifest.get('frame_id')!r}")
 
