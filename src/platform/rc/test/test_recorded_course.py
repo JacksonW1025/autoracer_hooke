@@ -141,6 +141,7 @@ def test_asset_write_is_atomic_and_refuses_replacement(tmp_path):
         "replays/odom/metadata.yaml",
         "maps/test_map/pointcloud_map_metadata.yaml",
         "maps/test_map/map_projector_info.yaml",
+        "maps/test_map/map_manifest.json",
         "runs/test/config.yaml",
     ):
         path = data_root / relative
@@ -155,7 +156,9 @@ def test_asset_write_is_atomic_and_refuses_replacement(tmp_path):
         data_root,
         [pose(0, 0), pose(1, 0.5), pose(2, 1.0)],
     )
-    assert manifest["production_method"] == "rc_recorded_super_lio"
+    assert manifest["runtime_contract"] == "fixed_course_v1"
+    assert manifest["producer"]["method"] == "rc_recorded_super_lio"
+    assert "manifest_sha256" in manifest["map"]
     assert manifest["validation"]["status"] == "PASS"
     assert (output / "course.csv").is_file()
     assert json.loads((output / "manifest.json").read_text())["map_id"] == "test_map"

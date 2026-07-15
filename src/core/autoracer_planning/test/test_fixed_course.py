@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from autoracer_planning.course_asset import load_runtime_course_asset
 from autoracer_planning.fixed_course import (
     CourseBuildConfig,
     CourseSample,
@@ -181,9 +182,12 @@ def test_build_asset_uses_continuous_gt_and_independent_holdout(tmp_path):
         road_extents,
     )
     loaded_manifest, samples = load_course_asset(output)
+    runtime_manifest, runtime_samples = load_runtime_course_asset(output, map_path)
 
     assert manifest["validation"]["status"] == "PASS"
     validate_course_map_contract(loaded_manifest, map_path)
+    assert runtime_manifest == loaded_manifest
+    assert runtime_samples == samples
     assert loaded_manifest["assets"]["course.csv"]["rows"] == len(samples)
     assert abs(samples[-1].s - 10.0) < 1e-6
     assert samples[-1].target_velocity == 0.0
@@ -200,3 +204,5 @@ def test_build_asset_uses_continuous_gt_and_independent_holdout(tmp_path):
     tile.write_bytes(b"tampered\n")
     with pytest.raises(ValueError, match="pointcloud tile"):
         validate_course_map_contract(loaded_manifest, map_path)
+    with pytest.raises(ValueError, match="pointcloud tile"):
+        load_runtime_course_asset(output, map_path)

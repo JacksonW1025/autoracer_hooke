@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 import subprocess
 
 
@@ -64,6 +65,10 @@ def test_build_cli_is_atomic_and_refuses_replacement():
     result = subprocess.run(
         ["python3", str(BUILD_CLI), "--help"],
         cwd=ROOT,
+        env={
+            **os.environ,
+            "PYTHONPATH": str(ROOT / "src" / "core" / "autoracer_planning"),
+        },
         text=True,
         capture_output=True,
         check=False,

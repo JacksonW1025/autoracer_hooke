@@ -4,7 +4,7 @@
 
 **Goal:** Reproduce the four mapping-time Super-LIO trajectories and turn each complete single-direction recording into a validated RC fixed-course asset that the platform-neutral Core can load.
 
-**Architecture:** Offline RC tooling replays each source bag through the pinned mapping workspace, records `/lio/odom`, and converts that odometry into the existing fixed-course CSV geometry and speed fields. Core receives a small platform-neutral integrity contract; CarMaker-specific RoadEval evidence remains accepted for existing CarMaker assets but is not imposed on recorded RC assets.
+**Architecture:** Offline RC tooling replays each source bag through the pinned mapping workspace, records `/lio/odom`, and converts that odometry into the existing fixed-course CSV geometry and speed fields. Core receives one platform-neutral `fixed_course_v1` integrity contract and never dispatches on producer type. CarMaker schema-2 assets retain their strict compatibility validator, while every schema-3 asset binds the complete map through a generic map manifest.
 
 **Tech Stack:** ROS 2 Humble, rosbag2/`rosbag2_py`, Super-LIO, Python 3 standard library, pytest, Bash, Autoware planning messages.
 
@@ -20,6 +20,7 @@
 - `src/platform/rc/test/test_recorded_course.py`: pure conversion and validation regression tests.
 - `src/platform/rc/test/test_recorded_course_workflow.py`: replay/source/CLI contract tests.
 - `src/core/autoracer_planning/autoracer_planning/course_asset.py`: platform-neutral course loader and map integrity validation.
+- `src/core/autoracer_planning/autoracer_planning/map_manifest.py`: generic metadata/projector/all-PCD-tile integrity contract.
 - `src/core/autoracer_planning/autoracer_planning/fixed_course.py`: retain CarMaker production code and delegate common runtime loading.
 - `src/core/autoracer_planning/test/test_course_asset.py`: RC and CarMaker runtime contract tests.
 - `courses/rc/floor1_mapping_{101,102,103,104}/`: generated small CSV/manifest assets.
@@ -171,7 +172,7 @@ Run both old and new course tests. Existing tests must pass; new RC tests must f
 
 - [ ] **Step 4: Extract the common loader with the smallest Core diff**
 
-Move only CSV schema/loading, generic integrity checks, and trajectory sample types into `course_asset.py`. Dispatch validation by explicit `production_method` (`carmaker_roadeval` or `rc_recorded_super_lio`). Retain the current strict CarMaker checks unchanged in meaning. Do not import RC code or add a platform conditional to launch files.
+Move the single CSV schema/reader/writer, generic integrity checks, and trajectory sample type into `course_asset.py`. Schema-3 assets declare only `runtime_contract: fixed_course_v1`; producer method and evidence are opaque provenance and must not control runtime behavior. Bind the course to `map_manifest.json`, which hashes the projector, point-cloud metadata, and every PCD tile. Retain the schema-2 CarMaker compatibility path and its strict RoadEval/release checks unchanged in meaning. Do not import RC code or add a platform conditional to launch files.
 
 - [ ] **Step 5: Run Core planning tests**
 
@@ -221,7 +222,7 @@ Capture bag info, selected topics, command/config/Super-LIO hashes, message coun
 
 - [ ] **Step 1: Generate 101 and inspect all validation metrics**
 
-Run the CLI from its odometry replay. Require no internal segment deletion, bounded smoothing, PCD-bound overlap, strict spacing, finite yaw/curvature, bounded speed/acceleration, and terminal stop.
+Generate the generic map manifest, then run the course CLI from its odometry replay. Require no internal segment deletion, bounded smoothing, PCD-bound overlap, strict spacing, finite yaw/curvature, bounded speed/acceleration, terminal stop, and a course-to-map-manifest hash binding.
 
 - [ ] **Step 2: Repeat for 102–104**
 

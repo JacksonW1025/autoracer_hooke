@@ -23,6 +23,7 @@ setup(
             "local_trajectory_planner = autoracer_planning.local_trajectory_planner:main",
             "fixed_course_publisher = autoracer_planning.fixed_course_publisher:main",
             "build_fixed_course = autoracer_planning.fixed_course:main",
+            "build_map_manifest = autoracer_planning.map_manifest:main",
         ],
     },
 )

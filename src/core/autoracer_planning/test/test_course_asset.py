@@ -4,8 +4,17 @@ import json
 
 import pytest
 
-from autoracer_planning.course_asset import RuntimeCourseSample, load_runtime_course_asset
+from autoracer_planning.course_asset import (
+    CourseSample,
+    load_runtime_course_asset,
+    write_course_csv,
+)
+from autoracer_planning.fixed_course import (
+    CourseSample as FixedCourseSample,
+    write_course_csv as fixed_course_writer,
+)
 from autoracer_planning.fixed_course_publisher import course_asset_label, course_to_markers
+from autoracer_planning.map_manifest import build_map_manifest, sha256_file
 
 
 COLUMNS = (
@@ -34,6 +43,18 @@ def make_rc_asset(tmp_path):
     projector = map_path / "map_projector_info.yaml"
     metadata.write_text("x_resolution: 20\ny_resolution: 20\n", encoding="utf-8")
     projector.write_text("projector_type: Local\n", encoding="utf-8")
+    tiles = map_path / "pointcloud_map.pcd"
+    tiles.mkdir()
+    (tiles / "tile.pcd").write_bytes(
+        b"FIELDS x y z intensity\nSIZE 4 4 4 4\nTYPE F F F F\n"
+        b"COUNT 1 1 1 1\nWIDTH 1\nHEIGHT 1\nPOINTS 1\nDATA binary\n"
+        + b"\0" * 16
+    )
+    map_manifest = build_map_manifest(map_path)
+    map_manifest_path = map_path / "map_manifest.json"
+    map_manifest_path.write_text(
+        json.dumps(map_manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
     asset = tmp_path / "course"
     asset.mkdir()
@@ -47,7 +68,7 @@ def make_rc_asset(tmp_path):
     validation.write_text('{"status":"PASS","terminal_stop":true}\n', encoding="utf-8")
     manifest = {
         "schema_version": 3,
-        "production_method": "rc_recorded_super_lio",
+        "runtime_contract": "fixed_course_v1",
         "map_id": "test_map",
         "frame_id": "map",
         "assets": {
@@ -56,25 +77,43 @@ def make_rc_asset(tmp_path):
         },
         "map": {
             "id": "test_map",
-            "pointcloud_map_metadata_sha256": digest(metadata),
-            "map_projector_info_sha256": digest(projector),
+            "manifest_sha256": sha256_file(map_manifest_path),
         },
+        "producer": {"method": "any_offline_pipeline"},
         "validation": {"status": "PASS", "terminal_stop": True},
     }
     (asset / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     return asset, map_path
 
 
-def test_recorded_rc_asset_loads_without_carmaker_roadeval(tmp_path):
+def test_generic_fixed_course_asset_loads_without_producer_branch(tmp_path):
     asset, map_path = make_rc_asset(tmp_path)
     manifest, samples = load_runtime_course_asset(asset, map_path)
-    assert manifest["production_method"] == "rc_recorded_super_lio"
+    assert manifest["producer"]["method"] == "any_offline_pipeline"
     assert [sample.x for sample in samples] == [0.0, 1.0]
+
+    manifest_path = asset / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("producer")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _, samples_without_producer = load_runtime_course_asset(asset, map_path)
+    assert samples_without_producer == samples
+
+
+def test_fixed_course_uses_the_single_runtime_course_sample_type():
+    assert FixedCourseSample is CourseSample
+    assert fixed_course_writer is write_course_csv
 
 
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
+        (
+            lambda manifest, asset, map_path: manifest.update(
+                runtime_contract="other"
+            ),
+            "runtime contract",
+        ),
         (lambda manifest, asset, map_path: manifest.update(frame_id="base_link"), "frame"),
         (lambda manifest, asset, map_path: manifest.update(map_id="other"), "map ID"),
         (
@@ -114,7 +153,7 @@ def test_recorded_rc_asset_rejects_modified_course_or_map(tmp_path):
 
 def test_validated_course_markers_show_line_start_and_finish():
     def sample(s, x, y, z):
-        return RuntimeCourseSample(s, x, y, z, 0, 0, 0.4, 0.4, 0.1, 0)
+        return CourseSample(s, x, y, z, 0, 0, 0.4, 0.4, 0.1, 0)
 
     markers = course_to_markers(
         {"frame_id": "map"},

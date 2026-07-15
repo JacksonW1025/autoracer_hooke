@@ -4,27 +4,16 @@ import argparse
 import bisect
 import csv
 from dataclasses import asdict, dataclass, replace
-import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import shutil
-from typing import Iterable, Sequence
+from typing import Sequence
 
+from .course_asset import CourseSample, load_course_csv, write_course_csv
+from .map_manifest import sha256_file
 
-COURSE_COLUMNS = (
-    "s",
-    "x",
-    "y",
-    "z",
-    "yaw",
-    "curvature",
-    "left_offset",
-    "right_offset",
-    "target_velocity",
-    "target_acceleration",
-)
 MAP_CONTRACT_FILES = {
     "input_contract_sha256": "input_contract.json",
     "pointcloud_map_metadata_sha256": "pointcloud_map_metadata.yaml",
@@ -57,20 +46,6 @@ class ProgressState:
     distance: float
     on_road: bool
     road_eval_ok: bool
-
-
-@dataclass(frozen=True)
-class CourseSample:
-    s: float
-    x: float
-    y: float
-    z: float
-    yaw: float
-    curvature: float
-    left_offset: float
-    right_offset: float
-    target_velocity: float
-    target_acceleration: float
 
 
 @dataclass(frozen=True)
@@ -108,14 +83,6 @@ class CourseBuildConfig:
     max_decel_mps2: float = -1.5
     holdout_p95_limit_m: float = 0.75
     holdout_max_limit_m: float = 1.0
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def load_vehicle_states(path: Path) -> list[RawState]:
@@ -242,7 +209,7 @@ def bounded_smooth(
         return list(points)
     output = list(points)
     for index in range(radius, len(points) - radius):
-        window = points[index - radius : index + radius + 1]
+        window = points[index - radius: index + radius + 1]
         average = tuple(sum(point[axis] for point in window) / len(window) for axis in range(3))
         delta = tuple(average[axis] - points[index][axis] for axis in range(3))
         magnitude = math.sqrt(sum(value * value for value in delta))
@@ -387,27 +354,6 @@ def validate_course(
         "checks": checks,
         "metrics": metrics,
     }
-
-
-def write_course_csv(path: Path, samples: Iterable[CourseSample]) -> None:
-    with path.open("w", encoding="ascii", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=COURSE_COLUMNS)
-        writer.writeheader()
-        for sample in samples:
-            writer.writerow({name: f"{getattr(sample, name):.9f}" for name in COURSE_COLUMNS})
-
-
-def load_course_csv(path: Path) -> list[CourseSample]:
-    samples: list[CourseSample] = []
-    with path.open("r", encoding="ascii", newline="") as stream:
-        reader = csv.DictReader(stream)
-        if tuple(reader.fieldnames or ()) != COURSE_COLUMNS:
-            raise ValueError(f"unexpected course schema in {path}: {reader.fieldnames}")
-        for row in reader:
-            samples.append(CourseSample(**{name: float(row[name]) for name in COURSE_COLUMNS}))
-    if len(samples) < 2:
-        raise ValueError(f"course has fewer than two points: {path}")
-    return samples
 
 
 def load_road_extents(path: Path) -> list[RoadExtentSample]:
@@ -743,7 +689,8 @@ def build_asset(
             ),
         },
         "limitations": [
-            "The functional corridor is capped at 3.6 m and narrows where RoadEval requires it; it is not a surveyed curb polygon.",
+            "The functional corridor is capped at 3.6 m and narrows where "
+            "RoadEval requires it; it is not a surveyed curb polygon.",
             "GT and RoadEval evidence are offline-only and are not runtime planner inputs.",
         ],
     }

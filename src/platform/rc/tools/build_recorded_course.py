@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 import argparse
-import csv
 from dataclasses import asdict
-import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import sys
+
+from autoracer_planning.course_asset import write_course_csv
+from autoracer_planning.map_manifest import sha256_file
 
 try:
     from .recorded_course import (
@@ -23,28 +24,6 @@ except ImportError:
         RecordedCourseConfig,
         build_recorded_course,
     )
-
-
-COURSE_COLUMNS = (
-    "s",
-    "x",
-    "y",
-    "z",
-    "yaw",
-    "curvature",
-    "left_offset",
-    "right_offset",
-    "target_velocity",
-    "target_acceleration",
-)
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def read_odometry_bag(path: Path, topic: str, source_frame: str) -> list[PoseSample]:
@@ -117,8 +96,7 @@ def write_asset(
     bag_metadata = _required_file(data_root / source["source_bag"] / "metadata.yaml")
     replay_metadata = _required_file(data_root / source["odometry_bag"] / "metadata.yaml")
     super_lio_config = _required_file(data_root / source["super_lio_config"])
-    map_metadata = _required_file(map_path / "pointcloud_map_metadata.yaml")
-    projector = _required_file(map_path / "map_projector_info.yaml")
+    map_manifest = _required_file(map_path / "map_manifest.json")
 
     temporary = output_dir.with_name(f".{output_dir.name}.tmp-{os.getpid()}")
     if temporary.exists():
@@ -126,13 +104,7 @@ def write_asset(
     temporary.mkdir(parents=True)
     try:
         course_path = temporary / "course.csv"
-        with course_path.open("w", encoding="ascii", newline="") as stream:
-            writer = csv.DictWriter(stream, fieldnames=COURSE_COLUMNS)
-            writer.writeheader()
-            for sample in samples:
-                writer.writerow(
-                    {name: f"{getattr(sample, name):.9f}" for name in COURSE_COLUMNS}
-                )
+        write_course_csv(course_path, samples)
 
         validation.update(
             {
@@ -148,28 +120,30 @@ def write_asset(
         )
         manifest = {
             "schema_version": 3,
-            "production_method": "rc_recorded_super_lio",
+            "runtime_contract": "fixed_course_v1",
             "map_id": map_id,
             "frame_id": "map",
             "source_frame": source["source_frame"],
             "assets": {
                 "course.csv": {
                     "rows": len(samples),
-                    "sha256": sha256(course_path),
+                    "sha256": sha256_file(course_path),
                 },
                 "validation.json": {
-                    "sha256": sha256(temporary / "validation.json"),
+                    "sha256": sha256_file(temporary / "validation.json"),
                 },
             },
             "map": {
                 "id": map_id,
-                "pointcloud_map_metadata_sha256": sha256(map_metadata),
-                "map_projector_info_sha256": sha256(projector),
+                "manifest_sha256": sha256_file(map_manifest),
             },
-            "source": {
-                "bag_metadata_sha256": sha256(bag_metadata),
-                "odometry_bag_metadata_sha256": sha256(replay_metadata),
-                "super_lio_config_sha256": sha256(super_lio_config),
+            "producer": {
+                "method": "rc_recorded_super_lio",
+                "evidence": {
+                    "bag_metadata_sha256": sha256_file(bag_metadata),
+                    "odometry_bag_metadata_sha256": sha256_file(replay_metadata),
+                    "super_lio_config_sha256": sha256_file(super_lio_config),
+                },
             },
             "processing": asdict(config),
             "validation": validation,
