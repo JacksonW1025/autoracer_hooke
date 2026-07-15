@@ -49,6 +49,37 @@ def test_core_manifests_do_not_depend_on_platform_packages():
     assert "hooke2_" not in manifests
 
 
+def test_course_map_rviz_is_inspection_only():
+    launch = (
+        CORE_ROOT / "autoracer_bringup" / "launch" / "course_map_rviz.launch.py"
+    )
+    config = CORE_ROOT / "autoracer_bringup" / "rviz" / "course_map.rviz"
+
+    assert launch.is_file()
+    assert config.is_file()
+    source = launch.read_text(encoding="utf-8")
+    for executable in (
+        "pcd_to_pointcloud",
+        "fixed_course_publisher",
+        "rviz2",
+    ):
+        assert f'executable="{executable}"' in source
+    for forbidden in (
+        "lanelet",
+        "localization.launch",
+        "local_trajectory_planner",
+        "autoracer_control",
+        "autoracer_safety",
+        "autoracer_sensing",
+        "autoracer_rc",
+        "autoracer_hooke2",
+    ):
+        assert forbidden not in source.lower()
+    rviz = config.read_text(encoding="utf-8")
+    assert "/map/pointcloud_map" in rviz
+    assert "/planning/course_markers" in rviz
+
+
 def test_shared_race_exposes_platform_parameter_contract():
     race_source = (CORE_ROOT / "autoracer_bringup" / "launch" / "race.launch.py").read_text(
         encoding="utf-8"

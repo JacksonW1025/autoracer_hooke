@@ -3,12 +3,13 @@ from pathlib import Path
 
 from autoware_planning_msgs.msg import Trajectory, TrajectoryPoint
 from builtin_interfaces.msg import Duration
-from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Point, Quaternion
 import rclpy
 from rclpy._rclpy_pybind11 import RCLError
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from visualization_msgs.msg import Marker, MarkerArray
 
 from autoracer_planning.course_asset import load_runtime_course_asset
 
@@ -54,12 +55,58 @@ def course_to_trajectory(manifest: dict, samples) -> Trajectory:
     return trajectory
 
 
+def course_to_markers(manifest: dict, samples) -> MarkerArray:
+    frame_id = manifest["frame_id"]
+    line = Marker()
+    line.header.frame_id = frame_id
+    line.ns = "autoracer_fixed_course"
+    line.id = 0
+    line.type = Marker.LINE_STRIP
+    line.action = Marker.ADD
+    line.pose.orientation.w = 1.0
+    line.scale.x = 0.5
+    line.color.r = 1.0
+    line.color.g = 0.12
+    line.color.b = 0.04
+    line.color.a = 1.0
+    for sample in samples:
+        line.points.append(
+            Point(x=float(sample.x), y=float(sample.y), z=float(sample.z + 0.15))
+        )
+
+    endpoints = []
+    for marker_id, namespace, sample, color in (
+        (1, "autoracer_fixed_course_start", samples[0], (0.0, 1.0, 0.0)),
+        (2, "autoracer_fixed_course_finish", samples[-1], (0.0, 0.25, 1.0)),
+    ):
+        marker = Marker()
+        marker.header.frame_id = frame_id
+        marker.ns = namespace
+        marker.id = marker_id
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.pose.position.x = float(sample.x)
+        marker.pose.position.y = float(sample.y)
+        marker.pose.position.z = float(sample.z + 0.3)
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = marker.scale.y = marker.scale.z = 1.2
+        marker.color.r, marker.color.g, marker.color.b = color
+        marker.color.a = 1.0
+        endpoints.append(marker)
+    return MarkerArray(markers=[line, *endpoints])
+
+
+def course_asset_label(manifest: dict) -> str:
+    return str(manifest.get("version") or manifest["map_id"])
+
+
 class FixedCoursePublisher(Node):
     def __init__(self):
         super().__init__("fixed_course_publisher")
         self.declare_parameter("course_path", "")
         self.declare_parameter("map_path", "")
         self.declare_parameter("trajectory_topic", "/planning/global_trajectory")
+        self.declare_parameter("visualization_topic", "")
 
         course_path_value = str(self.get_parameter("course_path").value)
         if not course_path_value:
@@ -83,9 +130,23 @@ class FixedCoursePublisher(Node):
         self._trajectory = course_to_trajectory(manifest, samples)
         self._trajectory.header.stamp = self.get_clock().now().to_msg()
         self._publisher.publish(self._trajectory)
+        visualization_topic = str(self.get_parameter("visualization_topic").value)
+        self._marker_publisher = None
+        self._marker_timer = None
+        if visualization_topic:
+            self._marker_publisher = self.create_publisher(
+                MarkerArray, visualization_topic, qos
+            )
+            self._markers = course_to_markers(manifest, samples)
+            for marker in self._markers.markers:
+                marker.header.stamp = self._trajectory.header.stamp
+            self._marker_publisher.publish(self._markers)
+            self._marker_timer = self.create_timer(
+                1.0, lambda: self._marker_publisher.publish(self._markers)
+            )
         self.get_logger().info(
             "Published validated fixed course: "
-            f"version={manifest['version']} points={len(samples)} "
+            f"asset={course_asset_label(manifest)} points={len(samples)} "
             f"length_m={samples[-1].s:.3f} sha256="
             f"{manifest['assets']['course.csv']['sha256']}"
         )

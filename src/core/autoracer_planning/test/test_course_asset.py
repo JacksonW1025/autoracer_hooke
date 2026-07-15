@@ -1,11 +1,11 @@
 import csv
 import hashlib
 import json
-from pathlib import Path
 
 import pytest
 
-from autoracer_planning.course_asset import load_runtime_course_asset
+from autoracer_planning.course_asset import RuntimeCourseSample, load_runtime_course_asset
+from autoracer_planning.fixed_course_publisher import course_asset_label, course_to_markers
 
 
 COLUMNS = (
@@ -110,3 +110,34 @@ def test_recorded_rc_asset_rejects_modified_course_or_map(tmp_path):
     (map_path / "pointcloud_map_metadata.yaml").write_text("changed\n")
     with pytest.raises(ValueError, match="map contract mismatch"):
         load_runtime_course_asset(asset, map_path)
+
+
+def test_validated_course_markers_show_line_start_and_finish():
+    def sample(s, x, y, z):
+        return RuntimeCourseSample(s, x, y, z, 0, 0, 0.4, 0.4, 0.1, 0)
+
+    markers = course_to_markers(
+        {"frame_id": "map"},
+        [sample(0, 1, 2, 3), sample(1, 4, 5, 6), sample(2, 7, 8, 9)],
+    ).markers
+
+    assert [marker.ns for marker in markers] == [
+        "autoracer_fixed_course",
+        "autoracer_fixed_course_start",
+        "autoracer_fixed_course_finish",
+    ]
+    assert [marker.header.frame_id for marker in markers] == ["map"] * 3
+    assert [(point.x, point.y, point.z) for point in markers[0].points] == [
+        (1.0, 2.0, 3.15),
+        (4.0, 5.0, 6.15),
+        (7.0, 8.0, 9.15),
+    ]
+    assert (markers[1].pose.position.x, markers[1].pose.position.y) == (1.0, 2.0)
+    assert (markers[2].pose.position.x, markers[2].pose.position.y) == (7.0, 8.0)
+    assert (markers[1].color.r, markers[1].color.g, markers[1].color.b) == (0.0, 1.0, 0.0)
+    assert (markers[2].color.r, markers[2].color.g, markers[2].color.b) == (0.0, 0.25, 1.0)
+
+
+def test_recorded_course_log_label_uses_map_id_without_carmaker_version():
+    assert course_asset_label({"map_id": "floor1_mapping_101"}) == "floor1_mapping_101"
+    assert course_asset_label({"version": "urbanroad-v2", "map_id": "urbanroad"}) == "urbanroad-v2"
