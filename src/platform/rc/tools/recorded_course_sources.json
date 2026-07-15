@@ -1,0 +1,90 @@
+{
+  "floor1_mapping_101": {
+    "source_bag": "rc_mapping_data/bags/raw/floor1_mapping_101",
+    "odometry_bag": "rc_mapping_data/course_replays/floor1_mapping_101/lio_odom",
+    "map_path": "rc_mapping_data/autoware_maps/floor1_mapping_101",
+    "super_lio_config": "rc_mapping_data/runs/floor1_mapping_101/rc_c32_super_lio.yaml",
+    "source_frame": "world",
+    "processing": {
+      "sample_interval_m": 0.2,
+      "stationary_step_m": 0.02,
+      "minimum_point_spacing_m": 0.01,
+      "maximum_step_m": 2,
+      "smoothing_radius": 2,
+      "maximum_smoothing_displacement_m": 0.05,
+      "max_speed_mps": 0.5,
+      "max_lateral_accel_mps2": 0.4,
+      "max_accel_mps2": 0.4,
+      "max_decel_mps2": -0.8,
+      "departure_speed_mps": 0.1,
+      "left_offset_m": 0.4,
+      "right_offset_m": 0.4
+    }
+  },
+  "floor1_mapping_102": {
+    "source_bag": "rc_mapping_data/bags/raw/floor1_mapping_102",
+    "odometry_bag": "rc_mapping_data/course_replays/floor1_mapping_102/lio_odom",
+    "map_path": "rc_mapping_data/autoware_maps/floor1_mapping_102",
+    "super_lio_config": "rc_mapping_data/runs/floor1_mapping_102/rc_c32_super_lio.yaml",
+    "source_frame": "world",
+    "processing": {
+      "sample_interval_m": 0.2,
+      "stationary_step_m": 0.02,
+      "minimum_point_spacing_m": 0.01,
+      "maximum_step_m": 2,
+      "smoothing_radius": 2,
+      "maximum_smoothing_displacement_m": 0.05,
+      "max_speed_mps": 0.5,
+      "max_lateral_accel_mps2": 0.4,
+      "max_accel_mps2": 0.4,
+      "max_decel_mps2": -0.8,
+      "departure_speed_mps": 0.1,
+      "left_offset_m": 0.4,
+      "right_offset_m": 0.4
+    }
+  },
+  "floor1_mapping_103": {
+    "source_bag": "rc_mapping_data/bags/raw/floor1_mapping_103",
+    "odometry_bag": "rc_mapping_data/course_replays/floor1_mapping_103/lio_odom",
+    "map_path": "rc_mapping_data/autoware_maps/floor1_mapping_103",
+    "super_lio_config": "rc_mapping_data/runs/floor1_mapping_103/rc_c32_super_lio.yaml",
+    "source_frame": "world",
+    "processing": {
+      "sample_interval_m": 0.2,
+      "stationary_step_m": 0.02,
+      "minimum_point_spacing_m": 0.01,
+      "maximum_step_m": 2,
+      "smoothing_radius": 2,
+      "maximum_smoothing_displacement_m": 0.05,
+      "max_speed_mps": 0.5,
+      "max_lateral_accel_mps2": 0.4,
+      "max_accel_mps2": 0.4,
+      "max_decel_mps2": -0.8,
+      "departure_speed_mps": 0.1,
+      "left_offset_m": 0.4,
+      "right_offset_m": 0.4
+    }
+  },
+  "floor1_mapping_104": {
+    "source_bag": "rc_mapping_data/bags/raw/floor1_mapping_104",
+    "odometry_bag": "rc_mapping_data/course_replays/floor1_mapping_104/lio_odom",
+    "map_path": "rc_mapping_data/autoware_maps/floor1_mapping_104",
+    "super_lio_config": "rc_mapping_data/runs/floor1_mapping_104/rc_c32_super_lio.yaml",
+    "source_frame": "world",
+    "processing": {
+      "sample_interval_m": 0.2,
+      "stationary_step_m": 0.02,
+      "minimum_point_spacing_m": 0.01,
+      "maximum_step_m": 2,
+      "smoothing_radius": 2,
+      "maximum_smoothing_displacement_m": 0.05,
+      "max_speed_mps": 0.5,
+      "max_lateral_accel_mps2": 0.4,
+      "max_accel_mps2": 0.4,
+      "max_decel_mps2": -0.8,
+      "departure_speed_mps": 0.1,
+      "left_offset_m": 0.4,
+      "right_offset_m": 0.4
+    }
+  }
+}

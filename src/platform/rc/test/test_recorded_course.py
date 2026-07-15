@@ -1,4 +1,6 @@
 import math
+from dataclasses import asdict
+import json
 
 import pytest
 
@@ -7,6 +9,7 @@ from tools.recorded_course import (
     RecordedCourseConfig,
     build_recorded_course,
 )
+from tools.build_recorded_course import write_asset
 
 
 def pose(stamp, x, y=0.0, z=0.0, yaw=0.0):
@@ -114,3 +117,47 @@ def test_speed_profile_obeys_rc_limits_and_stops_at_goal():
     assert all(-0.8 - 1e-6 <= sample.target_acceleration <= 0.4 + 1e-6 for sample in samples)
     assert all(math.isfinite(sample.curvature) for sample in samples)
     assert report["terminal_stop"] is True
+
+
+def test_asset_write_is_atomic_and_refuses_replacement(tmp_path):
+    data_root = tmp_path / "data"
+    source = {
+        "source_bag": "bags/source",
+        "odometry_bag": "replays/odom",
+        "map_path": "maps/test_map",
+        "super_lio_config": "runs/test/config.yaml",
+        "source_frame": "world",
+        "processing": asdict(config(smoothing_radius=0)),
+    }
+    for relative in (
+        "bags/source/metadata.yaml",
+        "replays/odom/metadata.yaml",
+        "maps/test_map/pointcloud_map_metadata.yaml",
+        "maps/test_map/map_projector_info.yaml",
+        "runs/test/config.yaml",
+    ):
+        path = data_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(relative + "\n", encoding="utf-8")
+
+    output = tmp_path / "course"
+    manifest = write_asset(
+        output,
+        "test_map",
+        source,
+        data_root,
+        [pose(0, 0), pose(1, 0.5), pose(2, 1.0)],
+    )
+    assert manifest["production_method"] == "rc_recorded_super_lio"
+    assert manifest["validation"]["status"] == "PASS"
+    assert (output / "course.csv").is_file()
+    assert json.loads((output / "manifest.json").read_text())["map_id"] == "test_map"
+
+    with pytest.raises(FileExistsError, match="refusing to replace"):
+        write_asset(
+            output,
+            "test_map",
+            source,
+            data_root,
+            [pose(0, 0), pose(1, 0.5)],
+        )
