@@ -14,6 +14,7 @@ __pycache__/
 
 .serena/
 .cache/
+.codex/
 .spec-workflow/
 scripts/.spec-workflow/
 docs/superpowers/
