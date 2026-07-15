@@ -54,7 +54,8 @@ def build_recorded_course(
 ) -> tuple[list[CourseSample], dict[str, float | int | bool]]:
     _validate_config(config)
     _validate_timestamps(source_poses)
-    poses, invalid_count = _finite_poses(source_poses)
+    poses, duplicate_timestamp_count = _collapse_equal_timestamps(source_poses)
+    poses, invalid_count = _finite_poses(poses)
     if len(poses) < 2:
         raise ValueError("fewer than two usable poses")
 
@@ -107,6 +108,7 @@ def build_recorded_course(
     report: dict[str, float | int | bool] = {
         "source_pose_count": len(source_poses),
         "invalid_points_removed": invalid_count,
+        "duplicate_timestamps_removed": duplicate_timestamp_count,
         "stationary_prefix_removed": prefix_removed,
         "stationary_suffix_removed": suffix_removed,
         "duplicate_points_removed": duplicate_count,
@@ -145,8 +147,24 @@ def _validate_timestamps(poses: Sequence[PoseSample]) -> None:
     stamps = [pose.stamp for pose in poses]
     if not all(math.isfinite(stamp) for stamp in stamps):
         raise ValueError("pose timestamps must be finite")
-    if not all(current > previous for previous, current in zip(stamps, stamps[1:])):
+    if not all(current >= previous for previous, current in zip(stamps, stamps[1:])):
         raise ValueError("pose timestamps are not strictly increasing")
+
+
+def _collapse_equal_timestamps(
+    poses: Sequence[PoseSample],
+) -> tuple[list[PoseSample], int]:
+    if not poses:
+        return [], 0
+    output = [poses[0]]
+    removed = 0
+    for pose in poses[1:]:
+        if pose.stamp == output[-1].stamp:
+            output[-1] = pose
+            removed += 1
+        else:
+            output.append(pose)
+    return output, removed
 
 
 def _finite_poses(poses: Sequence[PoseSample]) -> tuple[list[PoseSample], int]:

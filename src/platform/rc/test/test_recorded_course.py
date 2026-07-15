@@ -72,6 +72,13 @@ def test_invalid_points_are_rejected_but_timestamp_reversal_fails():
         build_recorded_course(reversed_time, config())
 
 
+def test_equal_super_lio_timestamps_keep_the_last_state():
+    poses = [pose(0, 0), pose(1, 0.4), pose(1, 0.5), pose(2, 1.0)]
+    samples, report = build_recorded_course(poses, config(smoothing_radius=0))
+    assert samples[-1].x == pytest.approx(1.0)
+    assert report["duplicate_timestamps_removed"] == 1
+
+
 def test_invalid_quaternion_and_large_pose_jump_fail_closed():
     invalid = pose(1, 0.5)
     invalid = PoseSample(**{**invalid.__dict__, "qw": 0.0})
