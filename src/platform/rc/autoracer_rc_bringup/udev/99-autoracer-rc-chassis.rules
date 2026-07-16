@@ -1,0 +1,3 @@
+# Current RC chassis: WCH CH343, USB VID:PID 1a86:55d4, device serial 0003.
+# This deliberately does not change ownership or mode; access policy remains system-owned.
+SUBSYSTEM=="tty", KERNEL=="ttyCH343USB*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", ATTRS{serial}=="0003", SYMLINK+="autoracer_rc_chassis"

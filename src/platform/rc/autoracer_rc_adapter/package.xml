@@ -3,12 +3,14 @@
 <package format="3">
   <name>autoracer_rc_adapter</name>
   <version>0.1.0</version>
-  <description>RC platform sensor data normalization adapters.</description>
+  <description>RC platform sensor normalization and chassis serial adapters.</description>
   <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>autoware_control_msgs</depend>
+  <depend>autoware_vehicle_msgs</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
 

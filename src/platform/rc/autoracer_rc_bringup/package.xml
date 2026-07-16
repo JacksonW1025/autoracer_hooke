@@ -3,7 +3,7 @@
 <package format="3">
   <name>autoracer_rc_bringup</name>
   <version>0.1.0</version>
-  <description>RC platform sensor-only bringup.</description>
+  <description>RC platform sensing and chassis bringup.</description>
   <maintainer email="autoracer@example.com">Autoracer Team</maintainer>
   <license>Apache-2.0</license>
 
