@@ -1,0 +1,12 @@
+transforms:
+  # base_link is the rear-axle center. The C32 frame origin is its laser center,
+  # 53.5 mm below the measured top-cover center (400 mm above base_link).
+  - parent: base_link
+    child: lidar_top
+    translation: {x: 0.280, y: 0.0, z: 0.3465}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  - parent: base_link
+    child: imu_link
+    translation: {x: 0.200, y: 0.0, z: 0.240}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}

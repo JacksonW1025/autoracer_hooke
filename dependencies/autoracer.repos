@@ -65,6 +65,16 @@ repositories:
     url: https://github.com/tier4/sync_tooling_msgs.git
     version: 3fb181bffa38f35ffff4d54ada2a7e19afffe9b2
 
+  vendor/lslidar_ros2:
+    type: git
+    url: https://github.com/Lslidar/Lslidar_ROS2_driver.git
+    version: 08d692c2adf62f29b991fe44313b17840e4bea8b
+
+  vendor/hipnuc_products:
+    type: git
+    url: https://github.com/hipnuc/products.git
+    version: 5a4380272cd70402e7f8928b05a6af4bfa659807
+
   whale_components:
     type: git
     url: git@gitee.com:shaobodang/whale_components.git

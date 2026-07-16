@@ -1,0 +1,10 @@
+IMU_publisher:
+  ros__parameters:
+    baud_rate: 115200
+    frame_id: imu_link
+    imu_switch: true
+    imu_topic: /sensing/imu/imu_data
+    euler_switch: false
+    magnetic_switch: false
+    temperature_switch: false
+    pressure_switch: false

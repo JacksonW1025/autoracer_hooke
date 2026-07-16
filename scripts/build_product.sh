@@ -13,5 +13,5 @@ colcon build \
   --base-paths src/core src/platform \
   --symlink-install \
   --parallel-workers "${COLCON_PARALLEL_WORKERS:-4}" \
-  --packages-up-to autoracer_bringup autoracer_hooke2_bringup \
+  --packages-up-to autoracer_bringup autoracer_hooke2_bringup autoracer_rc_bringup \
   --cmake-args -DCMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
