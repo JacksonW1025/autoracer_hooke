@@ -98,6 +98,14 @@ std::uint8_t calculate_bcc(
 std::array<std::uint8_t, kRcCommandFrameSize>
 encode_command_frame(const ChassisCommand & command)
 {
+  if (command.clear_fault &&
+    (command.enable || command.software_stop || command.speed_mps != 0.0 ||
+    command.steering_tire_angle_rad != 0.0))
+  {
+    throw std::invalid_argument(
+            "clear-fault must be a disabled standalone zero command");
+  }
+
   double speed_mps = command.speed_mps;
   double steering_tire_angle_rad = command.steering_tire_angle_rad;
 
@@ -118,6 +126,9 @@ encode_command_frame(const ChassisCommand & command)
   }
   if (command.software_stop) {
     frame[2] |= kRcCommandFlagSoftwareStop;
+  }
+  if (command.clear_fault) {
+    frame[2] |= kRcCommandFlagClearFault;
   }
   encode_i16_be(speed_raw, frame[3], frame[4]);
   encode_i16_be(steering_raw, frame[5], frame[6]);

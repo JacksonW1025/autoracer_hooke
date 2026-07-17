@@ -90,6 +90,21 @@ def test_runtime_manager_is_single_state_and_mrm_owner():
     assert "/system/race_supervisor/state" not in source
 
 
+def test_velocity_freshness_has_an_independent_default_timeout():
+    source = (
+        PACKAGE / "autoracer_safety/race_runtime_manager.py"
+    ).read_text(encoding="utf-8")
+    params = yaml.safe_load(
+        (PACKAGE / "config/race/race_runtime.safe.param.yaml").read_text(
+            encoding="utf-8"
+        )
+    )["race_runtime_manager"]["ros__parameters"]
+    assert params["velocity_status_timeout_sec"] == pytest.approx(0.25)
+    assert params["vehicle_status_timeout_sec"] == pytest.approx(0.25)
+    assert 'self._fresh(self._velocity, "velocity_status_timeout_sec")' in source
+    assert '(self._velocity, "VELOCITY_STALE")' not in source
+
+
 def test_planner_has_no_dead_runtime_guard_channel():
     planner_package = PACKAGE.parent / "autoracer_planning"
     source = (

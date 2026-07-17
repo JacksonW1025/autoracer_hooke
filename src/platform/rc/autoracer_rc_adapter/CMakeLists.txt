@@ -16,6 +16,7 @@ find_package(autoware_control_msgs REQUIRED)
 find_package(autoware_vehicle_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(tier4_vehicle_msgs REQUIRED)
 
 add_library(c32_pointcloud_adapter SHARED
   src/c32_pointcloud_adapter.cpp
@@ -35,6 +36,7 @@ ament_target_dependencies(c32_pointcloud_adapter_node rclcpp sensor_msgs)
 add_library(rc_vehicle_support SHARED
   src/rc_serial_protocol.cpp
   src/rc_vehicle_kinematics.cpp
+  src/rc_vehicle_state.cpp
 )
 target_include_directories(rc_vehicle_support PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -50,6 +52,7 @@ ament_target_dependencies(
   autoware_control_msgs
   autoware_vehicle_msgs
   rclcpp
+  tier4_vehicle_msgs
 )
 
 install(
@@ -85,8 +88,18 @@ if(BUILD_TESTING)
     test/test_rc_vehicle_kinematics.cpp
   )
   target_link_libraries(test_rc_vehicle_kinematics rc_vehicle_support)
+
+  ament_add_gtest(test_rc_vehicle_state
+    test/test_rc_vehicle_state.cpp
+  )
+  target_link_libraries(test_rc_vehicle_state rc_vehicle_support)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(autoware_control_msgs autoware_vehicle_msgs sensor_msgs)
+ament_export_dependencies(
+  autoware_control_msgs
+  autoware_vehicle_msgs
+  sensor_msgs
+  tier4_vehicle_msgs
+)
 ament_package()

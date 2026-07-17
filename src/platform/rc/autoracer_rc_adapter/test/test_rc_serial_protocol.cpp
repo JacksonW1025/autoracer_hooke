@@ -126,6 +126,31 @@ TEST(RcSerialProtocol, EncodesActiveZeroAndSignedBigEndianFields) {
   EXPECT_EQ(frame[10], kRcFrameTail);
 }
 
+TEST(RcSerialProtocol, EncodesOnlyTheExactFirmwareClearFaultFrame) {
+  ChassisCommand command;
+  command.enable = false;
+  command.clear_fault = true;
+  const std::array<std::uint8_t, kRcCommandFrameSize> expected_clear{
+    0x7BU, 0x01U, 0x04U, 0x00U, 0x00U, 0x00U,
+    0x00U, 0x00U, 0x00U, 0x7EU, 0x7DU};
+  EXPECT_EQ(encode_command_frame(command), expected_clear);
+
+  command.enable = true;
+  EXPECT_THROW((void)encode_command_frame(command), std::invalid_argument);
+
+  command.enable = false;
+  command.speed_mps = 0.001;
+  EXPECT_THROW((void)encode_command_frame(command), std::invalid_argument);
+
+  command.speed_mps = 0.0;
+  command.steering_tire_angle_rad = -0.001;
+  EXPECT_THROW((void)encode_command_frame(command), std::invalid_argument);
+
+  command.steering_tire_angle_rad = 0.0;
+  command.software_stop = true;
+  EXPECT_THROW((void)encode_command_frame(command), std::invalid_argument);
+}
+
 TEST(RcSerialProtocol, ExposesExactFirmwareFlagAndStatusAssignments) {
   EXPECT_EQ(kRcCommandFlagEnable, 0x01U);
   EXPECT_EQ(kRcCommandFlagBrake, 0x02U);
@@ -152,6 +177,7 @@ TEST(RcSerialProtocol, ExposesExactFirmwareFlagAndStatusAssignments) {
   EXPECT_EQ(kRcStatusSteeringIsMeasured, 1UL << 9U);
   EXPECT_EQ(kRcStatusRcInputFault, 1UL << 10U);
   EXPECT_EQ(kRcStatusBatteryValid, 1UL << 11U);
+  EXPECT_EQ(kRcStatusHallStandstillConfirmed, 1UL << 12U);
   EXPECT_EQ(kRcStatusSpeedSaturated, 1UL << 14U);
   EXPECT_EQ(kRcStatusSteeringSaturated, 1UL << 15U);
   EXPECT_EQ(kRcStatusAccelerationLimited, 1UL << 16U);
@@ -217,6 +243,21 @@ TEST(RcSerialProtocol, DecodesExactTelemetryLayoutSourcesAndUnits) {
   EXPECT_NE(feedback->status_bits & kRcStatusHallFeedbackValid, 0U);
   EXPECT_NE(feedback->status_bits & kRcStatusSteeringEstimateValid, 0U);
   EXPECT_EQ(feedback->status_bits & kRcStatusSteeringIsMeasured, 0U);
+  EXPECT_EQ(feedback->protocol_id, kRcTelemetryProtocolId);
+}
+
+TEST(RcSerialProtocol, DecodesHallConfirmedStandstillWithoutChangingLayout) {
+  const auto frame = make_feedback_frame(
+    0, 0, 0, 0, 12150U, 50U,
+    kRcStatusHallStandstillConfirmed | kRcStatusSteeringEstimateValid,
+    0U, 0x5BU);
+  const auto feedback = decode_feedback_frame(frame);
+  ASSERT_TRUE(feedback.has_value());
+  EXPECT_DOUBLE_EQ(feedback->hall_speed_command_signed_mps, 0.0);
+  EXPECT_NE(
+    feedback->status_bits & kRcStatusHallStandstillConfirmed,
+    0U);
+  EXPECT_EQ(feedback->status_bits & kRcStatusHallFeedbackValid, 0U);
   EXPECT_EQ(feedback->protocol_id, kRcTelemetryProtocolId);
 }
 

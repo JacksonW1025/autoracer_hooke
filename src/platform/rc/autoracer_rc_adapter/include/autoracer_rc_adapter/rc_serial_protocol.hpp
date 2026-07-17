@@ -41,6 +41,9 @@ constexpr std::uint32_t kRcStatusSteeringEstimateValid = 1UL << 8U;
 constexpr std::uint32_t kRcStatusSteeringIsMeasured = 1UL << 9U;
 constexpr std::uint32_t kRcStatusRcInputFault = 1UL << 10U;
 constexpr std::uint32_t kRcStatusBatteryValid = 1UL << 11U;
+// Hall no-pulse standstill inference while the current control direction is
+// zero. This is not an independent physical stop sensor.
+constexpr std::uint32_t kRcStatusHallStandstillConfirmed = 1UL << 12U;
 constexpr std::uint32_t kRcStatusSpeedSaturated = 1UL << 14U;
 constexpr std::uint32_t kRcStatusSteeringSaturated = 1UL << 15U;
 // Firmware speed-target slew activity, not measured or controlled vehicle
@@ -54,10 +57,13 @@ struct ChassisCommand
   double speed_mps{0.0};
   double steering_tire_angle_rad{0.0};
   // This is the firmware's software command-enable bit, not a physical drive
-  // enable. The minimal ROS bridge does not expose brake or clear-fault inputs.
+  // enable. The minimal ROS bridge does not expose the firmware brake bit.
   bool enable{true};
   // This requests firmware neutral outputs; it is not a physical emergency stop.
   bool software_stop{false};
+  // Internal diagnostic handshake only. It is never mapped from a ROS motion
+  // command and is valid only as a disabled, zero-valued standalone frame.
+  bool clear_fault{false};
 };
 
 struct ChassisFeedback
@@ -66,7 +72,9 @@ struct ChassisFeedback
   std::uint8_t status_flags{0U};
   std::uint8_t sequence{0U};
   // Hall count and speed magnitudes are measured; their signs come from the
-  // current automatic command or RC throttle direction.
+  // current automatic/RC direction or the last direction retained while the
+  // wheel coasts. status_bits distinguishes measured motion, confirmed Hall
+  // silence, and unavailable feedback.
   std::int32_t hall_delta_count_command_signed{0};
   double hall_speed_command_signed_mps{0.0};
   // Steering comes from output PWM calibration, not a steering sensor.

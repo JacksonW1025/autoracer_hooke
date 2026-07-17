@@ -1,9 +1,16 @@
 #include "autoracer_rc_adapter/rc_serial_protocol.hpp"
 #include "autoracer_rc_adapter/rc_vehicle_kinematics.hpp"
+#include "autoracer_rc_adapter/rc_vehicle_state.hpp"
 
 #include <autoware_control_msgs/msg/control.hpp>
+#include <autoware_vehicle_msgs/msg/control_mode_report.hpp>
+#include <autoware_vehicle_msgs/msg/gear_command.hpp>
+#include <autoware_vehicle_msgs/msg/gear_report.hpp>
+#include <autoware_vehicle_msgs/msg/steering_report.hpp>
 #include <autoware_vehicle_msgs/msg/velocity_report.hpp>
+#include <autoware_vehicle_msgs/srv/control_mode_command.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <tier4_vehicle_msgs/msg/vehicle_emergency_stamped.hpp>
 
 #include <cerrno>
 #include <chrono>
@@ -31,6 +38,12 @@ constexpr std::int64_t kExpectedFirmwareCommandTimeoutMs = 250;
 constexpr std::int64_t kFutureStampToleranceNs = 50'000'000;
 constexpr auto kSerialWriteTimeout = std::chrono::milliseconds(20);
 constexpr auto kStatsLogPeriod = std::chrono::seconds(5);
+
+std::int64_t steady_now_ms() noexcept
+{
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 speed_t baud_to_termios(const std::int64_t baud_rate)
 {
@@ -61,6 +74,12 @@ public:
       declare_parameter<double>("max_steering_tire_angle_rad", 0.262);
     firmware_command_timeout_ms_ = declare_parameter<std::int64_t>(
       "firmware_command_timeout_ms", kExpectedFirmwareCommandTimeoutMs);
+    emergency_status_timeout_ms_ = declare_parameter<std::int64_t>(
+      "emergency_status_timeout_ms", 250);
+    hall_feedback_acquisition_timeout_ms_ = declare_parameter<std::int64_t>(
+      "hall_feedback_acquisition_timeout_ms", 1500);
+    hall_feedback_loss_timeout_ms_ = declare_parameter<std::int64_t>(
+      "hall_feedback_loss_timeout_ms", 250);
     serial_poll_period_ms_ =
       declare_parameter<std::int64_t>("serial_poll_period_ms", 10);
     reconnect_period_ms_ =
@@ -69,6 +88,11 @@ public:
       declare_parameter<std::string>("base_frame_id", "base_link");
 
     validate_parameters();
+    emergency_status_monitor_ =
+      EmergencyStatusMonitor(emergency_status_timeout_ms_);
+    hall_feedback_monitor_ =
+      HallFeedbackMonitor(
+      hall_feedback_acquisition_timeout_ms_, hall_feedback_loss_timeout_ms_);
 
     const auto command_qos =
       rclcpp::QoS(rclcpp::KeepLast(1)).reliable().durability_volatile();
@@ -78,9 +102,36 @@ public:
       std::bind(
         &RcVehicleInterfaceNode::on_control_command, this,
         std::placeholders::_1));
+    gear_subscription_ =
+      create_subscription<autoware_vehicle_msgs::msg::GearCommand>(
+      "/control/command/gear_cmd", command_qos,
+      std::bind(
+        &RcVehicleInterfaceNode::on_gear_command, this,
+        std::placeholders::_1));
+    emergency_subscription_ =
+      create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
+      "/control/command/emergency_cmd", command_qos,
+      std::bind(
+        &RcVehicleInterfaceNode::on_emergency_status, this,
+        std::placeholders::_1));
     velocity_publisher_ =
       create_publisher<autoware_vehicle_msgs::msg::VelocityReport>(
       "/vehicle/status/velocity_status", command_qos);
+    steering_publisher_ =
+      create_publisher<autoware_vehicle_msgs::msg::SteeringReport>(
+      "/vehicle/status/steering_status", command_qos);
+    gear_publisher_ =
+      create_publisher<autoware_vehicle_msgs::msg::GearReport>(
+      "/vehicle/status/gear_status", command_qos);
+    control_mode_publisher_ =
+      create_publisher<autoware_vehicle_msgs::msg::ControlModeReport>(
+      "/vehicle/status/control_mode", command_qos);
+    control_mode_service_ =
+      create_service<autoware_vehicle_msgs::srv::ControlModeCommand>(
+      "/control/control_mode_request",
+      std::bind(
+        &RcVehicleInterfaceNode::on_control_mode_request, this,
+        std::placeholders::_1, std::placeholders::_2));
 
     next_reconnect_attempt_ = std::chrono::steady_clock::now();
     last_stats_log_ = std::chrono::steady_clock::now();
@@ -91,33 +142,22 @@ public:
     RCLCPP_INFO(
       get_logger(),
       "RC vehicle interface configured for %s at 115200 8N1; it "
-      "writes nothing until a fresh "
-      "Control message is received; Control velocity/steering map "
+      "does not write merely because the serial port opened; active motion "
+      "requires a fresh clear emergency status, accepted AUTONOMOUS mode "
+      "and a fresh Control message; a formal emergency or safety fault "
+      "sends one firmware software-stop frame; Control velocity/steering map "
       "directly to firmware speed/steering; Control acceleration and "
-      "jerk are unsupported by this chassis and intentionally ignored",
+      "jerk are unsupported by this chassis and intentionally ignored; "
+      "gear is a platform-side direction contract, not chassis hardware; "
+      "a historical firmware fault latch is cleared only by a one-shot, "
+      "zero-valued diagnostic handshake before motion is released",
       serial_port_.c_str());
   }
 
   ~RcVehicleInterfaceNode() override
   {
     if (serial_fd_ >= 0 && has_transmitted_command_) {
-      ChassisCommand software_stop;
-      software_stop.enable = false;
-      software_stop.software_stop = true;
-      try {
-        const auto frame = encode_command_frame(software_stop);
-        if (write_frame(frame)) {
-          RCLCPP_INFO(
-            get_logger(), "sent one firmware software-stop frame "
-            "during orderly shutdown; this is not a "
-            "physical emergency stop");
-        }
-      } catch (const std::exception & error) {
-        RCLCPP_ERROR(
-          get_logger(),
-          "could not encode shutdown software-stop frame: %s",
-          error.what());
-      }
+      (void)transmit_software_stop("orderly shutdown");
     }
     if (serial_fd_ >= 0) {
       (void)::close(serial_fd_);
@@ -139,6 +179,13 @@ private:
     if (serial_poll_period_ms_ <= 0 || reconnect_period_ms_ <= 0) {
       throw std::invalid_argument(
               "serial poll and reconnect periods must be positive");
+    }
+    if (emergency_status_timeout_ms_ <= 0 ||
+      hall_feedback_acquisition_timeout_ms_ <= 0 ||
+      hall_feedback_loss_timeout_ms_ <= 0)
+    {
+      throw std::invalid_argument(
+              "emergency and Hall feedback timeouts must be positive");
     }
     if (base_frame_id_.empty()) {
       throw std::invalid_argument("base_frame_id must not be empty");
@@ -230,6 +277,13 @@ private:
     }
     (void)::close(serial_fd_);
     serial_fd_ = -1;
+    autonomous_requested_ = false;
+    has_transmitted_command_ = false;
+    safety_stop_sent_ = false;
+    rc_override_active_ = false;
+    has_received_feedback_ = false;
+    reset_fault_clear_handshake();
+    hall_feedback_monitor_.reset();
     feedback_decoder_.discard_buffer();
     ++disconnect_count_;
     next_reconnect_attempt_ = std::chrono::steady_clock::now() +
@@ -292,6 +346,83 @@ private:
     return true;
   }
 
+  bool transmit_software_stop(const char * const context)
+  {
+    ChassisCommand software_stop;
+    software_stop.enable = false;
+    software_stop.software_stop = true;
+    try {
+      const auto frame = encode_command_frame(software_stop);
+      if (!write_frame(frame)) {
+        return false;
+      }
+      has_transmitted_command_ = false;
+      RCLCPP_INFO(
+        get_logger(),
+        "sent one firmware software-stop frame for %s; this is not a "
+        "physical emergency stop",
+        context);
+      return true;
+    } catch (const std::exception & error) {
+      RCLCPP_ERROR(
+        get_logger(), "could not encode software-stop frame for %s: %s",
+        context, error.what());
+      return false;
+    }
+  }
+
+  bool transmit_clear_fault()
+  {
+    ChassisCommand clear_fault;
+    clear_fault.enable = false;
+    clear_fault.clear_fault = true;
+    try {
+      const auto frame = encode_command_frame(clear_fault);
+      if (!write_frame(frame)) {
+        return false;
+      }
+      ++fault_clear_frame_count_;
+      RCLCPP_INFO(
+        get_logger(),
+        "sent one disabled zero-valued firmware clear-fault frame after "
+        "fresh automatic zero-command ownership was confirmed");
+      return true;
+    } catch (const std::exception & error) {
+      RCLCPP_ERROR(
+        get_logger(), "could not encode clear-fault frame: %s",
+        error.what());
+      return false;
+    }
+  }
+
+  void reset_fault_clear_handshake() noexcept
+  {
+    fault_clear_pending_ = false;
+    fault_clear_zero_sent_ = false;
+    fault_clear_sent_ = false;
+  }
+
+  void latch_safety_stop(const char * const reason)
+  {
+    const bool newly_latched = !safety_stop_latched_;
+    safety_stop_latched_ = true;
+    autonomous_requested_ = false;
+    reset_fault_clear_handshake();
+    hall_feedback_monitor_.reset();
+
+    if (newly_latched) {
+      RCLCPP_ERROR(
+        get_logger(),
+        "latched RC software safety stop after %s; normal Control is blocked "
+        "until a fresh clear emergency status and a new AUTONOMOUS request; "
+        "this is not a physical emergency stop",
+        reason);
+    }
+    if (serial_fd_ >= 0 && !safety_stop_sent_) {
+      safety_stop_sent_ = transmit_software_stop(reason);
+    }
+  }
+
   bool
   command_stamp_is_fresh(
     const builtin_interfaces::msg::Time & message_stamp,
@@ -327,9 +458,182 @@ private:
     return true;
   }
 
+  void on_gear_command(
+    const autoware_vehicle_msgs::msg::GearCommand::SharedPtr message)
+  {
+    using GearCommand = autoware_vehicle_msgs::msg::GearCommand;
+    using GearReport = autoware_vehicle_msgs::msg::GearReport;
+
+    LogicalGear requested_gear;
+    std::uint8_t requested_report;
+    switch (message->command) {
+      case GearCommand::PARK:
+        requested_gear = LogicalGear::kPark;
+        requested_report = GearReport::PARK;
+        break;
+      case GearCommand::NEUTRAL:
+        requested_gear = LogicalGear::kNeutral;
+        requested_report = GearReport::NEUTRAL;
+        break;
+      case GearCommand::DRIVE:
+        requested_gear = LogicalGear::kDrive;
+        requested_report = GearReport::DRIVE;
+        break;
+      case GearCommand::REVERSE:
+        requested_gear = LogicalGear::kReverse;
+        requested_report = GearReport::REVERSE;
+        break;
+      default:
+        RCLCPP_WARN_THROTTLE(
+          get_logger(), *get_clock(), 2000,
+          "ignored unsupported logical gear command=%u; RC supports only "
+          "PARK, NEUTRAL, DRIVE and REVERSE direction contracts",
+          static_cast<unsigned int>(message->command));
+        return;
+    }
+
+    if (requested_report != logical_gear_report_) {
+      RCLCPP_INFO(
+        get_logger(),
+        "accepted logical gear/direction command=%u; the RC chassis has no "
+        "physical gearbox",
+        static_cast<unsigned int>(message->command));
+    }
+    logical_gear_ = requested_gear;
+    logical_gear_report_ = requested_report;
+  }
+
+  void on_emergency_status(
+    const tier4_vehicle_msgs::msg::VehicleEmergencyStamped::SharedPtr message)
+  {
+    emergency_status_monitor_.observe(message->emergency, steady_now_ms());
+    if (message->emergency) {
+      latch_safety_stop("formal emergency status");
+    }
+  }
+
+  void on_control_mode_request(
+    const autoware_vehicle_msgs::srv::ControlModeCommand::Request::SharedPtr
+    request,
+    const autoware_vehicle_msgs::srv::ControlModeCommand::Response::SharedPtr
+    response)
+  {
+    using ControlModeCommand =
+      autoware_vehicle_msgs::srv::ControlModeCommand;
+
+    if (request->mode == ControlModeCommand::Request::AUTONOMOUS) {
+      if (serial_fd_ < 0) {
+        response->success = false;
+        RCLCPP_WARN(
+          get_logger(),
+          "rejected AUTONOMOUS mode because the chassis serial port is "
+          "disconnected");
+        return;
+      }
+      if (!emergency_status_monitor_.fresh_and_clear(steady_now_ms())) {
+        response->success = false;
+        RCLCPP_WARN(
+          get_logger(),
+          "rejected AUTONOMOUS mode because the formal emergency status is "
+          "active, missing, or older than %lld ms",
+          static_cast<long long>(emergency_status_timeout_ms_));
+        return;
+      }
+      if (!has_received_feedback_) {
+        response->success = false;
+        RCLCPP_WARN(
+          get_logger(),
+          "rejected AUTONOMOUS mode until the first valid chassis feedback "
+          "frame is received");
+        return;
+      }
+
+      ChassisFeedback latest_feedback;
+      latest_feedback.status_bits = last_status_bits_;
+      if (has_live_chassis_fault(latest_feedback)) {
+        response->success = false;
+        RCLCPP_ERROR(
+          get_logger(),
+          "rejected AUTONOMOUS mode because firmware status_bits=0x%08x "
+          "contains a persistent RC-input fault",
+          static_cast<unsigned int>(last_status_bits_));
+        return;
+      }
+
+      safety_stop_latched_ = false;
+      safety_stop_sent_ = false;
+      hall_feedback_monitor_.reset();
+      autonomous_requested_ = true;
+      if (has_latched_chassis_fault(latest_feedback)) {
+        if (!fault_clear_pending_) {
+          fault_clear_pending_ = true;
+          fault_clear_zero_sent_ = false;
+          fault_clear_sent_ = false;
+          RCLCPP_WARN(
+            get_logger(),
+            "accepted AUTONOMOUS authorization for a zero-only diagnostic "
+            "clear handshake; nonzero Control remains blocked until firmware "
+            "telemetry confirms the historical fault latch is clear");
+        }
+      } else {
+        reset_fault_clear_handshake();
+      }
+      response->success = true;
+      RCLCPP_INFO(
+        get_logger(),
+        "accepted AUTONOMOUS mode request; firmware mode remains feedback-"
+        "derived and will change only after a fresh Control frame");
+      return;
+    }
+
+    if (request->mode == ControlModeCommand::Request::MANUAL ||
+      request->mode == ControlModeCommand::Request::NO_COMMAND)
+    {
+      const bool stop_required = manual_stop_is_required(
+        autonomous_requested_, has_transmitted_command_, safety_stop_sent_);
+      autonomous_requested_ = false;
+      reset_fault_clear_handshake();
+      hall_feedback_monitor_.reset();
+      if (serial_fd_ < 0 || !stop_required) {
+        response->success = true;
+      } else {
+        safety_stop_sent_ =
+          transmit_software_stop("MANUAL/NO_COMMAND mode request");
+        response->success = safety_stop_sent_;
+      }
+      RCLCPP_INFO(
+        get_logger(),
+        "accepted MANUAL/NO_COMMAND request=%s; stop_frame=%s; automatic "
+        "Control forwarding is disabled",
+        response->success ? "true" : "false",
+        stop_required ? (safety_stop_sent_ ? "sent" : "failed") :
+        "not_required");
+      return;
+    }
+
+    response->success = false;
+    RCLCPP_WARN(
+      get_logger(),
+      "rejected unsupported partial control mode=%u; RC exposes only full "
+      "AUTONOMOUS and MANUAL/NO_COMMAND",
+      static_cast<unsigned int>(request->mode));
+  }
+
   void on_control_command(
     const autoware_control_msgs::msg::Control::SharedPtr message)
   {
+    if (!autonomous_requested_) {
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), 2000,
+        "discarded Control command because AUTONOMOUS mode has not been "
+        "accepted");
+      return;
+    }
+    if (!emergency_status_monitor_.fresh_and_clear(steady_now_ms())) {
+      latch_safety_stop(
+        "active, missing, or stale formal emergency status");
+      return;
+    }
     if (serial_fd_ < 0) {
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 2000,
@@ -364,14 +668,45 @@ private:
           setpoint.steering_tire_angle_rad);
       }
       ChassisCommand command;
-      command.speed_mps = setpoint.speed_mps;
-      command.steering_tire_angle_rad = setpoint.steering_tire_angle_rad;
+      if (fault_clear_pending_) {
+        if (setpoint.speed_mps != 0.0 ||
+          setpoint.steering_tire_angle_rad != 0.0)
+        {
+          RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "blocked nonzero Control during firmware fault-clear handshake; "
+            "sending enabled zero speed and zero steering instead");
+        }
+        command.speed_mps = 0.0;
+        command.steering_tire_angle_rad = 0.0;
+      } else {
+        command.speed_mps = logical_gear_allows_speed(
+          logical_gear_, setpoint.speed_mps) ? setpoint.speed_mps : 0.0;
+        if (command.speed_mps != setpoint.speed_mps) {
+          RCLCPP_WARN_THROTTLE(
+            get_logger(), *get_clock(), 2000,
+            "mapped Control speed %.3f m/s to zero because logical "
+            "gear/direction report=%u does not permit its sign",
+            setpoint.speed_mps,
+            static_cast<unsigned int>(logical_gear_report_));
+        }
+        command.steering_tire_angle_rad = setpoint.steering_tire_angle_rad;
+      }
       command.enable = true;
       command.software_stop = false;
       const auto frame = encode_command_frame(command);
       if (write_frame(frame)) {
         last_transmitted_command_stamp_ns_ = stamp_ns;
         has_transmitted_command_ = true;
+        if (fault_clear_pending_) {
+          fault_clear_zero_sent_ = true;
+          hall_feedback_monitor_.reset();
+        } else if (rc_override_active_) {
+          hall_feedback_monitor_.reset();
+        } else {
+          hall_feedback_monitor_.note_effective_command(
+            command.speed_mps, steady_now_ms());
+        }
       }
     } catch (const std::exception & error) {
       RCLCPP_ERROR_THROTTLE(
@@ -383,11 +718,15 @@ private:
 
   void publish_feedback(const ChassisFeedback & feedback)
   {
-    if ((feedback.status_bits & kRcStatusRcOverrideActive) != 0U) {
+    has_received_feedback_ = true;
+    const VelocityFeedbackState velocity_state =
+      velocity_feedback_state(feedback);
+    rc_override_active_ =
+      (feedback.status_bits & kRcStatusRcOverrideActive) != 0U;
+    if (rc_override_active_) {
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 5000,
-        "firmware reports RC override active; this is raw chassis state, not a published "
-        "control-mode message");
+        "firmware reports RC override active; standard control mode is MANUAL");
     }
     if ((feedback.status_bits & kRcStatusCommandTimeout) != 0U) {
       RCLCPP_WARN_THROTTLE(
@@ -402,15 +741,31 @@ private:
     if ((feedback.status_bits & kRcStatusFaultLatched) != 0U) {
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 5000,
-        "firmware reports a latched diagnostic fault; inspect status_bits for its source");
+        "firmware reports a historical diagnostic fault latch; its live "
+        "source may already have disappeared from status_bits");
     }
-    if ((feedback.status_bits & kRcStatusHallFeedbackValid) == 0U) {
+    if (has_live_chassis_fault(feedback)) {
+      RCLCPP_ERROR_THROTTLE(
+        get_logger(), *get_clock(), 2000,
+        "firmware reports a current chassis fault source in "
+        "status_bits=0x%08x",
+        static_cast<unsigned int>(feedback.status_bits));
+    }
+    if (velocity_state == VelocityFeedbackState::kUnavailable) {
       ++hall_feedback_invalid_count_;
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 5000,
-        "firmware marks Hall feedback invalid; its speed "
-        "field is zero when direction or Hall "
-        "feedback is unavailable");
+        "firmware reports neither measured Hall motion nor Hall-confirmed "
+        "standstill; VelocityReport is withheld");
+    } else if (velocity_state == VelocityFeedbackState::kInconsistent) {
+      ++hall_feedback_contract_error_count_;
+      RCLCPP_ERROR_THROTTLE(
+        get_logger(), *get_clock(), 2000,
+        "firmware Hall status and speed field are inconsistent; "
+        "VelocityReport is withheld");
+      if (autonomous_requested_ || has_transmitted_command_) {
+        latch_safety_stop("inconsistent firmware Hall feedback contract");
+      }
     }
     if ((feedback.status_bits & kRcStatusSteeringEstimateValid) == 0U) {
       ++steering_estimate_invalid_count_;
@@ -438,14 +793,106 @@ private:
       feedback.hall_speed_command_signed_mps;
     last_steering_estimate_rad_ = feedback.steering_angle_estimate_rad;
     last_yaw_rate_estimate_rad_s_ = feedback.yaw_rate_estimate_rad_s;
-    autoware_vehicle_msgs::msg::VelocityReport report;
-    report.header.stamp = get_clock()->now();
-    report.header.frame_id = base_frame_id_;
-    report.longitudinal_velocity =
-      static_cast<float>(feedback.hall_speed_command_signed_mps);
-    report.lateral_velocity = 0.0F;
-    report.heading_rate = static_cast<float>(feedback.yaw_rate_estimate_rad_s);
-    velocity_publisher_->publish(report);
+
+    const bool live_chassis_fault = has_live_chassis_fault(feedback);
+    const bool latched_chassis_fault =
+      has_latched_chassis_fault(feedback);
+    if (live_chassis_fault &&
+      (autonomous_requested_ || has_transmitted_command_))
+    {
+      latch_safety_stop("firmware live chassis fault");
+    }
+
+    if (!live_chassis_fault && fault_clear_pending_) {
+      if (latched_chassis_fault) {
+        if (fault_clear_zero_sent_ && !fault_clear_sent_ &&
+          fault_clear_is_permitted(feedback))
+        {
+          fault_clear_sent_ = transmit_clear_fault();
+        }
+      } else if (
+        reported_control_mode(feedback) ==
+        ReportedControlMode::kAutonomous)
+      {
+        reset_fault_clear_handshake();
+        RCLCPP_INFO(
+          get_logger(),
+          "firmware telemetry confirmed the historical fault latch is "
+          "clear and automatic zero-command ownership is active; normal "
+          "Control forwarding is released");
+      }
+    } else if (!live_chassis_fault && latched_chassis_fault &&
+      autonomous_requested_)
+    {
+      latch_safety_stop(
+        "a new firmware diagnostic fault latch during automatic control");
+    }
+
+    const bool firmware_command_blocked = rc_override_active_ ||
+      (feedback.status_bits &
+      (kRcStatusCommandTimeout | kRcStatusStopOverrideActive)) != 0U ||
+      live_chassis_fault || latched_chassis_fault;
+    HallFeedbackDecision hall_decision =
+      HallFeedbackDecision::kNotRequired;
+    if (firmware_command_blocked) {
+      hall_feedback_monitor_.reset();
+    } else {
+      hall_decision = hall_feedback_monitor_.observe(
+        velocity_state == VelocityFeedbackState::kMeasuredMotion,
+        steady_now_ms());
+    }
+    if (hall_decision == HallFeedbackDecision::kFault) {
+      ++hall_feedback_fault_count_;
+      latch_safety_stop("persistent Hall feedback loss during commanded motion");
+    }
+
+    const auto stamp = get_clock()->now();
+    if (velocity_report_is_publishable(
+        feedback, hall_decision))
+    {
+      autoware_vehicle_msgs::msg::VelocityReport velocity_report;
+      velocity_report.header.stamp = stamp;
+      velocity_report.header.frame_id = base_frame_id_;
+      const bool confirmed_standstill =
+        velocity_state == VelocityFeedbackState::kConfirmedStandstill;
+      velocity_report.longitudinal_velocity = confirmed_standstill ? 0.0F :
+        static_cast<float>(feedback.hall_speed_command_signed_mps);
+      velocity_report.lateral_velocity = 0.0F;
+      velocity_report.heading_rate = confirmed_standstill ? 0.0F :
+        static_cast<float>(feedback.yaw_rate_estimate_rad_s);
+      velocity_publisher_->publish(velocity_report);
+    }
+
+    if (steering_estimate_is_valid(feedback)) {
+      autoware_vehicle_msgs::msg::SteeringReport steering_report;
+      steering_report.stamp = stamp;
+      steering_report.steering_tire_angle =
+        static_cast<float>(feedback.steering_angle_estimate_rad);
+      steering_publisher_->publish(steering_report);
+    }
+
+    autoware_vehicle_msgs::msg::GearReport gear_report;
+    gear_report.stamp = stamp;
+    gear_report.report = logical_gear_report_;
+    gear_publisher_->publish(gear_report);
+
+    autoware_vehicle_msgs::msg::ControlModeReport control_mode_report;
+    control_mode_report.stamp = stamp;
+    switch (reported_control_mode(feedback)) {
+      case ReportedControlMode::kAutonomous:
+        control_mode_report.mode =
+          autoware_vehicle_msgs::msg::ControlModeReport::AUTONOMOUS;
+        break;
+      case ReportedControlMode::kManual:
+        control_mode_report.mode =
+          autoware_vehicle_msgs::msg::ControlModeReport::MANUAL;
+        break;
+      case ReportedControlMode::kNoCommand:
+        control_mode_report.mode =
+          autoware_vehicle_msgs::msg::ControlModeReport::NO_COMMAND;
+        break;
+    }
+    control_mode_publisher_->publish(control_mode_report);
   }
 
   void read_serial()
@@ -511,7 +958,10 @@ private:
       "hall_delta_command_signed=%d hall_speed_command_signed_mps=%.3f "
       "steering_pwm_estimate_rad=%.3f "
       "yaw_kinematic_estimate_rad_s=%.3f "
-      "hall_invalid=%llu steering_estimate_invalid=%llu "
+      "safety_stop_latched=%s fault_clear_pending=%s "
+      "fault_clear_sent=%s clear_frames=%llu hall_invalid=%llu "
+      "hall_contract_errors=%llu hall_faults=%llu "
+      "steering_estimate_invalid=%llu "
       "unexpected_measured_steering=%llu",
       serial_fd_ >= 0 ? "true" : "false",
       static_cast<unsigned long long>(decoder_stats.valid_frames),
@@ -532,7 +982,13 @@ private:
       last_hall_delta_count_command_signed_,
       last_hall_speed_command_signed_mps_, last_steering_estimate_rad_,
       last_yaw_rate_estimate_rad_s_,
+      safety_stop_latched_ ? "true" : "false",
+      fault_clear_pending_ ? "true" : "false",
+      fault_clear_sent_ ? "true" : "false",
+      static_cast<unsigned long long>(fault_clear_frame_count_),
       static_cast<unsigned long long>(hall_feedback_invalid_count_),
+      static_cast<unsigned long long>(hall_feedback_contract_error_count_),
+      static_cast<unsigned long long>(hall_feedback_fault_count_),
       static_cast<unsigned long long>(steering_estimate_invalid_count_),
       static_cast<unsigned long long>(unexpected_measured_steering_count_));
   }
@@ -540,6 +996,11 @@ private:
   void on_serial_timer()
   {
     try_open_serial();
+    if (autonomous_requested_ &&
+      !emergency_status_monitor_.fresh_and_clear(steady_now_ms()))
+    {
+      latch_safety_stop("missing or stale formal emergency status");
+    }
     if (serial_fd_ >= 0) {
       pollfd descriptor{};
       descriptor.fd = serial_fd_;
@@ -564,13 +1025,29 @@ private:
   std::string base_frame_id_;
   std::int64_t baud_rate_{kExpectedBaudRate};
   std::int64_t firmware_command_timeout_ms_{kExpectedFirmwareCommandTimeoutMs};
+  std::int64_t emergency_status_timeout_ms_{250};
+  std::int64_t hall_feedback_acquisition_timeout_ms_{1500};
+  std::int64_t hall_feedback_loss_timeout_ms_{250};
   std::int64_t serial_poll_period_ms_{10};
   std::int64_t reconnect_period_ms_{1000};
   VehicleCommandLimits command_limits_;
 
   int serial_fd_{-1};
   FeedbackStreamDecoder feedback_decoder_;
+  EmergencyStatusMonitor emergency_status_monitor_{250};
+  HallFeedbackMonitor hall_feedback_monitor_{1500, 250};
+  bool autonomous_requested_{false};
   bool has_transmitted_command_{false};
+  bool safety_stop_latched_{false};
+  bool safety_stop_sent_{false};
+  bool rc_override_active_{false};
+  bool has_received_feedback_{false};
+  bool fault_clear_pending_{false};
+  bool fault_clear_zero_sent_{false};
+  bool fault_clear_sent_{false};
+  LogicalGear logical_gear_{LogicalGear::kPark};
+  std::uint8_t logical_gear_report_{
+    autoware_vehicle_msgs::msg::GearReport::PARK};
   std::int64_t last_transmitted_command_stamp_ns_{
     std::numeric_limits<std::int64_t>::min()};
   std::chrono::steady_clock::time_point next_reconnect_attempt_;
@@ -589,14 +1066,30 @@ private:
   std::uint64_t write_error_count_{0U};
   std::uint64_t connection_count_{0U};
   std::uint64_t disconnect_count_{0U};
+  std::uint64_t fault_clear_frame_count_{0U};
   std::uint64_t hall_feedback_invalid_count_{0U};
+  std::uint64_t hall_feedback_contract_error_count_{0U};
+  std::uint64_t hall_feedback_fault_count_{0U};
   std::uint64_t steering_estimate_invalid_count_{0U};
   std::uint64_t unexpected_measured_steering_count_{0U};
 
   rclcpp::Subscription<autoware_control_msgs::msg::Control>::SharedPtr
     command_subscription_;
+  rclcpp::Subscription<autoware_vehicle_msgs::msg::GearCommand>::SharedPtr
+    gear_subscription_;
+  rclcpp::Subscription<
+    tier4_vehicle_msgs::msg::VehicleEmergencyStamped>::SharedPtr
+    emergency_subscription_;
   rclcpp::Publisher<autoware_vehicle_msgs::msg::VelocityReport>::SharedPtr
     velocity_publisher_;
+  rclcpp::Publisher<autoware_vehicle_msgs::msg::SteeringReport>::SharedPtr
+    steering_publisher_;
+  rclcpp::Publisher<autoware_vehicle_msgs::msg::GearReport>::SharedPtr
+    gear_publisher_;
+  rclcpp::Publisher<autoware_vehicle_msgs::msg::ControlModeReport>::SharedPtr
+    control_mode_publisher_;
+  rclcpp::Service<autoware_vehicle_msgs::srv::ControlModeCommand>::SharedPtr
+    control_mode_service_;
   rclcpp::TimerBase::SharedPtr serial_timer_;
 };
 

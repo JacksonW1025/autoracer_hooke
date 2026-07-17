@@ -62,6 +62,7 @@ class RaceRuntimeManager(Node):
             "localization_timeout_sec": 0.20,
             "trajectory_timeout_sec": 0.35,
             "control_timeout_sec": 0.20,
+            "velocity_status_timeout_sec": 0.25,
             "vehicle_status_timeout_sec": 0.25,
             "stop_speed_mps": 0.10,
             "service_retry_sec": 0.25,
@@ -335,8 +336,9 @@ class RaceRuntimeManager(Node):
             return "TRAJECTORY_STALE"
         if self._trajectory.message is None or len(self._trajectory.message.points) < 2:
             return "TRAJECTORY_INVALID"
+        if not self._fresh(self._velocity, "velocity_status_timeout_sec"):
+            return "VELOCITY_STALE"
         for tracker, reason in (
-            (self._velocity, "VELOCITY_STALE"),
             (self._steering, "STEERING_STALE"),
             (self._gear, "GEAR_STALE"),
             (self._control_mode, "CONTROL_MODE_STALE"),
