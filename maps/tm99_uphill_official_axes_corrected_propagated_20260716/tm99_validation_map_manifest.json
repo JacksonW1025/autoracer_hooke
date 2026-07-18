@@ -1,0 +1,36 @@
+{
+  "bounds": {
+    "max_x": 1265.6168212890625,
+    "max_y": 104.58365631103516,
+    "max_z": 751.2284545898438,
+    "min_x": -105.75877380371094,
+    "min_y": -1767.135009765625,
+    "min_z": -10.019445419311523
+  },
+  "build_elapsed_sec": 9.992858712997986,
+  "coordinate_transform_applied": false,
+  "downsampling_applied": false,
+  "dropped_nonfinite_point_count": 0,
+  "format_version": 1,
+  "lossless_for_finite_points": true,
+  "map_origin": {
+    "altitude_m": 327.9443,
+    "latitude_deg": 29.0697514213,
+    "longitude_deg": 110.4705323434,
+    "note": "The upstream map projector message stores latitude/longitude only. Replay initialization and scoring use this full 3-D origin directly."
+  },
+  "output_point_count": 64603294,
+  "points_per_tile": {
+    "max": 201068,
+    "mean": 38114.03775811209,
+    "median": 18771.0,
+    "min": 1
+  },
+  "source_description": "Official TM99 uphill axes-corrected propagated map; lossless Autoware runtime tiling for independent downhill CarMaker localization.",
+  "source_pcd": "/opt/ipg/carmaker/linux64-15.1/build_AWSIM_map/map/TM99_uphill_axes_corrected_propagated_candidate_20260716/pointcloud_map.pcd",
+  "source_pcd_sha256": "6c6adbfe5e0b667952b5516421e71811d748ea60389f7d91bc747beb119fda51",
+  "source_pcd_size_bytes": 1033652898,
+  "source_point_count": 64603294,
+  "tile_count": 1695,
+  "tile_size_m": 20
+}

@@ -16,10 +16,11 @@ from autoracer_planning.local_trajectory_planner import (
 )
 
 
-def _pose(x, y, yaw=0.0):
+def _pose(x, y, yaw=0.0, z=0.0):
     pose = Pose()
     pose.position.x = float(x)
     pose.position.y = float(y)
+    pose.position.z = float(z)
     pose.orientation.z = math.sin(yaw * 0.5)
     pose.orientation.w = math.cos(yaw * 0.5)
     return pose
@@ -112,6 +113,41 @@ def test_progress_search_window_scales_with_speed_without_relaxing_pose_gate():
     ) is None
 
 
+def test_progress_tracking_uses_strict_height_only_for_initial_layer_selection():
+    trajectory = _trajectory(
+        [(float(x), 0.0, 4.0, 0.0) for x in range(40)]
+    )
+    for index, point in enumerate(trajectory.points):
+        point.pose.position.z = 100.0 - 0.2 * index
+    prepared = prepare_global_trajectory(trajectory)
+    config = LocalPlannerConfig(
+        nearest_search_forward_distance_m=3.0,
+        nearest_position_gate_m=3.0,
+        z_gate_m=3.0,
+    )
+
+    assert select_progress_index(
+        prepared, _pose(0.0, 0.0, z=95.0), None, config
+    ) is None
+
+    previous_index = select_progress_index(
+        prepared, _pose(0.0, 0.0, z=100.0), None, config
+    )
+    assert previous_index == 0
+    for index in range(1, 21):
+        previous_index = select_progress_index(
+            prepared,
+            _pose(float(index), 0.0, z=100.0),
+            previous_index,
+            config,
+        )
+        assert previous_index == index
+
+    assert abs(
+        prepared.points[previous_index].pose.position.z - 100.0
+    ) > config.z_gate_m
+
+
 def test_build_local_trajectory_limits_speed_and_stops_at_goal():
     config = LocalPlannerConfig(
         lookahead_distance_m=20.0,
@@ -164,6 +200,30 @@ def test_local_trajectory_preserves_precomputed_course_speed():
 
     speeds = [p.longitudinal_velocity_mps for p in local.points]
     assert min(speeds[1:-1]) < config.max_speed_mps
+
+
+def test_local_acceleration_is_assigned_to_outgoing_segment_at_speed_valley():
+    config = LocalPlannerConfig(
+        lookahead_distance_m=20.0,
+        backward_distance_m=0.0,
+        max_speed_mps=5.0,
+        max_accel_mps2=10.0,
+        max_decel_mps2=-10.0,
+    )
+    global_trajectory = _trajectory(
+        [(0.0, 0.0, 2.0), (1.0, 0.0, 1.0)]
+        + [(float(x), 0.0, 2.0) for x in range(2, 101)]
+    )
+
+    local = _build_local(
+        global_trajectory,
+        ego_pose=_pose(0.0, 0.0),
+        current_speed_mps=2.0,
+        config=config,
+    )
+
+    assert local.points[0].acceleration_mps2 == -1.5
+    assert local.points[1].acceleration_mps2 == 1.5
 
 
 def test_local_trajectory_seeds_departure_without_removing_terminal_stop():

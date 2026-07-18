@@ -1,6 +1,7 @@
 import csv
 from dataclasses import replace
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -9,13 +10,84 @@ from autoracer_planning.fixed_course import (
     CourseBuildConfig,
     CourseSample,
     RoadExtentSample,
+    _accelerations,
     apply_road_extents,
     build_asset,
+    curvature_speed_envelope,
+    holdout_errors,
     load_course_asset,
     load_course_csv,
     sha256_file,
     validate_course_map_contract,
 )
+
+
+def test_curvature_speed_envelope_uses_spatial_vehicle_window():
+    envelope = curvature_speed_envelope(
+        [0.01, -0.20, 0.0, 0.15, 0.01],
+        [0.0, 0.5, 1.0, 1.5, 2.0],
+        1.0,
+    )
+
+    assert envelope == pytest.approx([0.20, 0.20, 0.20, 0.15, 0.15])
+
+
+def test_acceleration_is_assigned_to_outgoing_segment_at_speed_valley():
+    points = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (2.0, 0.0, 0.0)]
+
+    accelerations = _accelerations(points, [2.0, 1.0, 2.0])
+
+    assert accelerations == pytest.approx([-1.5, 1.5, 0.0])
+
+
+def _course_sample(s, x, y):
+    return CourseSample(
+        s=s,
+        x=x,
+        y=y,
+        z=0.0,
+        yaw=0.0,
+        curvature=0.0,
+        left_offset=1.0,
+        right_offset=1.0,
+        target_velocity=1.0,
+        target_acceleration=0.0,
+    )
+
+
+def test_local_holdout_projection_removes_only_longitudinal_phase_error():
+    points = [
+        (
+            index * 0.5,
+            0.5 * math.sin(2.0 * math.pi * index * 0.5 / 5.0)
+            if index * 0.5 <= 50.0
+            else 0.0,
+        )
+        for index in range(201)
+    ]
+    distances = [0.0]
+    for previous, current in zip(points, points[1:]):
+        distances.append(
+            distances[-1]
+            + math.hypot(current[0] - previous[0], current[1] - previous[1])
+        )
+    course = [
+        _course_sample(distance, point[0], point[1])
+        for distance, point in zip(distances, points)
+    ]
+    holdout = [(index * 0.5, 0.0, 0.0) for index in range(201)]
+
+    normalized = holdout_errors(course, holdout)
+    projected = holdout_errors(
+        course,
+        holdout,
+        alignment_method="local_path_projection",
+        projection_window_m=10.0,
+        projection_sample_interval_m=0.25,
+    )
+
+    assert max(normalized) > 1.0
+    assert max(projected) <= 0.5 + 1e-9
 
 
 def test_road_extents_create_conservative_functional_boundaries():

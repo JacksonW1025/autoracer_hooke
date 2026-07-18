@@ -1,0 +1,101 @@
+{
+  "derived": {
+    "course_length_m": 10638.878804273,
+    "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/course.csv",
+    "row_count": 21305,
+    "sha256": "93a8a6df536c65e3cdd15cf2e29e9e40bef231fa6e24c1f98f150f677a0acb2e"
+  },
+  "implementation": {
+    "fixed_course_path": "autoracer_hooke/src/core/autoracer_planning/autoracer_planning/fixed_course.py",
+    "fixed_course_sha256": "f034ba877cbcae277def43c7598380fe6885ac23b79fee413bc66ff62247f96b",
+    "generator_path": "SimProject_TianmenRace/tools/derive_tm99_race_safety_course.py",
+    "generator_sha256": "f4d1e55b7b60aef6ffaad2b276764e0f3e1739b92d291183e94f36e1c2f27ad5"
+  },
+  "independent_holdout": {
+    "alignment": {
+      "method": "local_path_projection",
+      "projection_sample_interval_m": 0.25,
+      "projection_window_m": 10.0,
+      "semantics": "local_path_projection removes bounded longitudinal phase error without allowing matches to remote switchback segments"
+    },
+    "max_limit": 1.0,
+    "minimum_raw_point_distance_m": 0.02,
+    "p95_limit": 0.75,
+    "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/physical_reference/vehicle_state.csv",
+    "path_length_m": 10614.070647712126,
+    "path_point_count": 58989,
+    "raw_state_count": 72963,
+    "sha256": "a79cdae8f5dc966ab0234bca76b460d69251429e3367478a45f9acafad248c79",
+    "triangle_inequality_advisory_upper_bounds_m": {
+      "acceptance_authority": false,
+      "max": 1.05066807121546,
+      "p95": 0.7861848210989266
+    },
+    "xy_max_m": 0.6870873020313409,
+    "xy_mean_m": 0.2931033705287856,
+    "xy_p95_m": 0.6338047034529695
+  },
+  "lateral_inset": {
+    "direction": "left",
+    "maximum_m": 0.25,
+    "ramp_end_source_progress_m": 220.0,
+    "ramp_start_source_progress_m": 150.0,
+    "source_left_extent_min_m": 5.21958494186,
+    "source_right_extent_min_m": 1.7018157959
+  },
+  "mode": "bounded_left_lateral_inset_with_safe_speed_profile",
+  "preserved_assets": {
+    "input_provenance.json": "07f6972ea28078c7c0fa3e96a945586c261401ead2eee11754e93d10f496d99f"
+  },
+  "roadeval": {
+    "failed_center_points": 0,
+    "failed_corridor_points": 0,
+    "failed_footprint_points": 0,
+    "minimum_left_road_extent_m": 4.88688,
+    "minimum_outward_clearance_m": 0.235131,
+    "minimum_right_road_extent_m": 1.73513,
+    "minimum_vehicle_footprint_margin_m": 0.5995,
+    "point_count": 21305,
+    "status": "PASS"
+  },
+  "schema_version": 2,
+  "source": {
+    "manifest_sha256": "6eb6be3707a2dba3e0d357358d3d367eb72a32cdadab16ecf78b18d211d37228",
+    "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_v1/course.csv",
+    "sha256": "b13481c515781ea8187e782082da9c9e5ff9e815ebf83176a302d20455c615d2"
+  },
+  "speed_profile": {
+    "acceleration_point_semantics": "outgoing_segment_to_next_point",
+    "curvature_envelope_window_m": 5.074,
+    "ideal_time_at_runtime_cap_sec": 3631.6742073360574,
+    "ideal_time_sec": 3172.971729586133,
+    "max_accel_mps2": 0.8,
+    "max_decel_mps2": -1.5,
+    "max_lateral_accel_mps2": 0.2000000425829685,
+    "non_binding_ceiling_mps": 100.0,
+    "runtime_speed_cap_mps": 4.0,
+    "serialized_acceleration_abs_tolerance": 5e-08
+  },
+  "status": "PASS",
+  "vehicle_feasible_geometry": {
+    "max_steer_angle_rad": 0.605,
+    "minimum_controller_steer_rate_limit_radps": 0.6981317007977318,
+    "observed_curvature_abs_max_1pm": 0.235224044,
+    "planning_curvature_limit_1pm": 0.2453102295951555,
+    "planning_steer_rate_limit_radps": 0.6283185307179586,
+    "required_steer_angle_abs_max_rad": 0.5380362484879976,
+    "required_steer_rate_abs_max_radps": 0.414557003580313,
+    "smoothing_max_displacement_m": 0.11572411773609076,
+    "smoothing_passes": 9,
+    "smoothing_xy_kernel": [
+      0.25,
+      0.5,
+      0.25
+    ],
+    "steering_curvature_utilization": 0.9,
+    "steering_rate_utilization": 0.9,
+    "total_geometry_displacement_max_m": 0.36360213585207335,
+    "vehicle_curvature_limit_1pm": 0.272566921772395,
+    "wheel_base_m": 2.537
+  }
+}

@@ -1,0 +1,5087 @@
+x_resolution: 20
+y_resolution: 20
+pointcloud_map_x-120_y-60.pcd:
+- -120
+- -60
+pointcloud_map_x-120_y-40.pcd:
+- -120
+- -40
+pointcloud_map_x-100_y-60.pcd:
+- -100
+- -60
+pointcloud_map_x-100_y-40.pcd:
+- -100
+- -40
+pointcloud_map_x-100_y-20.pcd:
+- -100
+- -20
+pointcloud_map_x-80_y-40.pcd:
+- -80
+- -40
+pointcloud_map_x-80_y-20.pcd:
+- -80
+- -20
+pointcloud_map_x-80_y0.pcd:
+- -80
+- 0
+pointcloud_map_x-60_y-40.pcd:
+- -60
+- -40
+pointcloud_map_x-60_y-20.pcd:
+- -60
+- -20
+pointcloud_map_x-60_y0.pcd:
+- -60
+- 0
+pointcloud_map_x-60_y20.pcd:
+- -60
+- 20
+pointcloud_map_x-60_y40.pcd:
+- -60
+- 40
+pointcloud_map_x-60_y60.pcd:
+- -60
+- 60
+pointcloud_map_x-60_y100.pcd:
+- -60
+- 100
+pointcloud_map_x-40_y-120.pcd:
+- -40
+- -120
+pointcloud_map_x-40_y-80.pcd:
+- -40
+- -80
+pointcloud_map_x-40_y-60.pcd:
+- -40
+- -60
+pointcloud_map_x-40_y-40.pcd:
+- -40
+- -40
+pointcloud_map_x-40_y-20.pcd:
+- -40
+- -20
+pointcloud_map_x-40_y0.pcd:
+- -40
+- 0
+pointcloud_map_x-40_y20.pcd:
+- -40
+- 20
+pointcloud_map_x-40_y40.pcd:
+- -40
+- 40
+pointcloud_map_x-40_y60.pcd:
+- -40
+- 60
+pointcloud_map_x-40_y80.pcd:
+- -40
+- 80
+pointcloud_map_x-20_y-100.pcd:
+- -20
+- -100
+pointcloud_map_x-20_y-80.pcd:
+- -20
+- -80
+pointcloud_map_x-20_y-60.pcd:
+- -20
+- -60
+pointcloud_map_x-20_y-40.pcd:
+- -20
+- -40
+pointcloud_map_x-20_y-20.pcd:
+- -20
+- -20
+pointcloud_map_x-20_y0.pcd:
+- -20
+- 0
+pointcloud_map_x-20_y20.pcd:
+- -20
+- 20
+pointcloud_map_x-20_y40.pcd:
+- -20
+- 40
+pointcloud_map_x-20_y60.pcd:
+- -20
+- 60
+pointcloud_map_x0_y-280.pcd:
+- 0
+- -280
+pointcloud_map_x0_y-260.pcd:
+- 0
+- -260
+pointcloud_map_x0_y-240.pcd:
+- 0
+- -240
+pointcloud_map_x0_y-220.pcd:
+- 0
+- -220
+pointcloud_map_x0_y-200.pcd:
+- 0
+- -200
+pointcloud_map_x0_y-180.pcd:
+- 0
+- -180
+pointcloud_map_x0_y-160.pcd:
+- 0
+- -160
+pointcloud_map_x0_y-140.pcd:
+- 0
+- -140
+pointcloud_map_x0_y-120.pcd:
+- 0
+- -120
+pointcloud_map_x0_y-100.pcd:
+- 0
+- -100
+pointcloud_map_x0_y-80.pcd:
+- 0
+- -80
+pointcloud_map_x0_y-60.pcd:
+- 0
+- -60
+pointcloud_map_x0_y-40.pcd:
+- 0
+- -40
+pointcloud_map_x0_y-20.pcd:
+- 0
+- -20
+pointcloud_map_x0_y0.pcd:
+- 0
+- 0
+pointcloud_map_x0_y20.pcd:
+- 0
+- 20
+pointcloud_map_x0_y40.pcd:
+- 0
+- 40
+pointcloud_map_x0_y60.pcd:
+- 0
+- 60
+pointcloud_map_x20_y-280.pcd:
+- 20
+- -280
+pointcloud_map_x20_y-260.pcd:
+- 20
+- -260
+pointcloud_map_x20_y-240.pcd:
+- 20
+- -240
+pointcloud_map_x20_y-220.pcd:
+- 20
+- -220
+pointcloud_map_x20_y-200.pcd:
+- 20
+- -200
+pointcloud_map_x20_y-180.pcd:
+- 20
+- -180
+pointcloud_map_x20_y-160.pcd:
+- 20
+- -160
+pointcloud_map_x20_y-140.pcd:
+- 20
+- -140
+pointcloud_map_x20_y-120.pcd:
+- 20
+- -120
+pointcloud_map_x20_y-100.pcd:
+- 20
+- -100
+pointcloud_map_x20_y-80.pcd:
+- 20
+- -80
+pointcloud_map_x20_y-60.pcd:
+- 20
+- -60
+pointcloud_map_x20_y-40.pcd:
+- 20
+- -40
+pointcloud_map_x20_y-20.pcd:
+- 20
+- -20
+pointcloud_map_x20_y0.pcd:
+- 20
+- 0
+pointcloud_map_x20_y20.pcd:
+- 20
+- 20
+pointcloud_map_x20_y40.pcd:
+- 20
+- 40
+pointcloud_map_x20_y60.pcd:
+- 20
+- 60
+pointcloud_map_x40_y-280.pcd:
+- 40
+- -280
+pointcloud_map_x40_y-260.pcd:
+- 40
+- -260
+pointcloud_map_x40_y-240.pcd:
+- 40
+- -240
+pointcloud_map_x40_y-220.pcd:
+- 40
+- -220
+pointcloud_map_x40_y-200.pcd:
+- 40
+- -200
+pointcloud_map_x40_y-180.pcd:
+- 40
+- -180
+pointcloud_map_x40_y-160.pcd:
+- 40
+- -160
+pointcloud_map_x40_y-140.pcd:
+- 40
+- -140
+pointcloud_map_x40_y-120.pcd:
+- 40
+- -120
+pointcloud_map_x40_y-100.pcd:
+- 40
+- -100
+pointcloud_map_x40_y-80.pcd:
+- 40
+- -80
+pointcloud_map_x40_y-60.pcd:
+- 40
+- -60
+pointcloud_map_x40_y-40.pcd:
+- 40
+- -40
+pointcloud_map_x40_y-20.pcd:
+- 40
+- -20
+pointcloud_map_x40_y0.pcd:
+- 40
+- 0
+pointcloud_map_x40_y20.pcd:
+- 40
+- 20
+pointcloud_map_x40_y40.pcd:
+- 40
+- 40
+pointcloud_map_x40_y60.pcd:
+- 40
+- 60
+pointcloud_map_x60_y-280.pcd:
+- 60
+- -280
+pointcloud_map_x60_y-260.pcd:
+- 60
+- -260
+pointcloud_map_x60_y-240.pcd:
+- 60
+- -240
+pointcloud_map_x60_y-220.pcd:
+- 60
+- -220
+pointcloud_map_x60_y-200.pcd:
+- 60
+- -200
+pointcloud_map_x60_y-180.pcd:
+- 60
+- -180
+pointcloud_map_x60_y-160.pcd:
+- 60
+- -160
+pointcloud_map_x60_y-140.pcd:
+- 60
+- -140
+pointcloud_map_x60_y-120.pcd:
+- 60
+- -120
+pointcloud_map_x60_y-100.pcd:
+- 60
+- -100
+pointcloud_map_x60_y-80.pcd:
+- 60
+- -80
+pointcloud_map_x60_y-60.pcd:
+- 60
+- -60
+pointcloud_map_x60_y-40.pcd:
+- 60
+- -40
+pointcloud_map_x60_y-20.pcd:
+- 60
+- -20
+pointcloud_map_x60_y0.pcd:
+- 60
+- 0
+pointcloud_map_x60_y20.pcd:
+- 60
+- 20
+pointcloud_map_x60_y40.pcd:
+- 60
+- 40
+pointcloud_map_x80_y-300.pcd:
+- 80
+- -300
+pointcloud_map_x80_y-280.pcd:
+- 80
+- -280
+pointcloud_map_x80_y-260.pcd:
+- 80
+- -260
+pointcloud_map_x80_y-240.pcd:
+- 80
+- -240
+pointcloud_map_x80_y-220.pcd:
+- 80
+- -220
+pointcloud_map_x80_y-200.pcd:
+- 80
+- -200
+pointcloud_map_x80_y-180.pcd:
+- 80
+- -180
+pointcloud_map_x80_y-160.pcd:
+- 80
+- -160
+pointcloud_map_x80_y-120.pcd:
+- 80
+- -120
+pointcloud_map_x80_y-100.pcd:
+- 80
+- -100
+pointcloud_map_x80_y-80.pcd:
+- 80
+- -80
+pointcloud_map_x80_y-60.pcd:
+- 80
+- -60
+pointcloud_map_x80_y-40.pcd:
+- 80
+- -40
+pointcloud_map_x80_y-20.pcd:
+- 80
+- -20
+pointcloud_map_x80_y0.pcd:
+- 80
+- 0
+pointcloud_map_x80_y20.pcd:
+- 80
+- 20
+pointcloud_map_x80_y40.pcd:
+- 80
+- 40
+pointcloud_map_x100_y-420.pcd:
+- 100
+- -420
+pointcloud_map_x100_y-400.pcd:
+- 100
+- -400
+pointcloud_map_x100_y-300.pcd:
+- 100
+- -300
+pointcloud_map_x100_y-280.pcd:
+- 100
+- -280
+pointcloud_map_x100_y-260.pcd:
+- 100
+- -260
+pointcloud_map_x100_y-240.pcd:
+- 100
+- -240
+pointcloud_map_x100_y-220.pcd:
+- 100
+- -220
+pointcloud_map_x100_y-200.pcd:
+- 100
+- -200
+pointcloud_map_x100_y-180.pcd:
+- 100
+- -180
+pointcloud_map_x100_y-160.pcd:
+- 100
+- -160
+pointcloud_map_x100_y-140.pcd:
+- 100
+- -140
+pointcloud_map_x100_y-120.pcd:
+- 100
+- -120
+pointcloud_map_x100_y-100.pcd:
+- 100
+- -100
+pointcloud_map_x100_y-80.pcd:
+- 100
+- -80
+pointcloud_map_x100_y-60.pcd:
+- 100
+- -60
+pointcloud_map_x100_y-40.pcd:
+- 100
+- -40
+pointcloud_map_x100_y-20.pcd:
+- 100
+- -20
+pointcloud_map_x100_y0.pcd:
+- 100
+- 0
+pointcloud_map_x100_y20.pcd:
+- 100
+- 20
+pointcloud_map_x120_y-420.pcd:
+- 120
+- -420
+pointcloud_map_x120_y-400.pcd:
+- 120
+- -400
+pointcloud_map_x120_y-380.pcd:
+- 120
+- -380
+pointcloud_map_x120_y-360.pcd:
+- 120
+- -360
+pointcloud_map_x120_y-320.pcd:
+- 120
+- -320
+pointcloud_map_x120_y-300.pcd:
+- 120
+- -300
+pointcloud_map_x120_y-280.pcd:
+- 120
+- -280
+pointcloud_map_x120_y-260.pcd:
+- 120
+- -260
+pointcloud_map_x120_y-240.pcd:
+- 120
+- -240
+pointcloud_map_x120_y-220.pcd:
+- 120
+- -220
+pointcloud_map_x120_y-200.pcd:
+- 120
+- -200
+pointcloud_map_x120_y-180.pcd:
+- 120
+- -180
+pointcloud_map_x120_y-140.pcd:
+- 120
+- -140
+pointcloud_map_x120_y-120.pcd:
+- 120
+- -120
+pointcloud_map_x120_y-100.pcd:
+- 120
+- -100
+pointcloud_map_x120_y-80.pcd:
+- 120
+- -80
+pointcloud_map_x120_y-60.pcd:
+- 120
+- -60
+pointcloud_map_x120_y-40.pcd:
+- 120
+- -40
+pointcloud_map_x120_y-20.pcd:
+- 120
+- -20
+pointcloud_map_x140_y-420.pcd:
+- 140
+- -420
+pointcloud_map_x140_y-400.pcd:
+- 140
+- -400
+pointcloud_map_x140_y-380.pcd:
+- 140
+- -380
+pointcloud_map_x140_y-360.pcd:
+- 140
+- -360
+pointcloud_map_x140_y-340.pcd:
+- 140
+- -340
+pointcloud_map_x140_y-320.pcd:
+- 140
+- -320
+pointcloud_map_x140_y-300.pcd:
+- 140
+- -300
+pointcloud_map_x140_y-280.pcd:
+- 140
+- -280
+pointcloud_map_x140_y-260.pcd:
+- 140
+- -260
+pointcloud_map_x140_y-240.pcd:
+- 140
+- -240
+pointcloud_map_x140_y-220.pcd:
+- 140
+- -220
+pointcloud_map_x140_y-200.pcd:
+- 140
+- -200
+pointcloud_map_x140_y-180.pcd:
+- 140
+- -180
+pointcloud_map_x140_y-160.pcd:
+- 140
+- -160
+pointcloud_map_x140_y-140.pcd:
+- 140
+- -140
+pointcloud_map_x140_y-120.pcd:
+- 140
+- -120
+pointcloud_map_x140_y-100.pcd:
+- 140
+- -100
+pointcloud_map_x140_y-80.pcd:
+- 140
+- -80
+pointcloud_map_x160_y-420.pcd:
+- 160
+- -420
+pointcloud_map_x160_y-400.pcd:
+- 160
+- -400
+pointcloud_map_x160_y-380.pcd:
+- 160
+- -380
+pointcloud_map_x160_y-360.pcd:
+- 160
+- -360
+pointcloud_map_x160_y-340.pcd:
+- 160
+- -340
+pointcloud_map_x160_y-320.pcd:
+- 160
+- -320
+pointcloud_map_x160_y-300.pcd:
+- 160
+- -300
+pointcloud_map_x160_y-280.pcd:
+- 160
+- -280
+pointcloud_map_x160_y-260.pcd:
+- 160
+- -260
+pointcloud_map_x160_y-240.pcd:
+- 160
+- -240
+pointcloud_map_x160_y-220.pcd:
+- 160
+- -220
+pointcloud_map_x160_y-200.pcd:
+- 160
+- -200
+pointcloud_map_x160_y-180.pcd:
+- 160
+- -180
+pointcloud_map_x160_y-160.pcd:
+- 160
+- -160
+pointcloud_map_x160_y-140.pcd:
+- 160
+- -140
+pointcloud_map_x160_y-120.pcd:
+- 160
+- -120
+pointcloud_map_x160_y-100.pcd:
+- 160
+- -100
+pointcloud_map_x160_y-80.pcd:
+- 160
+- -80
+pointcloud_map_x180_y-420.pcd:
+- 180
+- -420
+pointcloud_map_x180_y-400.pcd:
+- 180
+- -400
+pointcloud_map_x180_y-380.pcd:
+- 180
+- -380
+pointcloud_map_x180_y-360.pcd:
+- 180
+- -360
+pointcloud_map_x180_y-340.pcd:
+- 180
+- -340
+pointcloud_map_x180_y-320.pcd:
+- 180
+- -320
+pointcloud_map_x180_y-300.pcd:
+- 180
+- -300
+pointcloud_map_x180_y-280.pcd:
+- 180
+- -280
+pointcloud_map_x180_y-260.pcd:
+- 180
+- -260
+pointcloud_map_x180_y-240.pcd:
+- 180
+- -240
+pointcloud_map_x180_y-220.pcd:
+- 180
+- -220
+pointcloud_map_x180_y-200.pcd:
+- 180
+- -200
+pointcloud_map_x180_y-180.pcd:
+- 180
+- -180
+pointcloud_map_x180_y-160.pcd:
+- 180
+- -160
+pointcloud_map_x180_y-140.pcd:
+- 180
+- -140
+pointcloud_map_x180_y-120.pcd:
+- 180
+- -120
+pointcloud_map_x200_y-500.pcd:
+- 200
+- -500
+pointcloud_map_x200_y-480.pcd:
+- 200
+- -480
+pointcloud_map_x200_y-460.pcd:
+- 200
+- -460
+pointcloud_map_x200_y-440.pcd:
+- 200
+- -440
+pointcloud_map_x200_y-420.pcd:
+- 200
+- -420
+pointcloud_map_x200_y-400.pcd:
+- 200
+- -400
+pointcloud_map_x200_y-380.pcd:
+- 200
+- -380
+pointcloud_map_x200_y-360.pcd:
+- 200
+- -360
+pointcloud_map_x200_y-340.pcd:
+- 200
+- -340
+pointcloud_map_x200_y-320.pcd:
+- 200
+- -320
+pointcloud_map_x200_y-300.pcd:
+- 200
+- -300
+pointcloud_map_x200_y-280.pcd:
+- 200
+- -280
+pointcloud_map_x200_y-260.pcd:
+- 200
+- -260
+pointcloud_map_x200_y-240.pcd:
+- 200
+- -240
+pointcloud_map_x200_y-220.pcd:
+- 200
+- -220
+pointcloud_map_x200_y-200.pcd:
+- 200
+- -200
+pointcloud_map_x200_y-180.pcd:
+- 200
+- -180
+pointcloud_map_x200_y-160.pcd:
+- 200
+- -160
+pointcloud_map_x200_y-140.pcd:
+- 200
+- -140
+pointcloud_map_x220_y-500.pcd:
+- 220
+- -500
+pointcloud_map_x220_y-480.pcd:
+- 220
+- -480
+pointcloud_map_x220_y-460.pcd:
+- 220
+- -460
+pointcloud_map_x220_y-440.pcd:
+- 220
+- -440
+pointcloud_map_x220_y-420.pcd:
+- 220
+- -420
+pointcloud_map_x220_y-400.pcd:
+- 220
+- -400
+pointcloud_map_x220_y-380.pcd:
+- 220
+- -380
+pointcloud_map_x220_y-360.pcd:
+- 220
+- -360
+pointcloud_map_x220_y-340.pcd:
+- 220
+- -340
+pointcloud_map_x220_y-320.pcd:
+- 220
+- -320
+pointcloud_map_x220_y-300.pcd:
+- 220
+- -300
+pointcloud_map_x220_y-280.pcd:
+- 220
+- -280
+pointcloud_map_x220_y-260.pcd:
+- 220
+- -260
+pointcloud_map_x220_y-240.pcd:
+- 220
+- -240
+pointcloud_map_x220_y-220.pcd:
+- 220
+- -220
+pointcloud_map_x220_y-200.pcd:
+- 220
+- -200
+pointcloud_map_x220_y-180.pcd:
+- 220
+- -180
+pointcloud_map_x220_y-160.pcd:
+- 220
+- -160
+pointcloud_map_x240_y-520.pcd:
+- 240
+- -520
+pointcloud_map_x240_y-500.pcd:
+- 240
+- -500
+pointcloud_map_x240_y-480.pcd:
+- 240
+- -480
+pointcloud_map_x240_y-460.pcd:
+- 240
+- -460
+pointcloud_map_x240_y-440.pcd:
+- 240
+- -440
+pointcloud_map_x240_y-420.pcd:
+- 240
+- -420
+pointcloud_map_x240_y-400.pcd:
+- 240
+- -400
+pointcloud_map_x240_y-380.pcd:
+- 240
+- -380
+pointcloud_map_x240_y-360.pcd:
+- 240
+- -360
+pointcloud_map_x240_y-340.pcd:
+- 240
+- -340
+pointcloud_map_x240_y-320.pcd:
+- 240
+- -320
+pointcloud_map_x240_y-300.pcd:
+- 240
+- -300
+pointcloud_map_x240_y-280.pcd:
+- 240
+- -280
+pointcloud_map_x240_y-260.pcd:
+- 240
+- -260
+pointcloud_map_x240_y-240.pcd:
+- 240
+- -240
+pointcloud_map_x240_y-220.pcd:
+- 240
+- -220
+pointcloud_map_x240_y-200.pcd:
+- 240
+- -200
+pointcloud_map_x240_y-180.pcd:
+- 240
+- -180
+pointcloud_map_x260_y-560.pcd:
+- 260
+- -560
+pointcloud_map_x260_y-540.pcd:
+- 260
+- -540
+pointcloud_map_x260_y-520.pcd:
+- 260
+- -520
+pointcloud_map_x260_y-500.pcd:
+- 260
+- -500
+pointcloud_map_x260_y-480.pcd:
+- 260
+- -480
+pointcloud_map_x260_y-460.pcd:
+- 260
+- -460
+pointcloud_map_x260_y-440.pcd:
+- 260
+- -440
+pointcloud_map_x260_y-420.pcd:
+- 260
+- -420
+pointcloud_map_x260_y-400.pcd:
+- 260
+- -400
+pointcloud_map_x260_y-380.pcd:
+- 260
+- -380
+pointcloud_map_x260_y-360.pcd:
+- 260
+- -360
+pointcloud_map_x260_y-340.pcd:
+- 260
+- -340
+pointcloud_map_x260_y-320.pcd:
+- 260
+- -320
+pointcloud_map_x260_y-300.pcd:
+- 260
+- -300
+pointcloud_map_x260_y-280.pcd:
+- 260
+- -280
+pointcloud_map_x260_y-260.pcd:
+- 260
+- -260
+pointcloud_map_x260_y-240.pcd:
+- 260
+- -240
+pointcloud_map_x260_y-220.pcd:
+- 260
+- -220
+pointcloud_map_x260_y-200.pcd:
+- 260
+- -200
+pointcloud_map_x280_y-600.pcd:
+- 280
+- -600
+pointcloud_map_x280_y-580.pcd:
+- 280
+- -580
+pointcloud_map_x280_y-560.pcd:
+- 280
+- -560
+pointcloud_map_x280_y-540.pcd:
+- 280
+- -540
+pointcloud_map_x280_y-520.pcd:
+- 280
+- -520
+pointcloud_map_x280_y-500.pcd:
+- 280
+- -500
+pointcloud_map_x280_y-480.pcd:
+- 280
+- -480
+pointcloud_map_x280_y-460.pcd:
+- 280
+- -460
+pointcloud_map_x280_y-440.pcd:
+- 280
+- -440
+pointcloud_map_x280_y-420.pcd:
+- 280
+- -420
+pointcloud_map_x280_y-400.pcd:
+- 280
+- -400
+pointcloud_map_x280_y-380.pcd:
+- 280
+- -380
+pointcloud_map_x280_y-360.pcd:
+- 280
+- -360
+pointcloud_map_x280_y-340.pcd:
+- 280
+- -340
+pointcloud_map_x280_y-320.pcd:
+- 280
+- -320
+pointcloud_map_x280_y-300.pcd:
+- 280
+- -300
+pointcloud_map_x280_y-280.pcd:
+- 280
+- -280
+pointcloud_map_x280_y-260.pcd:
+- 280
+- -260
+pointcloud_map_x280_y-240.pcd:
+- 280
+- -240
+pointcloud_map_x280_y-220.pcd:
+- 280
+- -220
+pointcloud_map_x300_y-680.pcd:
+- 300
+- -680
+pointcloud_map_x300_y-660.pcd:
+- 300
+- -660
+pointcloud_map_x300_y-640.pcd:
+- 300
+- -640
+pointcloud_map_x300_y-620.pcd:
+- 300
+- -620
+pointcloud_map_x300_y-600.pcd:
+- 300
+- -600
+pointcloud_map_x300_y-580.pcd:
+- 300
+- -580
+pointcloud_map_x300_y-560.pcd:
+- 300
+- -560
+pointcloud_map_x300_y-540.pcd:
+- 300
+- -540
+pointcloud_map_x300_y-520.pcd:
+- 300
+- -520
+pointcloud_map_x300_y-500.pcd:
+- 300
+- -500
+pointcloud_map_x300_y-480.pcd:
+- 300
+- -480
+pointcloud_map_x300_y-460.pcd:
+- 300
+- -460
+pointcloud_map_x300_y-440.pcd:
+- 300
+- -440
+pointcloud_map_x300_y-420.pcd:
+- 300
+- -420
+pointcloud_map_x300_y-400.pcd:
+- 300
+- -400
+pointcloud_map_x300_y-380.pcd:
+- 300
+- -380
+pointcloud_map_x300_y-360.pcd:
+- 300
+- -360
+pointcloud_map_x300_y-340.pcd:
+- 300
+- -340
+pointcloud_map_x300_y-320.pcd:
+- 300
+- -320
+pointcloud_map_x300_y-300.pcd:
+- 300
+- -300
+pointcloud_map_x300_y-280.pcd:
+- 300
+- -280
+pointcloud_map_x320_y-680.pcd:
+- 320
+- -680
+pointcloud_map_x320_y-660.pcd:
+- 320
+- -660
+pointcloud_map_x320_y-640.pcd:
+- 320
+- -640
+pointcloud_map_x320_y-620.pcd:
+- 320
+- -620
+pointcloud_map_x320_y-600.pcd:
+- 320
+- -600
+pointcloud_map_x320_y-580.pcd:
+- 320
+- -580
+pointcloud_map_x320_y-560.pcd:
+- 320
+- -560
+pointcloud_map_x320_y-540.pcd:
+- 320
+- -540
+pointcloud_map_x320_y-520.pcd:
+- 320
+- -520
+pointcloud_map_x320_y-500.pcd:
+- 320
+- -500
+pointcloud_map_x320_y-480.pcd:
+- 320
+- -480
+pointcloud_map_x320_y-460.pcd:
+- 320
+- -460
+pointcloud_map_x320_y-440.pcd:
+- 320
+- -440
+pointcloud_map_x320_y-420.pcd:
+- 320
+- -420
+pointcloud_map_x320_y-400.pcd:
+- 320
+- -400
+pointcloud_map_x320_y-380.pcd:
+- 320
+- -380
+pointcloud_map_x320_y-360.pcd:
+- 320
+- -360
+pointcloud_map_x340_y-720.pcd:
+- 340
+- -720
+pointcloud_map_x340_y-700.pcd:
+- 340
+- -700
+pointcloud_map_x340_y-680.pcd:
+- 340
+- -680
+pointcloud_map_x340_y-660.pcd:
+- 340
+- -660
+pointcloud_map_x340_y-640.pcd:
+- 340
+- -640
+pointcloud_map_x340_y-620.pcd:
+- 340
+- -620
+pointcloud_map_x340_y-600.pcd:
+- 340
+- -600
+pointcloud_map_x340_y-580.pcd:
+- 340
+- -580
+pointcloud_map_x340_y-560.pcd:
+- 340
+- -560
+pointcloud_map_x340_y-540.pcd:
+- 340
+- -540
+pointcloud_map_x340_y-520.pcd:
+- 340
+- -520
+pointcloud_map_x340_y-500.pcd:
+- 340
+- -500
+pointcloud_map_x340_y-480.pcd:
+- 340
+- -480
+pointcloud_map_x340_y-460.pcd:
+- 340
+- -460
+pointcloud_map_x340_y-440.pcd:
+- 340
+- -440
+pointcloud_map_x340_y-420.pcd:
+- 340
+- -420
+pointcloud_map_x360_y-840.pcd:
+- 360
+- -840
+pointcloud_map_x360_y-820.pcd:
+- 360
+- -820
+pointcloud_map_x360_y-800.pcd:
+- 360
+- -800
+pointcloud_map_x360_y-780.pcd:
+- 360
+- -780
+pointcloud_map_x360_y-740.pcd:
+- 360
+- -740
+pointcloud_map_x360_y-720.pcd:
+- 360
+- -720
+pointcloud_map_x360_y-700.pcd:
+- 360
+- -700
+pointcloud_map_x360_y-680.pcd:
+- 360
+- -680
+pointcloud_map_x360_y-660.pcd:
+- 360
+- -660
+pointcloud_map_x360_y-640.pcd:
+- 360
+- -640
+pointcloud_map_x360_y-620.pcd:
+- 360
+- -620
+pointcloud_map_x360_y-600.pcd:
+- 360
+- -600
+pointcloud_map_x360_y-580.pcd:
+- 360
+- -580
+pointcloud_map_x360_y-560.pcd:
+- 360
+- -560
+pointcloud_map_x360_y-540.pcd:
+- 360
+- -540
+pointcloud_map_x360_y-520.pcd:
+- 360
+- -520
+pointcloud_map_x360_y-500.pcd:
+- 360
+- -500
+pointcloud_map_x360_y-480.pcd:
+- 360
+- -480
+pointcloud_map_x360_y-460.pcd:
+- 360
+- -460
+pointcloud_map_x360_y-440.pcd:
+- 360
+- -440
+pointcloud_map_x360_y-420.pcd:
+- 360
+- -420
+pointcloud_map_x380_y-860.pcd:
+- 380
+- -860
+pointcloud_map_x380_y-840.pcd:
+- 380
+- -840
+pointcloud_map_x380_y-820.pcd:
+- 380
+- -820
+pointcloud_map_x380_y-800.pcd:
+- 380
+- -800
+pointcloud_map_x380_y-780.pcd:
+- 380
+- -780
+pointcloud_map_x380_y-760.pcd:
+- 380
+- -760
+pointcloud_map_x380_y-740.pcd:
+- 380
+- -740
+pointcloud_map_x380_y-720.pcd:
+- 380
+- -720
+pointcloud_map_x380_y-700.pcd:
+- 380
+- -700
+pointcloud_map_x380_y-680.pcd:
+- 380
+- -680
+pointcloud_map_x380_y-660.pcd:
+- 380
+- -660
+pointcloud_map_x380_y-640.pcd:
+- 380
+- -640
+pointcloud_map_x380_y-620.pcd:
+- 380
+- -620
+pointcloud_map_x380_y-600.pcd:
+- 380
+- -600
+pointcloud_map_x380_y-580.pcd:
+- 380
+- -580
+pointcloud_map_x380_y-560.pcd:
+- 380
+- -560
+pointcloud_map_x380_y-540.pcd:
+- 380
+- -540
+pointcloud_map_x380_y-520.pcd:
+- 380
+- -520
+pointcloud_map_x380_y-500.pcd:
+- 380
+- -500
+pointcloud_map_x380_y-480.pcd:
+- 380
+- -480
+pointcloud_map_x400_y-880.pcd:
+- 400
+- -880
+pointcloud_map_x400_y-860.pcd:
+- 400
+- -860
+pointcloud_map_x400_y-840.pcd:
+- 400
+- -840
+pointcloud_map_x400_y-820.pcd:
+- 400
+- -820
+pointcloud_map_x400_y-800.pcd:
+- 400
+- -800
+pointcloud_map_x400_y-780.pcd:
+- 400
+- -780
+pointcloud_map_x400_y-760.pcd:
+- 400
+- -760
+pointcloud_map_x400_y-740.pcd:
+- 400
+- -740
+pointcloud_map_x400_y-720.pcd:
+- 400
+- -720
+pointcloud_map_x400_y-700.pcd:
+- 400
+- -700
+pointcloud_map_x400_y-680.pcd:
+- 400
+- -680
+pointcloud_map_x400_y-660.pcd:
+- 400
+- -660
+pointcloud_map_x400_y-640.pcd:
+- 400
+- -640
+pointcloud_map_x400_y-620.pcd:
+- 400
+- -620
+pointcloud_map_x400_y-600.pcd:
+- 400
+- -600
+pointcloud_map_x400_y-580.pcd:
+- 400
+- -580
+pointcloud_map_x400_y-560.pcd:
+- 400
+- -560
+pointcloud_map_x400_y-540.pcd:
+- 400
+- -540
+pointcloud_map_x400_y-520.pcd:
+- 400
+- -520
+pointcloud_map_x400_y-500.pcd:
+- 400
+- -500
+pointcloud_map_x420_y-880.pcd:
+- 420
+- -880
+pointcloud_map_x420_y-860.pcd:
+- 420
+- -860
+pointcloud_map_x420_y-840.pcd:
+- 420
+- -840
+pointcloud_map_x420_y-820.pcd:
+- 420
+- -820
+pointcloud_map_x420_y-800.pcd:
+- 420
+- -800
+pointcloud_map_x420_y-780.pcd:
+- 420
+- -780
+pointcloud_map_x420_y-760.pcd:
+- 420
+- -760
+pointcloud_map_x420_y-740.pcd:
+- 420
+- -740
+pointcloud_map_x420_y-720.pcd:
+- 420
+- -720
+pointcloud_map_x420_y-700.pcd:
+- 420
+- -700
+pointcloud_map_x420_y-680.pcd:
+- 420
+- -680
+pointcloud_map_x420_y-660.pcd:
+- 420
+- -660
+pointcloud_map_x420_y-640.pcd:
+- 420
+- -640
+pointcloud_map_x420_y-620.pcd:
+- 420
+- -620
+pointcloud_map_x420_y-600.pcd:
+- 420
+- -600
+pointcloud_map_x420_y-580.pcd:
+- 420
+- -580
+pointcloud_map_x420_y-560.pcd:
+- 420
+- -560
+pointcloud_map_x420_y-540.pcd:
+- 420
+- -540
+pointcloud_map_x420_y-520.pcd:
+- 420
+- -520
+pointcloud_map_x420_y-500.pcd:
+- 420
+- -500
+pointcloud_map_x440_y-880.pcd:
+- 440
+- -880
+pointcloud_map_x440_y-840.pcd:
+- 440
+- -840
+pointcloud_map_x440_y-820.pcd:
+- 440
+- -820
+pointcloud_map_x440_y-800.pcd:
+- 440
+- -800
+pointcloud_map_x440_y-780.pcd:
+- 440
+- -780
+pointcloud_map_x440_y-760.pcd:
+- 440
+- -760
+pointcloud_map_x440_y-740.pcd:
+- 440
+- -740
+pointcloud_map_x440_y-720.pcd:
+- 440
+- -720
+pointcloud_map_x440_y-700.pcd:
+- 440
+- -700
+pointcloud_map_x440_y-680.pcd:
+- 440
+- -680
+pointcloud_map_x440_y-660.pcd:
+- 440
+- -660
+pointcloud_map_x440_y-640.pcd:
+- 440
+- -640
+pointcloud_map_x440_y-620.pcd:
+- 440
+- -620
+pointcloud_map_x440_y-600.pcd:
+- 440
+- -600
+pointcloud_map_x440_y-580.pcd:
+- 440
+- -580
+pointcloud_map_x440_y-540.pcd:
+- 440
+- -540
+pointcloud_map_x440_y-520.pcd:
+- 440
+- -520
+pointcloud_map_x460_y-820.pcd:
+- 460
+- -820
+pointcloud_map_x460_y-800.pcd:
+- 460
+- -800
+pointcloud_map_x460_y-780.pcd:
+- 460
+- -780
+pointcloud_map_x460_y-760.pcd:
+- 460
+- -760
+pointcloud_map_x460_y-740.pcd:
+- 460
+- -740
+pointcloud_map_x460_y-720.pcd:
+- 460
+- -720
+pointcloud_map_x460_y-700.pcd:
+- 460
+- -700
+pointcloud_map_x460_y-680.pcd:
+- 460
+- -680
+pointcloud_map_x460_y-660.pcd:
+- 460
+- -660
+pointcloud_map_x460_y-640.pcd:
+- 460
+- -640
+pointcloud_map_x460_y-620.pcd:
+- 460
+- -620
+pointcloud_map_x460_y-600.pcd:
+- 460
+- -600
+pointcloud_map_x460_y-580.pcd:
+- 460
+- -580
+pointcloud_map_x480_y-840.pcd:
+- 480
+- -840
+pointcloud_map_x480_y-820.pcd:
+- 480
+- -820
+pointcloud_map_x480_y-800.pcd:
+- 480
+- -800
+pointcloud_map_x480_y-780.pcd:
+- 480
+- -780
+pointcloud_map_x480_y-760.pcd:
+- 480
+- -760
+pointcloud_map_x480_y-740.pcd:
+- 480
+- -740
+pointcloud_map_x480_y-720.pcd:
+- 480
+- -720
+pointcloud_map_x480_y-700.pcd:
+- 480
+- -700
+pointcloud_map_x480_y-680.pcd:
+- 480
+- -680
+pointcloud_map_x480_y-660.pcd:
+- 480
+- -660
+pointcloud_map_x480_y-640.pcd:
+- 480
+- -640
+pointcloud_map_x480_y-620.pcd:
+- 480
+- -620
+pointcloud_map_x480_y-600.pcd:
+- 480
+- -600
+pointcloud_map_x480_y-580.pcd:
+- 480
+- -580
+pointcloud_map_x500_y-860.pcd:
+- 500
+- -860
+pointcloud_map_x500_y-840.pcd:
+- 500
+- -840
+pointcloud_map_x500_y-820.pcd:
+- 500
+- -820
+pointcloud_map_x500_y-800.pcd:
+- 500
+- -800
+pointcloud_map_x500_y-780.pcd:
+- 500
+- -780
+pointcloud_map_x500_y-760.pcd:
+- 500
+- -760
+pointcloud_map_x500_y-740.pcd:
+- 500
+- -740
+pointcloud_map_x500_y-720.pcd:
+- 500
+- -720
+pointcloud_map_x500_y-700.pcd:
+- 500
+- -700
+pointcloud_map_x500_y-680.pcd:
+- 500
+- -680
+pointcloud_map_x500_y-660.pcd:
+- 500
+- -660
+pointcloud_map_x500_y-640.pcd:
+- 500
+- -640
+pointcloud_map_x500_y-620.pcd:
+- 500
+- -620
+pointcloud_map_x520_y-880.pcd:
+- 520
+- -880
+pointcloud_map_x520_y-860.pcd:
+- 520
+- -860
+pointcloud_map_x520_y-840.pcd:
+- 520
+- -840
+pointcloud_map_x520_y-820.pcd:
+- 520
+- -820
+pointcloud_map_x520_y-800.pcd:
+- 520
+- -800
+pointcloud_map_x520_y-780.pcd:
+- 520
+- -780
+pointcloud_map_x520_y-760.pcd:
+- 520
+- -760
+pointcloud_map_x520_y-740.pcd:
+- 520
+- -740
+pointcloud_map_x520_y-720.pcd:
+- 520
+- -720
+pointcloud_map_x520_y-700.pcd:
+- 520
+- -700
+pointcloud_map_x520_y-680.pcd:
+- 520
+- -680
+pointcloud_map_x520_y-660.pcd:
+- 520
+- -660
+pointcloud_map_x520_y-640.pcd:
+- 520
+- -640
+pointcloud_map_x520_y-620.pcd:
+- 520
+- -620
+pointcloud_map_x540_y-880.pcd:
+- 540
+- -880
+pointcloud_map_x540_y-860.pcd:
+- 540
+- -860
+pointcloud_map_x540_y-840.pcd:
+- 540
+- -840
+pointcloud_map_x540_y-820.pcd:
+- 540
+- -820
+pointcloud_map_x540_y-800.pcd:
+- 540
+- -800
+pointcloud_map_x540_y-780.pcd:
+- 540
+- -780
+pointcloud_map_x540_y-760.pcd:
+- 540
+- -760
+pointcloud_map_x540_y-740.pcd:
+- 540
+- -740
+pointcloud_map_x540_y-720.pcd:
+- 540
+- -720
+pointcloud_map_x540_y-700.pcd:
+- 540
+- -700
+pointcloud_map_x540_y-680.pcd:
+- 540
+- -680
+pointcloud_map_x540_y-640.pcd:
+- 540
+- -640
+pointcloud_map_x540_y-100.pcd:
+- 540
+- -100
+pointcloud_map_x540_y-80.pcd:
+- 540
+- -80
+pointcloud_map_x560_y-1400.pcd:
+- 560
+- -1400
+pointcloud_map_x560_y-1380.pcd:
+- 560
+- -1380
+pointcloud_map_x560_y-900.pcd:
+- 560
+- -900
+pointcloud_map_x560_y-880.pcd:
+- 560
+- -880
+pointcloud_map_x560_y-860.pcd:
+- 560
+- -860
+pointcloud_map_x560_y-840.pcd:
+- 560
+- -840
+pointcloud_map_x560_y-820.pcd:
+- 560
+- -820
+pointcloud_map_x560_y-800.pcd:
+- 560
+- -800
+pointcloud_map_x560_y-780.pcd:
+- 560
+- -780
+pointcloud_map_x560_y-760.pcd:
+- 560
+- -760
+pointcloud_map_x560_y-740.pcd:
+- 560
+- -740
+pointcloud_map_x560_y-720.pcd:
+- 560
+- -720
+pointcloud_map_x560_y-700.pcd:
+- 560
+- -700
+pointcloud_map_x560_y-560.pcd:
+- 560
+- -560
+pointcloud_map_x560_y-340.pcd:
+- 560
+- -340
+pointcloud_map_x560_y-320.pcd:
+- 560
+- -320
+pointcloud_map_x560_y-260.pcd:
+- 560
+- -260
+pointcloud_map_x560_y-180.pcd:
+- 560
+- -180
+pointcloud_map_x560_y-120.pcd:
+- 560
+- -120
+pointcloud_map_x560_y-100.pcd:
+- 560
+- -100
+pointcloud_map_x560_y-80.pcd:
+- 560
+- -80
+pointcloud_map_x580_y-1460.pcd:
+- 580
+- -1460
+pointcloud_map_x580_y-1440.pcd:
+- 580
+- -1440
+pointcloud_map_x580_y-1420.pcd:
+- 580
+- -1420
+pointcloud_map_x580_y-1400.pcd:
+- 580
+- -1400
+pointcloud_map_x580_y-940.pcd:
+- 580
+- -940
+pointcloud_map_x580_y-920.pcd:
+- 580
+- -920
+pointcloud_map_x580_y-900.pcd:
+- 580
+- -900
+pointcloud_map_x580_y-880.pcd:
+- 580
+- -880
+pointcloud_map_x580_y-860.pcd:
+- 580
+- -860
+pointcloud_map_x580_y-840.pcd:
+- 580
+- -840
+pointcloud_map_x580_y-820.pcd:
+- 580
+- -820
+pointcloud_map_x580_y-800.pcd:
+- 580
+- -800
+pointcloud_map_x580_y-780.pcd:
+- 580
+- -780
+pointcloud_map_x580_y-760.pcd:
+- 580
+- -760
+pointcloud_map_x580_y-740.pcd:
+- 580
+- -740
+pointcloud_map_x580_y-720.pcd:
+- 580
+- -720
+pointcloud_map_x580_y-700.pcd:
+- 580
+- -700
+pointcloud_map_x580_y-580.pcd:
+- 580
+- -580
+pointcloud_map_x580_y-560.pcd:
+- 580
+- -560
+pointcloud_map_x580_y-340.pcd:
+- 580
+- -340
+pointcloud_map_x580_y-320.pcd:
+- 580
+- -320
+pointcloud_map_x580_y-280.pcd:
+- 580
+- -280
+pointcloud_map_x580_y-260.pcd:
+- 580
+- -260
+pointcloud_map_x580_y-240.pcd:
+- 580
+- -240
+pointcloud_map_x580_y-220.pcd:
+- 580
+- -220
+pointcloud_map_x580_y-200.pcd:
+- 580
+- -200
+pointcloud_map_x580_y-180.pcd:
+- 580
+- -180
+pointcloud_map_x580_y-160.pcd:
+- 580
+- -160
+pointcloud_map_x580_y-120.pcd:
+- 580
+- -120
+pointcloud_map_x580_y-100.pcd:
+- 580
+- -100
+pointcloud_map_x580_y-80.pcd:
+- 580
+- -80
+pointcloud_map_x600_y-1460.pcd:
+- 600
+- -1460
+pointcloud_map_x600_y-1440.pcd:
+- 600
+- -1440
+pointcloud_map_x600_y-1420.pcd:
+- 600
+- -1420
+pointcloud_map_x600_y-1400.pcd:
+- 600
+- -1400
+pointcloud_map_x600_y-960.pcd:
+- 600
+- -960
+pointcloud_map_x600_y-940.pcd:
+- 600
+- -940
+pointcloud_map_x600_y-920.pcd:
+- 600
+- -920
+pointcloud_map_x600_y-900.pcd:
+- 600
+- -900
+pointcloud_map_x600_y-880.pcd:
+- 600
+- -880
+pointcloud_map_x600_y-860.pcd:
+- 600
+- -860
+pointcloud_map_x600_y-840.pcd:
+- 600
+- -840
+pointcloud_map_x600_y-820.pcd:
+- 600
+- -820
+pointcloud_map_x600_y-800.pcd:
+- 600
+- -800
+pointcloud_map_x600_y-780.pcd:
+- 600
+- -780
+pointcloud_map_x600_y-760.pcd:
+- 600
+- -760
+pointcloud_map_x600_y-740.pcd:
+- 600
+- -740
+pointcloud_map_x600_y-580.pcd:
+- 600
+- -580
+pointcloud_map_x600_y-560.pcd:
+- 600
+- -560
+pointcloud_map_x600_y-540.pcd:
+- 600
+- -540
+pointcloud_map_x600_y-340.pcd:
+- 600
+- -340
+pointcloud_map_x600_y-320.pcd:
+- 600
+- -320
+pointcloud_map_x600_y-300.pcd:
+- 600
+- -300
+pointcloud_map_x600_y-280.pcd:
+- 600
+- -280
+pointcloud_map_x600_y-260.pcd:
+- 600
+- -260
+pointcloud_map_x600_y-240.pcd:
+- 600
+- -240
+pointcloud_map_x600_y-220.pcd:
+- 600
+- -220
+pointcloud_map_x600_y-200.pcd:
+- 600
+- -200
+pointcloud_map_x600_y-180.pcd:
+- 600
+- -180
+pointcloud_map_x600_y-160.pcd:
+- 600
+- -160
+pointcloud_map_x600_y-140.pcd:
+- 600
+- -140
+pointcloud_map_x600_y-120.pcd:
+- 600
+- -120
+pointcloud_map_x600_y-100.pcd:
+- 600
+- -100
+pointcloud_map_x600_y-80.pcd:
+- 600
+- -80
+pointcloud_map_x620_y-1460.pcd:
+- 620
+- -1460
+pointcloud_map_x620_y-1440.pcd:
+- 620
+- -1440
+pointcloud_map_x620_y-1420.pcd:
+- 620
+- -1420
+pointcloud_map_x620_y-1320.pcd:
+- 620
+- -1320
+pointcloud_map_x620_y-960.pcd:
+- 620
+- -960
+pointcloud_map_x620_y-940.pcd:
+- 620
+- -940
+pointcloud_map_x620_y-920.pcd:
+- 620
+- -920
+pointcloud_map_x620_y-900.pcd:
+- 620
+- -900
+pointcloud_map_x620_y-880.pcd:
+- 620
+- -880
+pointcloud_map_x620_y-860.pcd:
+- 620
+- -860
+pointcloud_map_x620_y-840.pcd:
+- 620
+- -840
+pointcloud_map_x620_y-820.pcd:
+- 620
+- -820
+pointcloud_map_x620_y-800.pcd:
+- 620
+- -800
+pointcloud_map_x620_y-780.pcd:
+- 620
+- -780
+pointcloud_map_x620_y-760.pcd:
+- 620
+- -760
+pointcloud_map_x620_y-740.pcd:
+- 620
+- -740
+pointcloud_map_x620_y-700.pcd:
+- 620
+- -700
+pointcloud_map_x620_y-680.pcd:
+- 620
+- -680
+pointcloud_map_x620_y-660.pcd:
+- 620
+- -660
+pointcloud_map_x620_y-640.pcd:
+- 620
+- -640
+pointcloud_map_x620_y-620.pcd:
+- 620
+- -620
+pointcloud_map_x620_y-560.pcd:
+- 620
+- -560
+pointcloud_map_x620_y-540.pcd:
+- 620
+- -540
+pointcloud_map_x620_y-420.pcd:
+- 620
+- -420
+pointcloud_map_x620_y-400.pcd:
+- 620
+- -400
+pointcloud_map_x620_y-340.pcd:
+- 620
+- -340
+pointcloud_map_x620_y-320.pcd:
+- 620
+- -320
+pointcloud_map_x620_y-300.pcd:
+- 620
+- -300
+pointcloud_map_x620_y-280.pcd:
+- 620
+- -280
+pointcloud_map_x620_y-260.pcd:
+- 620
+- -260
+pointcloud_map_x620_y-240.pcd:
+- 620
+- -240
+pointcloud_map_x620_y-220.pcd:
+- 620
+- -220
+pointcloud_map_x620_y-200.pcd:
+- 620
+- -200
+pointcloud_map_x620_y-180.pcd:
+- 620
+- -180
+pointcloud_map_x620_y-160.pcd:
+- 620
+- -160
+pointcloud_map_x620_y-140.pcd:
+- 620
+- -140
+pointcloud_map_x620_y-120.pcd:
+- 620
+- -120
+pointcloud_map_x620_y-100.pcd:
+- 620
+- -100
+pointcloud_map_x620_y-80.pcd:
+- 620
+- -80
+pointcloud_map_x640_y-1460.pcd:
+- 640
+- -1460
+pointcloud_map_x640_y-1440.pcd:
+- 640
+- -1440
+pointcloud_map_x640_y-1420.pcd:
+- 640
+- -1420
+pointcloud_map_x640_y-1360.pcd:
+- 640
+- -1360
+pointcloud_map_x640_y-1340.pcd:
+- 640
+- -1340
+pointcloud_map_x640_y-1320.pcd:
+- 640
+- -1320
+pointcloud_map_x640_y-980.pcd:
+- 640
+- -980
+pointcloud_map_x640_y-960.pcd:
+- 640
+- -960
+pointcloud_map_x640_y-940.pcd:
+- 640
+- -940
+pointcloud_map_x640_y-920.pcd:
+- 640
+- -920
+pointcloud_map_x640_y-900.pcd:
+- 640
+- -900
+pointcloud_map_x640_y-880.pcd:
+- 640
+- -880
+pointcloud_map_x640_y-860.pcd:
+- 640
+- -860
+pointcloud_map_x640_y-840.pcd:
+- 640
+- -840
+pointcloud_map_x640_y-820.pcd:
+- 640
+- -820
+pointcloud_map_x640_y-800.pcd:
+- 640
+- -800
+pointcloud_map_x640_y-780.pcd:
+- 640
+- -780
+pointcloud_map_x640_y-760.pcd:
+- 640
+- -760
+pointcloud_map_x640_y-740.pcd:
+- 640
+- -740
+pointcloud_map_x640_y-720.pcd:
+- 640
+- -720
+pointcloud_map_x640_y-700.pcd:
+- 640
+- -700
+pointcloud_map_x640_y-680.pcd:
+- 640
+- -680
+pointcloud_map_x640_y-660.pcd:
+- 640
+- -660
+pointcloud_map_x640_y-620.pcd:
+- 640
+- -620
+pointcloud_map_x640_y-600.pcd:
+- 640
+- -600
+pointcloud_map_x640_y-580.pcd:
+- 640
+- -580
+pointcloud_map_x640_y-560.pcd:
+- 640
+- -560
+pointcloud_map_x640_y-540.pcd:
+- 640
+- -540
+pointcloud_map_x640_y-500.pcd:
+- 640
+- -500
+pointcloud_map_x640_y-480.pcd:
+- 640
+- -480
+pointcloud_map_x640_y-460.pcd:
+- 640
+- -460
+pointcloud_map_x640_y-440.pcd:
+- 640
+- -440
+pointcloud_map_x640_y-420.pcd:
+- 640
+- -420
+pointcloud_map_x640_y-400.pcd:
+- 640
+- -400
+pointcloud_map_x640_y-380.pcd:
+- 640
+- -380
+pointcloud_map_x640_y-360.pcd:
+- 640
+- -360
+pointcloud_map_x640_y-340.pcd:
+- 640
+- -340
+pointcloud_map_x640_y-320.pcd:
+- 640
+- -320
+pointcloud_map_x640_y-300.pcd:
+- 640
+- -300
+pointcloud_map_x640_y-280.pcd:
+- 640
+- -280
+pointcloud_map_x640_y-260.pcd:
+- 640
+- -260
+pointcloud_map_x640_y-240.pcd:
+- 640
+- -240
+pointcloud_map_x640_y-220.pcd:
+- 640
+- -220
+pointcloud_map_x640_y-200.pcd:
+- 640
+- -200
+pointcloud_map_x640_y-180.pcd:
+- 640
+- -180
+pointcloud_map_x640_y-160.pcd:
+- 640
+- -160
+pointcloud_map_x640_y-140.pcd:
+- 640
+- -140
+pointcloud_map_x640_y-120.pcd:
+- 640
+- -120
+pointcloud_map_x640_y-100.pcd:
+- 640
+- -100
+pointcloud_map_x660_y-1460.pcd:
+- 660
+- -1460
+pointcloud_map_x660_y-1440.pcd:
+- 660
+- -1440
+pointcloud_map_x660_y-1420.pcd:
+- 660
+- -1420
+pointcloud_map_x660_y-1400.pcd:
+- 660
+- -1400
+pointcloud_map_x660_y-1380.pcd:
+- 660
+- -1380
+pointcloud_map_x660_y-1360.pcd:
+- 660
+- -1360
+pointcloud_map_x660_y-1340.pcd:
+- 660
+- -1340
+pointcloud_map_x660_y-1320.pcd:
+- 660
+- -1320
+pointcloud_map_x660_y-1300.pcd:
+- 660
+- -1300
+pointcloud_map_x660_y-1280.pcd:
+- 660
+- -1280
+pointcloud_map_x660_y-1000.pcd:
+- 660
+- -1000
+pointcloud_map_x660_y-980.pcd:
+- 660
+- -980
+pointcloud_map_x660_y-960.pcd:
+- 660
+- -960
+pointcloud_map_x660_y-940.pcd:
+- 660
+- -940
+pointcloud_map_x660_y-920.pcd:
+- 660
+- -920
+pointcloud_map_x660_y-900.pcd:
+- 660
+- -900
+pointcloud_map_x660_y-880.pcd:
+- 660
+- -880
+pointcloud_map_x660_y-860.pcd:
+- 660
+- -860
+pointcloud_map_x660_y-840.pcd:
+- 660
+- -840
+pointcloud_map_x660_y-820.pcd:
+- 660
+- -820
+pointcloud_map_x660_y-800.pcd:
+- 660
+- -800
+pointcloud_map_x660_y-780.pcd:
+- 660
+- -780
+pointcloud_map_x660_y-760.pcd:
+- 660
+- -760
+pointcloud_map_x660_y-740.pcd:
+- 660
+- -740
+pointcloud_map_x660_y-720.pcd:
+- 660
+- -720
+pointcloud_map_x660_y-700.pcd:
+- 660
+- -700
+pointcloud_map_x660_y-680.pcd:
+- 660
+- -680
+pointcloud_map_x660_y-620.pcd:
+- 660
+- -620
+pointcloud_map_x660_y-600.pcd:
+- 660
+- -600
+pointcloud_map_x660_y-580.pcd:
+- 660
+- -580
+pointcloud_map_x660_y-560.pcd:
+- 660
+- -560
+pointcloud_map_x660_y-520.pcd:
+- 660
+- -520
+pointcloud_map_x660_y-500.pcd:
+- 660
+- -500
+pointcloud_map_x660_y-440.pcd:
+- 660
+- -440
+pointcloud_map_x660_y-420.pcd:
+- 660
+- -420
+pointcloud_map_x660_y-400.pcd:
+- 660
+- -400
+pointcloud_map_x660_y-380.pcd:
+- 660
+- -380
+pointcloud_map_x660_y-360.pcd:
+- 660
+- -360
+pointcloud_map_x660_y-340.pcd:
+- 660
+- -340
+pointcloud_map_x660_y-320.pcd:
+- 660
+- -320
+pointcloud_map_x660_y-300.pcd:
+- 660
+- -300
+pointcloud_map_x660_y-280.pcd:
+- 660
+- -280
+pointcloud_map_x660_y-260.pcd:
+- 660
+- -260
+pointcloud_map_x660_y-240.pcd:
+- 660
+- -240
+pointcloud_map_x660_y-220.pcd:
+- 660
+- -220
+pointcloud_map_x660_y-200.pcd:
+- 660
+- -200
+pointcloud_map_x660_y-180.pcd:
+- 660
+- -180
+pointcloud_map_x660_y-160.pcd:
+- 660
+- -160
+pointcloud_map_x660_y-140.pcd:
+- 660
+- -140
+pointcloud_map_x660_y-120.pcd:
+- 660
+- -120
+pointcloud_map_x660_y-100.pcd:
+- 660
+- -100
+pointcloud_map_x680_y-1460.pcd:
+- 680
+- -1460
+pointcloud_map_x680_y-1440.pcd:
+- 680
+- -1440
+pointcloud_map_x680_y-1420.pcd:
+- 680
+- -1420
+pointcloud_map_x680_y-1400.pcd:
+- 680
+- -1400
+pointcloud_map_x680_y-1380.pcd:
+- 680
+- -1380
+pointcloud_map_x680_y-1360.pcd:
+- 680
+- -1360
+pointcloud_map_x680_y-1340.pcd:
+- 680
+- -1340
+pointcloud_map_x680_y-1320.pcd:
+- 680
+- -1320
+pointcloud_map_x680_y-1300.pcd:
+- 680
+- -1300
+pointcloud_map_x680_y-1020.pcd:
+- 680
+- -1020
+pointcloud_map_x680_y-1000.pcd:
+- 680
+- -1000
+pointcloud_map_x680_y-980.pcd:
+- 680
+- -980
+pointcloud_map_x680_y-960.pcd:
+- 680
+- -960
+pointcloud_map_x680_y-940.pcd:
+- 680
+- -940
+pointcloud_map_x680_y-920.pcd:
+- 680
+- -920
+pointcloud_map_x680_y-900.pcd:
+- 680
+- -900
+pointcloud_map_x680_y-880.pcd:
+- 680
+- -880
+pointcloud_map_x680_y-860.pcd:
+- 680
+- -860
+pointcloud_map_x680_y-840.pcd:
+- 680
+- -840
+pointcloud_map_x680_y-820.pcd:
+- 680
+- -820
+pointcloud_map_x680_y-800.pcd:
+- 680
+- -800
+pointcloud_map_x680_y-780.pcd:
+- 680
+- -780
+pointcloud_map_x680_y-760.pcd:
+- 680
+- -760
+pointcloud_map_x680_y-720.pcd:
+- 680
+- -720
+pointcloud_map_x680_y-700.pcd:
+- 680
+- -700
+pointcloud_map_x680_y-680.pcd:
+- 680
+- -680
+pointcloud_map_x680_y-660.pcd:
+- 680
+- -660
+pointcloud_map_x680_y-640.pcd:
+- 680
+- -640
+pointcloud_map_x680_y-620.pcd:
+- 680
+- -620
+pointcloud_map_x680_y-600.pcd:
+- 680
+- -600
+pointcloud_map_x680_y-580.pcd:
+- 680
+- -580
+pointcloud_map_x680_y-560.pcd:
+- 680
+- -560
+pointcloud_map_x680_y-540.pcd:
+- 680
+- -540
+pointcloud_map_x680_y-520.pcd:
+- 680
+- -520
+pointcloud_map_x680_y-500.pcd:
+- 680
+- -500
+pointcloud_map_x680_y-480.pcd:
+- 680
+- -480
+pointcloud_map_x680_y-460.pcd:
+- 680
+- -460
+pointcloud_map_x680_y-440.pcd:
+- 680
+- -440
+pointcloud_map_x680_y-420.pcd:
+- 680
+- -420
+pointcloud_map_x680_y-400.pcd:
+- 680
+- -400
+pointcloud_map_x680_y-380.pcd:
+- 680
+- -380
+pointcloud_map_x680_y-360.pcd:
+- 680
+- -360
+pointcloud_map_x680_y-340.pcd:
+- 680
+- -340
+pointcloud_map_x680_y-320.pcd:
+- 680
+- -320
+pointcloud_map_x680_y-300.pcd:
+- 680
+- -300
+pointcloud_map_x680_y-280.pcd:
+- 680
+- -280
+pointcloud_map_x680_y-220.pcd:
+- 680
+- -220
+pointcloud_map_x680_y-200.pcd:
+- 680
+- -200
+pointcloud_map_x680_y-180.pcd:
+- 680
+- -180
+pointcloud_map_x680_y-160.pcd:
+- 680
+- -160
+pointcloud_map_x680_y-140.pcd:
+- 680
+- -140
+pointcloud_map_x680_y-120.pcd:
+- 680
+- -120
+pointcloud_map_x680_y-100.pcd:
+- 680
+- -100
+pointcloud_map_x680_y-80.pcd:
+- 680
+- -80
+pointcloud_map_x700_y-1460.pcd:
+- 700
+- -1460
+pointcloud_map_x700_y-1440.pcd:
+- 700
+- -1440
+pointcloud_map_x700_y-1420.pcd:
+- 700
+- -1420
+pointcloud_map_x700_y-1400.pcd:
+- 700
+- -1400
+pointcloud_map_x700_y-1380.pcd:
+- 700
+- -1380
+pointcloud_map_x700_y-1360.pcd:
+- 700
+- -1360
+pointcloud_map_x700_y-1340.pcd:
+- 700
+- -1340
+pointcloud_map_x700_y-1320.pcd:
+- 700
+- -1320
+pointcloud_map_x700_y-1040.pcd:
+- 700
+- -1040
+pointcloud_map_x700_y-1020.pcd:
+- 700
+- -1020
+pointcloud_map_x700_y-1000.pcd:
+- 700
+- -1000
+pointcloud_map_x700_y-980.pcd:
+- 700
+- -980
+pointcloud_map_x700_y-960.pcd:
+- 700
+- -960
+pointcloud_map_x700_y-940.pcd:
+- 700
+- -940
+pointcloud_map_x700_y-920.pcd:
+- 700
+- -920
+pointcloud_map_x700_y-900.pcd:
+- 700
+- -900
+pointcloud_map_x700_y-880.pcd:
+- 700
+- -880
+pointcloud_map_x700_y-860.pcd:
+- 700
+- -860
+pointcloud_map_x700_y-840.pcd:
+- 700
+- -840
+pointcloud_map_x700_y-820.pcd:
+- 700
+- -820
+pointcloud_map_x700_y-800.pcd:
+- 700
+- -800
+pointcloud_map_x700_y-780.pcd:
+- 700
+- -780
+pointcloud_map_x700_y-760.pcd:
+- 700
+- -760
+pointcloud_map_x700_y-740.pcd:
+- 700
+- -740
+pointcloud_map_x700_y-720.pcd:
+- 700
+- -720
+pointcloud_map_x700_y-700.pcd:
+- 700
+- -700
+pointcloud_map_x700_y-680.pcd:
+- 700
+- -680
+pointcloud_map_x700_y-660.pcd:
+- 700
+- -660
+pointcloud_map_x700_y-640.pcd:
+- 700
+- -640
+pointcloud_map_x700_y-620.pcd:
+- 700
+- -620
+pointcloud_map_x700_y-600.pcd:
+- 700
+- -600
+pointcloud_map_x700_y-580.pcd:
+- 700
+- -580
+pointcloud_map_x700_y-560.pcd:
+- 700
+- -560
+pointcloud_map_x700_y-540.pcd:
+- 700
+- -540
+pointcloud_map_x700_y-520.pcd:
+- 700
+- -520
+pointcloud_map_x700_y-500.pcd:
+- 700
+- -500
+pointcloud_map_x700_y-480.pcd:
+- 700
+- -480
+pointcloud_map_x700_y-460.pcd:
+- 700
+- -460
+pointcloud_map_x700_y-440.pcd:
+- 700
+- -440
+pointcloud_map_x700_y-420.pcd:
+- 700
+- -420
+pointcloud_map_x700_y-400.pcd:
+- 700
+- -400
+pointcloud_map_x700_y-380.pcd:
+- 700
+- -380
+pointcloud_map_x700_y-360.pcd:
+- 700
+- -360
+pointcloud_map_x700_y-340.pcd:
+- 700
+- -340
+pointcloud_map_x700_y-320.pcd:
+- 700
+- -320
+pointcloud_map_x700_y-300.pcd:
+- 700
+- -300
+pointcloud_map_x700_y-240.pcd:
+- 700
+- -240
+pointcloud_map_x700_y-200.pcd:
+- 700
+- -200
+pointcloud_map_x700_y-180.pcd:
+- 700
+- -180
+pointcloud_map_x700_y-160.pcd:
+- 700
+- -160
+pointcloud_map_x700_y-140.pcd:
+- 700
+- -140
+pointcloud_map_x700_y-120.pcd:
+- 700
+- -120
+pointcloud_map_x700_y-100.pcd:
+- 700
+- -100
+pointcloud_map_x720_y-1480.pcd:
+- 720
+- -1480
+pointcloud_map_x720_y-1460.pcd:
+- 720
+- -1460
+pointcloud_map_x720_y-1440.pcd:
+- 720
+- -1440
+pointcloud_map_x720_y-1420.pcd:
+- 720
+- -1420
+pointcloud_map_x720_y-1400.pcd:
+- 720
+- -1400
+pointcloud_map_x720_y-1380.pcd:
+- 720
+- -1380
+pointcloud_map_x720_y-1360.pcd:
+- 720
+- -1360
+pointcloud_map_x720_y-1340.pcd:
+- 720
+- -1340
+pointcloud_map_x720_y-1320.pcd:
+- 720
+- -1320
+pointcloud_map_x720_y-1040.pcd:
+- 720
+- -1040
+pointcloud_map_x720_y-1020.pcd:
+- 720
+- -1020
+pointcloud_map_x720_y-1000.pcd:
+- 720
+- -1000
+pointcloud_map_x720_y-980.pcd:
+- 720
+- -980
+pointcloud_map_x720_y-960.pcd:
+- 720
+- -960
+pointcloud_map_x720_y-940.pcd:
+- 720
+- -940
+pointcloud_map_x720_y-920.pcd:
+- 720
+- -920
+pointcloud_map_x720_y-900.pcd:
+- 720
+- -900
+pointcloud_map_x720_y-880.pcd:
+- 720
+- -880
+pointcloud_map_x720_y-860.pcd:
+- 720
+- -860
+pointcloud_map_x720_y-840.pcd:
+- 720
+- -840
+pointcloud_map_x720_y-820.pcd:
+- 720
+- -820
+pointcloud_map_x720_y-800.pcd:
+- 720
+- -800
+pointcloud_map_x720_y-780.pcd:
+- 720
+- -780
+pointcloud_map_x720_y-760.pcd:
+- 720
+- -760
+pointcloud_map_x720_y-740.pcd:
+- 720
+- -740
+pointcloud_map_x720_y-720.pcd:
+- 720
+- -720
+pointcloud_map_x720_y-700.pcd:
+- 720
+- -700
+pointcloud_map_x720_y-680.pcd:
+- 720
+- -680
+pointcloud_map_x720_y-660.pcd:
+- 720
+- -660
+pointcloud_map_x720_y-640.pcd:
+- 720
+- -640
+pointcloud_map_x720_y-620.pcd:
+- 720
+- -620
+pointcloud_map_x720_y-600.pcd:
+- 720
+- -600
+pointcloud_map_x720_y-580.pcd:
+- 720
+- -580
+pointcloud_map_x720_y-560.pcd:
+- 720
+- -560
+pointcloud_map_x720_y-540.pcd:
+- 720
+- -540
+pointcloud_map_x720_y-520.pcd:
+- 720
+- -520
+pointcloud_map_x720_y-500.pcd:
+- 720
+- -500
+pointcloud_map_x720_y-480.pcd:
+- 720
+- -480
+pointcloud_map_x720_y-460.pcd:
+- 720
+- -460
+pointcloud_map_x720_y-440.pcd:
+- 720
+- -440
+pointcloud_map_x720_y-420.pcd:
+- 720
+- -420
+pointcloud_map_x720_y-400.pcd:
+- 720
+- -400
+pointcloud_map_x720_y-380.pcd:
+- 720
+- -380
+pointcloud_map_x720_y-360.pcd:
+- 720
+- -360
+pointcloud_map_x720_y-340.pcd:
+- 720
+- -340
+pointcloud_map_x720_y-140.pcd:
+- 720
+- -140
+pointcloud_map_x720_y-120.pcd:
+- 720
+- -120
+pointcloud_map_x720_y-100.pcd:
+- 720
+- -100
+pointcloud_map_x740_y-1600.pcd:
+- 740
+- -1600
+pointcloud_map_x740_y-1580.pcd:
+- 740
+- -1580
+pointcloud_map_x740_y-1560.pcd:
+- 740
+- -1560
+pointcloud_map_x740_y-1540.pcd:
+- 740
+- -1540
+pointcloud_map_x740_y-1520.pcd:
+- 740
+- -1520
+pointcloud_map_x740_y-1500.pcd:
+- 740
+- -1500
+pointcloud_map_x740_y-1480.pcd:
+- 740
+- -1480
+pointcloud_map_x740_y-1460.pcd:
+- 740
+- -1460
+pointcloud_map_x740_y-1440.pcd:
+- 740
+- -1440
+pointcloud_map_x740_y-1420.pcd:
+- 740
+- -1420
+pointcloud_map_x740_y-1400.pcd:
+- 740
+- -1400
+pointcloud_map_x740_y-1380.pcd:
+- 740
+- -1380
+pointcloud_map_x740_y-1360.pcd:
+- 740
+- -1360
+pointcloud_map_x740_y-1040.pcd:
+- 740
+- -1040
+pointcloud_map_x740_y-1020.pcd:
+- 740
+- -1020
+pointcloud_map_x740_y-1000.pcd:
+- 740
+- -1000
+pointcloud_map_x740_y-980.pcd:
+- 740
+- -980
+pointcloud_map_x740_y-960.pcd:
+- 740
+- -960
+pointcloud_map_x740_y-940.pcd:
+- 740
+- -940
+pointcloud_map_x740_y-920.pcd:
+- 740
+- -920
+pointcloud_map_x740_y-900.pcd:
+- 740
+- -900
+pointcloud_map_x740_y-880.pcd:
+- 740
+- -880
+pointcloud_map_x740_y-860.pcd:
+- 740
+- -860
+pointcloud_map_x740_y-840.pcd:
+- 740
+- -840
+pointcloud_map_x740_y-820.pcd:
+- 740
+- -820
+pointcloud_map_x740_y-800.pcd:
+- 740
+- -800
+pointcloud_map_x740_y-780.pcd:
+- 740
+- -780
+pointcloud_map_x740_y-760.pcd:
+- 740
+- -760
+pointcloud_map_x740_y-740.pcd:
+- 740
+- -740
+pointcloud_map_x740_y-720.pcd:
+- 740
+- -720
+pointcloud_map_x740_y-700.pcd:
+- 740
+- -700
+pointcloud_map_x740_y-680.pcd:
+- 740
+- -680
+pointcloud_map_x740_y-660.pcd:
+- 740
+- -660
+pointcloud_map_x740_y-640.pcd:
+- 740
+- -640
+pointcloud_map_x740_y-620.pcd:
+- 740
+- -620
+pointcloud_map_x740_y-600.pcd:
+- 740
+- -600
+pointcloud_map_x740_y-580.pcd:
+- 740
+- -580
+pointcloud_map_x740_y-560.pcd:
+- 740
+- -560
+pointcloud_map_x740_y-540.pcd:
+- 740
+- -540
+pointcloud_map_x740_y-520.pcd:
+- 740
+- -520
+pointcloud_map_x740_y-500.pcd:
+- 740
+- -500
+pointcloud_map_x740_y-480.pcd:
+- 740
+- -480
+pointcloud_map_x740_y-460.pcd:
+- 740
+- -460
+pointcloud_map_x740_y-440.pcd:
+- 740
+- -440
+pointcloud_map_x740_y-420.pcd:
+- 740
+- -420
+pointcloud_map_x760_y-1600.pcd:
+- 760
+- -1600
+pointcloud_map_x760_y-1580.pcd:
+- 760
+- -1580
+pointcloud_map_x760_y-1560.pcd:
+- 760
+- -1560
+pointcloud_map_x760_y-1540.pcd:
+- 760
+- -1540
+pointcloud_map_x760_y-1520.pcd:
+- 760
+- -1520
+pointcloud_map_x760_y-1500.pcd:
+- 760
+- -1500
+pointcloud_map_x760_y-1480.pcd:
+- 760
+- -1480
+pointcloud_map_x760_y-1460.pcd:
+- 760
+- -1460
+pointcloud_map_x760_y-1440.pcd:
+- 760
+- -1440
+pointcloud_map_x760_y-1420.pcd:
+- 760
+- -1420
+pointcloud_map_x760_y-1400.pcd:
+- 760
+- -1400
+pointcloud_map_x760_y-1380.pcd:
+- 760
+- -1380
+pointcloud_map_x760_y-1360.pcd:
+- 760
+- -1360
+pointcloud_map_x760_y-1340.pcd:
+- 760
+- -1340
+pointcloud_map_x760_y-1060.pcd:
+- 760
+- -1060
+pointcloud_map_x760_y-1040.pcd:
+- 760
+- -1040
+pointcloud_map_x760_y-1020.pcd:
+- 760
+- -1020
+pointcloud_map_x760_y-1000.pcd:
+- 760
+- -1000
+pointcloud_map_x760_y-980.pcd:
+- 760
+- -980
+pointcloud_map_x760_y-960.pcd:
+- 760
+- -960
+pointcloud_map_x760_y-940.pcd:
+- 760
+- -940
+pointcloud_map_x760_y-920.pcd:
+- 760
+- -920
+pointcloud_map_x760_y-900.pcd:
+- 760
+- -900
+pointcloud_map_x760_y-880.pcd:
+- 760
+- -880
+pointcloud_map_x760_y-860.pcd:
+- 760
+- -860
+pointcloud_map_x760_y-840.pcd:
+- 760
+- -840
+pointcloud_map_x760_y-820.pcd:
+- 760
+- -820
+pointcloud_map_x760_y-800.pcd:
+- 760
+- -800
+pointcloud_map_x760_y-780.pcd:
+- 760
+- -780
+pointcloud_map_x760_y-760.pcd:
+- 760
+- -760
+pointcloud_map_x760_y-740.pcd:
+- 760
+- -740
+pointcloud_map_x760_y-720.pcd:
+- 760
+- -720
+pointcloud_map_x760_y-700.pcd:
+- 760
+- -700
+pointcloud_map_x760_y-680.pcd:
+- 760
+- -680
+pointcloud_map_x760_y-660.pcd:
+- 760
+- -660
+pointcloud_map_x760_y-640.pcd:
+- 760
+- -640
+pointcloud_map_x760_y-620.pcd:
+- 760
+- -620
+pointcloud_map_x760_y-600.pcd:
+- 760
+- -600
+pointcloud_map_x760_y-580.pcd:
+- 760
+- -580
+pointcloud_map_x760_y-560.pcd:
+- 760
+- -560
+pointcloud_map_x760_y-540.pcd:
+- 760
+- -540
+pointcloud_map_x760_y-520.pcd:
+- 760
+- -520
+pointcloud_map_x760_y-500.pcd:
+- 760
+- -500
+pointcloud_map_x760_y-480.pcd:
+- 760
+- -480
+pointcloud_map_x760_y-460.pcd:
+- 760
+- -460
+pointcloud_map_x780_y-1620.pcd:
+- 780
+- -1620
+pointcloud_map_x780_y-1600.pcd:
+- 780
+- -1600
+pointcloud_map_x780_y-1580.pcd:
+- 780
+- -1580
+pointcloud_map_x780_y-1560.pcd:
+- 780
+- -1560
+pointcloud_map_x780_y-1540.pcd:
+- 780
+- -1540
+pointcloud_map_x780_y-1520.pcd:
+- 780
+- -1520
+pointcloud_map_x780_y-1500.pcd:
+- 780
+- -1500
+pointcloud_map_x780_y-1480.pcd:
+- 780
+- -1480
+pointcloud_map_x780_y-1460.pcd:
+- 780
+- -1460
+pointcloud_map_x780_y-1440.pcd:
+- 780
+- -1440
+pointcloud_map_x780_y-1420.pcd:
+- 780
+- -1420
+pointcloud_map_x780_y-1380.pcd:
+- 780
+- -1380
+pointcloud_map_x780_y-1360.pcd:
+- 780
+- -1360
+pointcloud_map_x780_y-1060.pcd:
+- 780
+- -1060
+pointcloud_map_x780_y-1040.pcd:
+- 780
+- -1040
+pointcloud_map_x780_y-1020.pcd:
+- 780
+- -1020
+pointcloud_map_x780_y-1000.pcd:
+- 780
+- -1000
+pointcloud_map_x780_y-980.pcd:
+- 780
+- -980
+pointcloud_map_x780_y-960.pcd:
+- 780
+- -960
+pointcloud_map_x780_y-940.pcd:
+- 780
+- -940
+pointcloud_map_x780_y-920.pcd:
+- 780
+- -920
+pointcloud_map_x780_y-900.pcd:
+- 780
+- -900
+pointcloud_map_x780_y-880.pcd:
+- 780
+- -880
+pointcloud_map_x780_y-860.pcd:
+- 780
+- -860
+pointcloud_map_x780_y-840.pcd:
+- 780
+- -840
+pointcloud_map_x780_y-820.pcd:
+- 780
+- -820
+pointcloud_map_x780_y-800.pcd:
+- 780
+- -800
+pointcloud_map_x780_y-780.pcd:
+- 780
+- -780
+pointcloud_map_x780_y-760.pcd:
+- 780
+- -760
+pointcloud_map_x780_y-740.pcd:
+- 780
+- -740
+pointcloud_map_x780_y-720.pcd:
+- 780
+- -720
+pointcloud_map_x780_y-700.pcd:
+- 780
+- -700
+pointcloud_map_x780_y-680.pcd:
+- 780
+- -680
+pointcloud_map_x780_y-660.pcd:
+- 780
+- -660
+pointcloud_map_x780_y-640.pcd:
+- 780
+- -640
+pointcloud_map_x780_y-620.pcd:
+- 780
+- -620
+pointcloud_map_x780_y-600.pcd:
+- 780
+- -600
+pointcloud_map_x780_y-580.pcd:
+- 780
+- -580
+pointcloud_map_x780_y-560.pcd:
+- 780
+- -560
+pointcloud_map_x780_y-540.pcd:
+- 780
+- -540
+pointcloud_map_x780_y-520.pcd:
+- 780
+- -520
+pointcloud_map_x780_y-500.pcd:
+- 780
+- -500
+pointcloud_map_x780_y-480.pcd:
+- 780
+- -480
+pointcloud_map_x800_y-1640.pcd:
+- 800
+- -1640
+pointcloud_map_x800_y-1620.pcd:
+- 800
+- -1620
+pointcloud_map_x800_y-1600.pcd:
+- 800
+- -1600
+pointcloud_map_x800_y-1580.pcd:
+- 800
+- -1580
+pointcloud_map_x800_y-1560.pcd:
+- 800
+- -1560
+pointcloud_map_x800_y-1540.pcd:
+- 800
+- -1540
+pointcloud_map_x800_y-1520.pcd:
+- 800
+- -1520
+pointcloud_map_x800_y-1500.pcd:
+- 800
+- -1500
+pointcloud_map_x800_y-1480.pcd:
+- 800
+- -1480
+pointcloud_map_x800_y-1460.pcd:
+- 800
+- -1460
+pointcloud_map_x800_y-1440.pcd:
+- 800
+- -1440
+pointcloud_map_x800_y-1420.pcd:
+- 800
+- -1420
+pointcloud_map_x800_y-1400.pcd:
+- 800
+- -1400
+pointcloud_map_x800_y-1360.pcd:
+- 800
+- -1360
+pointcloud_map_x800_y-1340.pcd:
+- 800
+- -1340
+pointcloud_map_x800_y-1060.pcd:
+- 800
+- -1060
+pointcloud_map_x800_y-1040.pcd:
+- 800
+- -1040
+pointcloud_map_x800_y-1020.pcd:
+- 800
+- -1020
+pointcloud_map_x800_y-1000.pcd:
+- 800
+- -1000
+pointcloud_map_x800_y-980.pcd:
+- 800
+- -980
+pointcloud_map_x800_y-960.pcd:
+- 800
+- -960
+pointcloud_map_x800_y-940.pcd:
+- 800
+- -940
+pointcloud_map_x800_y-920.pcd:
+- 800
+- -920
+pointcloud_map_x800_y-900.pcd:
+- 800
+- -900
+pointcloud_map_x800_y-880.pcd:
+- 800
+- -880
+pointcloud_map_x800_y-860.pcd:
+- 800
+- -860
+pointcloud_map_x800_y-840.pcd:
+- 800
+- -840
+pointcloud_map_x800_y-820.pcd:
+- 800
+- -820
+pointcloud_map_x800_y-800.pcd:
+- 800
+- -800
+pointcloud_map_x800_y-780.pcd:
+- 800
+- -780
+pointcloud_map_x800_y-760.pcd:
+- 800
+- -760
+pointcloud_map_x800_y-740.pcd:
+- 800
+- -740
+pointcloud_map_x800_y-720.pcd:
+- 800
+- -720
+pointcloud_map_x800_y-700.pcd:
+- 800
+- -700
+pointcloud_map_x800_y-680.pcd:
+- 800
+- -680
+pointcloud_map_x800_y-640.pcd:
+- 800
+- -640
+pointcloud_map_x800_y-620.pcd:
+- 800
+- -620
+pointcloud_map_x800_y-600.pcd:
+- 800
+- -600
+pointcloud_map_x800_y-580.pcd:
+- 800
+- -580
+pointcloud_map_x800_y-560.pcd:
+- 800
+- -560
+pointcloud_map_x800_y-540.pcd:
+- 800
+- -540
+pointcloud_map_x800_y-520.pcd:
+- 800
+- -520
+pointcloud_map_x820_y-1660.pcd:
+- 820
+- -1660
+pointcloud_map_x820_y-1640.pcd:
+- 820
+- -1640
+pointcloud_map_x820_y-1620.pcd:
+- 820
+- -1620
+pointcloud_map_x820_y-1600.pcd:
+- 820
+- -1600
+pointcloud_map_x820_y-1580.pcd:
+- 820
+- -1580
+pointcloud_map_x820_y-1560.pcd:
+- 820
+- -1560
+pointcloud_map_x820_y-1540.pcd:
+- 820
+- -1540
+pointcloud_map_x820_y-1520.pcd:
+- 820
+- -1520
+pointcloud_map_x820_y-1500.pcd:
+- 820
+- -1500
+pointcloud_map_x820_y-1480.pcd:
+- 820
+- -1480
+pointcloud_map_x820_y-1460.pcd:
+- 820
+- -1460
+pointcloud_map_x820_y-1440.pcd:
+- 820
+- -1440
+pointcloud_map_x820_y-1420.pcd:
+- 820
+- -1420
+pointcloud_map_x820_y-1400.pcd:
+- 820
+- -1400
+pointcloud_map_x820_y-1380.pcd:
+- 820
+- -1380
+pointcloud_map_x820_y-1360.pcd:
+- 820
+- -1360
+pointcloud_map_x820_y-1340.pcd:
+- 820
+- -1340
+pointcloud_map_x820_y-1100.pcd:
+- 820
+- -1100
+pointcloud_map_x820_y-1080.pcd:
+- 820
+- -1080
+pointcloud_map_x820_y-1060.pcd:
+- 820
+- -1060
+pointcloud_map_x820_y-1040.pcd:
+- 820
+- -1040
+pointcloud_map_x820_y-1020.pcd:
+- 820
+- -1020
+pointcloud_map_x820_y-1000.pcd:
+- 820
+- -1000
+pointcloud_map_x820_y-980.pcd:
+- 820
+- -980
+pointcloud_map_x820_y-960.pcd:
+- 820
+- -960
+pointcloud_map_x820_y-940.pcd:
+- 820
+- -940
+pointcloud_map_x820_y-920.pcd:
+- 820
+- -920
+pointcloud_map_x820_y-900.pcd:
+- 820
+- -900
+pointcloud_map_x820_y-880.pcd:
+- 820
+- -880
+pointcloud_map_x820_y-860.pcd:
+- 820
+- -860
+pointcloud_map_x820_y-840.pcd:
+- 820
+- -840
+pointcloud_map_x820_y-820.pcd:
+- 820
+- -820
+pointcloud_map_x820_y-800.pcd:
+- 820
+- -800
+pointcloud_map_x820_y-780.pcd:
+- 820
+- -780
+pointcloud_map_x820_y-760.pcd:
+- 820
+- -760
+pointcloud_map_x820_y-740.pcd:
+- 820
+- -740
+pointcloud_map_x820_y-720.pcd:
+- 820
+- -720
+pointcloud_map_x820_y-700.pcd:
+- 820
+- -700
+pointcloud_map_x820_y-680.pcd:
+- 820
+- -680
+pointcloud_map_x820_y-660.pcd:
+- 820
+- -660
+pointcloud_map_x820_y-640.pcd:
+- 820
+- -640
+pointcloud_map_x820_y-620.pcd:
+- 820
+- -620
+pointcloud_map_x820_y-600.pcd:
+- 820
+- -600
+pointcloud_map_x820_y-580.pcd:
+- 820
+- -580
+pointcloud_map_x820_y-560.pcd:
+- 820
+- -560
+pointcloud_map_x820_y-540.pcd:
+- 820
+- -540
+pointcloud_map_x820_y-520.pcd:
+- 820
+- -520
+pointcloud_map_x840_y-1660.pcd:
+- 840
+- -1660
+pointcloud_map_x840_y-1640.pcd:
+- 840
+- -1640
+pointcloud_map_x840_y-1620.pcd:
+- 840
+- -1620
+pointcloud_map_x840_y-1600.pcd:
+- 840
+- -1600
+pointcloud_map_x840_y-1580.pcd:
+- 840
+- -1580
+pointcloud_map_x840_y-1560.pcd:
+- 840
+- -1560
+pointcloud_map_x840_y-1540.pcd:
+- 840
+- -1540
+pointcloud_map_x840_y-1520.pcd:
+- 840
+- -1520
+pointcloud_map_x840_y-1500.pcd:
+- 840
+- -1500
+pointcloud_map_x840_y-1480.pcd:
+- 840
+- -1480
+pointcloud_map_x840_y-1460.pcd:
+- 840
+- -1460
+pointcloud_map_x840_y-1440.pcd:
+- 840
+- -1440
+pointcloud_map_x840_y-1420.pcd:
+- 840
+- -1420
+pointcloud_map_x840_y-1400.pcd:
+- 840
+- -1400
+pointcloud_map_x840_y-1380.pcd:
+- 840
+- -1380
+pointcloud_map_x840_y-1360.pcd:
+- 840
+- -1360
+pointcloud_map_x840_y-1340.pcd:
+- 840
+- -1340
+pointcloud_map_x840_y-1320.pcd:
+- 840
+- -1320
+pointcloud_map_x840_y-1100.pcd:
+- 840
+- -1100
+pointcloud_map_x840_y-1080.pcd:
+- 840
+- -1080
+pointcloud_map_x840_y-1060.pcd:
+- 840
+- -1060
+pointcloud_map_x840_y-1040.pcd:
+- 840
+- -1040
+pointcloud_map_x840_y-1020.pcd:
+- 840
+- -1020
+pointcloud_map_x840_y-1000.pcd:
+- 840
+- -1000
+pointcloud_map_x840_y-980.pcd:
+- 840
+- -980
+pointcloud_map_x840_y-960.pcd:
+- 840
+- -960
+pointcloud_map_x840_y-940.pcd:
+- 840
+- -940
+pointcloud_map_x840_y-920.pcd:
+- 840
+- -920
+pointcloud_map_x840_y-900.pcd:
+- 840
+- -900
+pointcloud_map_x840_y-880.pcd:
+- 840
+- -880
+pointcloud_map_x840_y-860.pcd:
+- 840
+- -860
+pointcloud_map_x840_y-840.pcd:
+- 840
+- -840
+pointcloud_map_x840_y-820.pcd:
+- 840
+- -820
+pointcloud_map_x840_y-800.pcd:
+- 840
+- -800
+pointcloud_map_x840_y-780.pcd:
+- 840
+- -780
+pointcloud_map_x840_y-760.pcd:
+- 840
+- -760
+pointcloud_map_x840_y-740.pcd:
+- 840
+- -740
+pointcloud_map_x840_y-720.pcd:
+- 840
+- -720
+pointcloud_map_x840_y-700.pcd:
+- 840
+- -700
+pointcloud_map_x840_y-680.pcd:
+- 840
+- -680
+pointcloud_map_x840_y-660.pcd:
+- 840
+- -660
+pointcloud_map_x840_y-640.pcd:
+- 840
+- -640
+pointcloud_map_x840_y-620.pcd:
+- 840
+- -620
+pointcloud_map_x840_y-600.pcd:
+- 840
+- -600
+pointcloud_map_x840_y-580.pcd:
+- 840
+- -580
+pointcloud_map_x840_y-560.pcd:
+- 840
+- -560
+pointcloud_map_x860_y-1680.pcd:
+- 860
+- -1680
+pointcloud_map_x860_y-1660.pcd:
+- 860
+- -1660
+pointcloud_map_x860_y-1640.pcd:
+- 860
+- -1640
+pointcloud_map_x860_y-1620.pcd:
+- 860
+- -1620
+pointcloud_map_x860_y-1600.pcd:
+- 860
+- -1600
+pointcloud_map_x860_y-1580.pcd:
+- 860
+- -1580
+pointcloud_map_x860_y-1560.pcd:
+- 860
+- -1560
+pointcloud_map_x860_y-1540.pcd:
+- 860
+- -1540
+pointcloud_map_x860_y-1520.pcd:
+- 860
+- -1520
+pointcloud_map_x860_y-1500.pcd:
+- 860
+- -1500
+pointcloud_map_x860_y-1480.pcd:
+- 860
+- -1480
+pointcloud_map_x860_y-1460.pcd:
+- 860
+- -1460
+pointcloud_map_x860_y-1440.pcd:
+- 860
+- -1440
+pointcloud_map_x860_y-1420.pcd:
+- 860
+- -1420
+pointcloud_map_x860_y-1400.pcd:
+- 860
+- -1400
+pointcloud_map_x860_y-1380.pcd:
+- 860
+- -1380
+pointcloud_map_x860_y-1360.pcd:
+- 860
+- -1360
+pointcloud_map_x860_y-1340.pcd:
+- 860
+- -1340
+pointcloud_map_x860_y-1320.pcd:
+- 860
+- -1320
+pointcloud_map_x860_y-1080.pcd:
+- 860
+- -1080
+pointcloud_map_x860_y-980.pcd:
+- 860
+- -980
+pointcloud_map_x860_y-960.pcd:
+- 860
+- -960
+pointcloud_map_x860_y-940.pcd:
+- 860
+- -940
+pointcloud_map_x860_y-920.pcd:
+- 860
+- -920
+pointcloud_map_x860_y-880.pcd:
+- 860
+- -880
+pointcloud_map_x860_y-860.pcd:
+- 860
+- -860
+pointcloud_map_x860_y-840.pcd:
+- 860
+- -840
+pointcloud_map_x860_y-820.pcd:
+- 860
+- -820
+pointcloud_map_x860_y-800.pcd:
+- 860
+- -800
+pointcloud_map_x860_y-780.pcd:
+- 860
+- -780
+pointcloud_map_x860_y-760.pcd:
+- 860
+- -760
+pointcloud_map_x860_y-740.pcd:
+- 860
+- -740
+pointcloud_map_x860_y-700.pcd:
+- 860
+- -700
+pointcloud_map_x860_y-680.pcd:
+- 860
+- -680
+pointcloud_map_x860_y-660.pcd:
+- 860
+- -660
+pointcloud_map_x860_y-640.pcd:
+- 860
+- -640
+pointcloud_map_x860_y-620.pcd:
+- 860
+- -620
+pointcloud_map_x860_y-600.pcd:
+- 860
+- -600
+pointcloud_map_x860_y-580.pcd:
+- 860
+- -580
+pointcloud_map_x880_y-1680.pcd:
+- 880
+- -1680
+pointcloud_map_x880_y-1660.pcd:
+- 880
+- -1660
+pointcloud_map_x880_y-1640.pcd:
+- 880
+- -1640
+pointcloud_map_x880_y-1620.pcd:
+- 880
+- -1620
+pointcloud_map_x880_y-1600.pcd:
+- 880
+- -1600
+pointcloud_map_x880_y-1580.pcd:
+- 880
+- -1580
+pointcloud_map_x880_y-1560.pcd:
+- 880
+- -1560
+pointcloud_map_x880_y-1540.pcd:
+- 880
+- -1540
+pointcloud_map_x880_y-1520.pcd:
+- 880
+- -1520
+pointcloud_map_x880_y-1500.pcd:
+- 880
+- -1500
+pointcloud_map_x880_y-1480.pcd:
+- 880
+- -1480
+pointcloud_map_x880_y-1460.pcd:
+- 880
+- -1460
+pointcloud_map_x880_y-1440.pcd:
+- 880
+- -1440
+pointcloud_map_x880_y-1420.pcd:
+- 880
+- -1420
+pointcloud_map_x880_y-1400.pcd:
+- 880
+- -1400
+pointcloud_map_x880_y-1380.pcd:
+- 880
+- -1380
+pointcloud_map_x880_y-1360.pcd:
+- 880
+- -1360
+pointcloud_map_x880_y-1340.pcd:
+- 880
+- -1340
+pointcloud_map_x880_y-1320.pcd:
+- 880
+- -1320
+pointcloud_map_x880_y-980.pcd:
+- 880
+- -980
+pointcloud_map_x880_y-860.pcd:
+- 880
+- -860
+pointcloud_map_x880_y-840.pcd:
+- 880
+- -840
+pointcloud_map_x880_y-820.pcd:
+- 880
+- -820
+pointcloud_map_x880_y-800.pcd:
+- 880
+- -800
+pointcloud_map_x880_y-780.pcd:
+- 880
+- -780
+pointcloud_map_x880_y-760.pcd:
+- 880
+- -760
+pointcloud_map_x880_y-740.pcd:
+- 880
+- -740
+pointcloud_map_x880_y-720.pcd:
+- 880
+- -720
+pointcloud_map_x880_y-700.pcd:
+- 880
+- -700
+pointcloud_map_x880_y-680.pcd:
+- 880
+- -680
+pointcloud_map_x880_y-660.pcd:
+- 880
+- -660
+pointcloud_map_x880_y-640.pcd:
+- 880
+- -640
+pointcloud_map_x880_y-620.pcd:
+- 880
+- -620
+pointcloud_map_x900_y-1700.pcd:
+- 900
+- -1700
+pointcloud_map_x900_y-1680.pcd:
+- 900
+- -1680
+pointcloud_map_x900_y-1660.pcd:
+- 900
+- -1660
+pointcloud_map_x900_y-1640.pcd:
+- 900
+- -1640
+pointcloud_map_x900_y-1620.pcd:
+- 900
+- -1620
+pointcloud_map_x900_y-1600.pcd:
+- 900
+- -1600
+pointcloud_map_x900_y-1580.pcd:
+- 900
+- -1580
+pointcloud_map_x900_y-1560.pcd:
+- 900
+- -1560
+pointcloud_map_x900_y-1540.pcd:
+- 900
+- -1540
+pointcloud_map_x900_y-1520.pcd:
+- 900
+- -1520
+pointcloud_map_x900_y-1500.pcd:
+- 900
+- -1500
+pointcloud_map_x900_y-1480.pcd:
+- 900
+- -1480
+pointcloud_map_x900_y-1460.pcd:
+- 900
+- -1460
+pointcloud_map_x900_y-1440.pcd:
+- 900
+- -1440
+pointcloud_map_x900_y-1420.pcd:
+- 900
+- -1420
+pointcloud_map_x900_y-1400.pcd:
+- 900
+- -1400
+pointcloud_map_x900_y-1380.pcd:
+- 900
+- -1380
+pointcloud_map_x900_y-1360.pcd:
+- 900
+- -1360
+pointcloud_map_x900_y-1340.pcd:
+- 900
+- -1340
+pointcloud_map_x900_y-1300.pcd:
+- 900
+- -1300
+pointcloud_map_x900_y-860.pcd:
+- 900
+- -860
+pointcloud_map_x900_y-840.pcd:
+- 900
+- -840
+pointcloud_map_x900_y-780.pcd:
+- 900
+- -780
+pointcloud_map_x900_y-760.pcd:
+- 900
+- -760
+pointcloud_map_x900_y-740.pcd:
+- 900
+- -740
+pointcloud_map_x900_y-720.pcd:
+- 900
+- -720
+pointcloud_map_x900_y-700.pcd:
+- 900
+- -700
+pointcloud_map_x900_y-680.pcd:
+- 900
+- -680
+pointcloud_map_x900_y-660.pcd:
+- 900
+- -660
+pointcloud_map_x920_y-1700.pcd:
+- 920
+- -1700
+pointcloud_map_x920_y-1680.pcd:
+- 920
+- -1680
+pointcloud_map_x920_y-1660.pcd:
+- 920
+- -1660
+pointcloud_map_x920_y-1640.pcd:
+- 920
+- -1640
+pointcloud_map_x920_y-1620.pcd:
+- 920
+- -1620
+pointcloud_map_x920_y-1600.pcd:
+- 920
+- -1600
+pointcloud_map_x920_y-1580.pcd:
+- 920
+- -1580
+pointcloud_map_x920_y-1560.pcd:
+- 920
+- -1560
+pointcloud_map_x920_y-1540.pcd:
+- 920
+- -1540
+pointcloud_map_x920_y-1520.pcd:
+- 920
+- -1520
+pointcloud_map_x920_y-1500.pcd:
+- 920
+- -1500
+pointcloud_map_x920_y-1480.pcd:
+- 920
+- -1480
+pointcloud_map_x920_y-1460.pcd:
+- 920
+- -1460
+pointcloud_map_x920_y-1440.pcd:
+- 920
+- -1440
+pointcloud_map_x920_y-1420.pcd:
+- 920
+- -1420
+pointcloud_map_x920_y-1400.pcd:
+- 920
+- -1400
+pointcloud_map_x920_y-1380.pcd:
+- 920
+- -1380
+pointcloud_map_x920_y-1360.pcd:
+- 920
+- -1360
+pointcloud_map_x920_y-1340.pcd:
+- 920
+- -1340
+pointcloud_map_x920_y-1100.pcd:
+- 920
+- -1100
+pointcloud_map_x920_y-1080.pcd:
+- 920
+- -1080
+pointcloud_map_x920_y-960.pcd:
+- 920
+- -960
+pointcloud_map_x920_y-940.pcd:
+- 920
+- -940
+pointcloud_map_x920_y-880.pcd:
+- 920
+- -880
+pointcloud_map_x920_y-860.pcd:
+- 920
+- -860
+pointcloud_map_x920_y-840.pcd:
+- 920
+- -840
+pointcloud_map_x920_y-820.pcd:
+- 920
+- -820
+pointcloud_map_x920_y-800.pcd:
+- 920
+- -800
+pointcloud_map_x920_y-780.pcd:
+- 920
+- -780
+pointcloud_map_x920_y-760.pcd:
+- 920
+- -760
+pointcloud_map_x920_y-740.pcd:
+- 920
+- -740
+pointcloud_map_x920_y-720.pcd:
+- 920
+- -720
+pointcloud_map_x920_y-700.pcd:
+- 920
+- -700
+pointcloud_map_x920_y-680.pcd:
+- 920
+- -680
+pointcloud_map_x940_y-1740.pcd:
+- 940
+- -1740
+pointcloud_map_x940_y-1720.pcd:
+- 940
+- -1720
+pointcloud_map_x940_y-1700.pcd:
+- 940
+- -1700
+pointcloud_map_x940_y-1680.pcd:
+- 940
+- -1680
+pointcloud_map_x940_y-1660.pcd:
+- 940
+- -1660
+pointcloud_map_x940_y-1640.pcd:
+- 940
+- -1640
+pointcloud_map_x940_y-1620.pcd:
+- 940
+- -1620
+pointcloud_map_x940_y-1600.pcd:
+- 940
+- -1600
+pointcloud_map_x940_y-1580.pcd:
+- 940
+- -1580
+pointcloud_map_x940_y-1560.pcd:
+- 940
+- -1560
+pointcloud_map_x940_y-1540.pcd:
+- 940
+- -1540
+pointcloud_map_x940_y-1520.pcd:
+- 940
+- -1520
+pointcloud_map_x940_y-1500.pcd:
+- 940
+- -1500
+pointcloud_map_x940_y-1480.pcd:
+- 940
+- -1480
+pointcloud_map_x940_y-1460.pcd:
+- 940
+- -1460
+pointcloud_map_x940_y-1440.pcd:
+- 940
+- -1440
+pointcloud_map_x940_y-1420.pcd:
+- 940
+- -1420
+pointcloud_map_x940_y-1400.pcd:
+- 940
+- -1400
+pointcloud_map_x940_y-1380.pcd:
+- 940
+- -1380
+pointcloud_map_x940_y-1360.pcd:
+- 940
+- -1360
+pointcloud_map_x940_y-1340.pcd:
+- 940
+- -1340
+pointcloud_map_x940_y-1020.pcd:
+- 940
+- -1020
+pointcloud_map_x940_y-1000.pcd:
+- 940
+- -1000
+pointcloud_map_x940_y-940.pcd:
+- 940
+- -940
+pointcloud_map_x940_y-920.pcd:
+- 940
+- -920
+pointcloud_map_x940_y-880.pcd:
+- 940
+- -880
+pointcloud_map_x940_y-860.pcd:
+- 940
+- -860
+pointcloud_map_x940_y-840.pcd:
+- 940
+- -840
+pointcloud_map_x940_y-820.pcd:
+- 940
+- -820
+pointcloud_map_x940_y-800.pcd:
+- 940
+- -800
+pointcloud_map_x940_y-780.pcd:
+- 940
+- -780
+pointcloud_map_x940_y-760.pcd:
+- 940
+- -760
+pointcloud_map_x940_y-740.pcd:
+- 940
+- -740
+pointcloud_map_x940_y-720.pcd:
+- 940
+- -720
+pointcloud_map_x940_y-700.pcd:
+- 940
+- -700
+pointcloud_map_x960_y-1760.pcd:
+- 960
+- -1760
+pointcloud_map_x960_y-1740.pcd:
+- 960
+- -1740
+pointcloud_map_x960_y-1720.pcd:
+- 960
+- -1720
+pointcloud_map_x960_y-1680.pcd:
+- 960
+- -1680
+pointcloud_map_x960_y-1660.pcd:
+- 960
+- -1660
+pointcloud_map_x960_y-1640.pcd:
+- 960
+- -1640
+pointcloud_map_x960_y-1620.pcd:
+- 960
+- -1620
+pointcloud_map_x960_y-1580.pcd:
+- 960
+- -1580
+pointcloud_map_x960_y-1560.pcd:
+- 960
+- -1560
+pointcloud_map_x960_y-1540.pcd:
+- 960
+- -1540
+pointcloud_map_x960_y-1520.pcd:
+- 960
+- -1520
+pointcloud_map_x960_y-1500.pcd:
+- 960
+- -1500
+pointcloud_map_x960_y-1480.pcd:
+- 960
+- -1480
+pointcloud_map_x960_y-1460.pcd:
+- 960
+- -1460
+pointcloud_map_x960_y-1440.pcd:
+- 960
+- -1440
+pointcloud_map_x960_y-1420.pcd:
+- 960
+- -1420
+pointcloud_map_x960_y-1400.pcd:
+- 960
+- -1400
+pointcloud_map_x960_y-1380.pcd:
+- 960
+- -1380
+pointcloud_map_x960_y-1360.pcd:
+- 960
+- -1360
+pointcloud_map_x960_y-1340.pcd:
+- 960
+- -1340
+pointcloud_map_x960_y-1120.pcd:
+- 960
+- -1120
+pointcloud_map_x960_y-1080.pcd:
+- 960
+- -1080
+pointcloud_map_x960_y-1040.pcd:
+- 960
+- -1040
+pointcloud_map_x960_y-1020.pcd:
+- 960
+- -1020
+pointcloud_map_x960_y-1000.pcd:
+- 960
+- -1000
+pointcloud_map_x960_y-980.pcd:
+- 960
+- -980
+pointcloud_map_x960_y-960.pcd:
+- 960
+- -960
+pointcloud_map_x960_y-940.pcd:
+- 960
+- -940
+pointcloud_map_x960_y-920.pcd:
+- 960
+- -920
+pointcloud_map_x960_y-900.pcd:
+- 960
+- -900
+pointcloud_map_x960_y-880.pcd:
+- 960
+- -880
+pointcloud_map_x960_y-860.pcd:
+- 960
+- -860
+pointcloud_map_x960_y-840.pcd:
+- 960
+- -840
+pointcloud_map_x960_y-800.pcd:
+- 960
+- -800
+pointcloud_map_x960_y-780.pcd:
+- 960
+- -780
+pointcloud_map_x960_y-760.pcd:
+- 960
+- -760
+pointcloud_map_x980_y-1780.pcd:
+- 980
+- -1780
+pointcloud_map_x980_y-1760.pcd:
+- 980
+- -1760
+pointcloud_map_x980_y-1740.pcd:
+- 980
+- -1740
+pointcloud_map_x980_y-1580.pcd:
+- 980
+- -1580
+pointcloud_map_x980_y-1560.pcd:
+- 980
+- -1560
+pointcloud_map_x980_y-1540.pcd:
+- 980
+- -1540
+pointcloud_map_x980_y-1520.pcd:
+- 980
+- -1520
+pointcloud_map_x980_y-1500.pcd:
+- 980
+- -1500
+pointcloud_map_x980_y-1480.pcd:
+- 980
+- -1480
+pointcloud_map_x980_y-1460.pcd:
+- 980
+- -1460
+pointcloud_map_x980_y-1440.pcd:
+- 980
+- -1440
+pointcloud_map_x980_y-1420.pcd:
+- 980
+- -1420
+pointcloud_map_x980_y-1400.pcd:
+- 980
+- -1400
+pointcloud_map_x980_y-1380.pcd:
+- 980
+- -1380
+pointcloud_map_x980_y-1360.pcd:
+- 980
+- -1360
+pointcloud_map_x980_y-1180.pcd:
+- 980
+- -1180
+pointcloud_map_x980_y-1160.pcd:
+- 980
+- -1160
+pointcloud_map_x980_y-1140.pcd:
+- 980
+- -1140
+pointcloud_map_x980_y-1120.pcd:
+- 980
+- -1120
+pointcloud_map_x980_y-1100.pcd:
+- 980
+- -1100
+pointcloud_map_x980_y-1080.pcd:
+- 980
+- -1080
+pointcloud_map_x980_y-1060.pcd:
+- 980
+- -1060
+pointcloud_map_x980_y-1040.pcd:
+- 980
+- -1040
+pointcloud_map_x980_y-1020.pcd:
+- 980
+- -1020
+pointcloud_map_x980_y-1000.pcd:
+- 980
+- -1000
+pointcloud_map_x980_y-980.pcd:
+- 980
+- -980
+pointcloud_map_x980_y-960.pcd:
+- 980
+- -960
+pointcloud_map_x980_y-940.pcd:
+- 980
+- -940
+pointcloud_map_x980_y-920.pcd:
+- 980
+- -920
+pointcloud_map_x980_y-900.pcd:
+- 980
+- -900
+pointcloud_map_x980_y-880.pcd:
+- 980
+- -880
+pointcloud_map_x980_y-860.pcd:
+- 980
+- -860
+pointcloud_map_x980_y-800.pcd:
+- 980
+- -800
+pointcloud_map_x1000_y-1780.pcd:
+- 1000
+- -1780
+pointcloud_map_x1000_y-1760.pcd:
+- 1000
+- -1760
+pointcloud_map_x1000_y-1600.pcd:
+- 1000
+- -1600
+pointcloud_map_x1000_y-1580.pcd:
+- 1000
+- -1580
+pointcloud_map_x1000_y-1560.pcd:
+- 1000
+- -1560
+pointcloud_map_x1000_y-1540.pcd:
+- 1000
+- -1540
+pointcloud_map_x1000_y-1520.pcd:
+- 1000
+- -1520
+pointcloud_map_x1000_y-1500.pcd:
+- 1000
+- -1500
+pointcloud_map_x1000_y-1480.pcd:
+- 1000
+- -1480
+pointcloud_map_x1000_y-1460.pcd:
+- 1000
+- -1460
+pointcloud_map_x1000_y-1440.pcd:
+- 1000
+- -1440
+pointcloud_map_x1000_y-1420.pcd:
+- 1000
+- -1420
+pointcloud_map_x1000_y-1400.pcd:
+- 1000
+- -1400
+pointcloud_map_x1000_y-1380.pcd:
+- 1000
+- -1380
+pointcloud_map_x1000_y-1360.pcd:
+- 1000
+- -1360
+pointcloud_map_x1000_y-1300.pcd:
+- 1000
+- -1300
+pointcloud_map_x1000_y-1280.pcd:
+- 1000
+- -1280
+pointcloud_map_x1000_y-1260.pcd:
+- 1000
+- -1260
+pointcloud_map_x1000_y-1240.pcd:
+- 1000
+- -1240
+pointcloud_map_x1000_y-1220.pcd:
+- 1000
+- -1220
+pointcloud_map_x1000_y-1180.pcd:
+- 1000
+- -1180
+pointcloud_map_x1000_y-1160.pcd:
+- 1000
+- -1160
+pointcloud_map_x1000_y-1140.pcd:
+- 1000
+- -1140
+pointcloud_map_x1000_y-1120.pcd:
+- 1000
+- -1120
+pointcloud_map_x1000_y-1100.pcd:
+- 1000
+- -1100
+pointcloud_map_x1000_y-1080.pcd:
+- 1000
+- -1080
+pointcloud_map_x1000_y-1060.pcd:
+- 1000
+- -1060
+pointcloud_map_x1000_y-1040.pcd:
+- 1000
+- -1040
+pointcloud_map_x1000_y-1020.pcd:
+- 1000
+- -1020
+pointcloud_map_x1000_y-1000.pcd:
+- 1000
+- -1000
+pointcloud_map_x1000_y-980.pcd:
+- 1000
+- -980
+pointcloud_map_x1000_y-960.pcd:
+- 1000
+- -960
+pointcloud_map_x1000_y-940.pcd:
+- 1000
+- -940
+pointcloud_map_x1000_y-920.pcd:
+- 1000
+- -920
+pointcloud_map_x1000_y-900.pcd:
+- 1000
+- -900
+pointcloud_map_x1000_y-880.pcd:
+- 1000
+- -880
+pointcloud_map_x1000_y-860.pcd:
+- 1000
+- -860
+pointcloud_map_x1020_y-1620.pcd:
+- 1020
+- -1620
+pointcloud_map_x1020_y-1600.pcd:
+- 1020
+- -1600
+pointcloud_map_x1020_y-1580.pcd:
+- 1020
+- -1580
+pointcloud_map_x1020_y-1560.pcd:
+- 1020
+- -1560
+pointcloud_map_x1020_y-1540.pcd:
+- 1020
+- -1540
+pointcloud_map_x1020_y-1520.pcd:
+- 1020
+- -1520
+pointcloud_map_x1020_y-1500.pcd:
+- 1020
+- -1500
+pointcloud_map_x1020_y-1480.pcd:
+- 1020
+- -1480
+pointcloud_map_x1020_y-1460.pcd:
+- 1020
+- -1460
+pointcloud_map_x1020_y-1440.pcd:
+- 1020
+- -1440
+pointcloud_map_x1020_y-1420.pcd:
+- 1020
+- -1420
+pointcloud_map_x1020_y-1400.pcd:
+- 1020
+- -1400
+pointcloud_map_x1020_y-1380.pcd:
+- 1020
+- -1380
+pointcloud_map_x1020_y-1360.pcd:
+- 1020
+- -1360
+pointcloud_map_x1020_y-1280.pcd:
+- 1020
+- -1280
+pointcloud_map_x1020_y-1260.pcd:
+- 1020
+- -1260
+pointcloud_map_x1020_y-1240.pcd:
+- 1020
+- -1240
+pointcloud_map_x1020_y-1220.pcd:
+- 1020
+- -1220
+pointcloud_map_x1020_y-1200.pcd:
+- 1020
+- -1200
+pointcloud_map_x1020_y-1180.pcd:
+- 1020
+- -1180
+pointcloud_map_x1020_y-1160.pcd:
+- 1020
+- -1160
+pointcloud_map_x1020_y-1140.pcd:
+- 1020
+- -1140
+pointcloud_map_x1020_y-1120.pcd:
+- 1020
+- -1120
+pointcloud_map_x1020_y-1100.pcd:
+- 1020
+- -1100
+pointcloud_map_x1020_y-1080.pcd:
+- 1020
+- -1080
+pointcloud_map_x1020_y-1060.pcd:
+- 1020
+- -1060
+pointcloud_map_x1020_y-1040.pcd:
+- 1020
+- -1040
+pointcloud_map_x1020_y-1020.pcd:
+- 1020
+- -1020
+pointcloud_map_x1020_y-1000.pcd:
+- 1020
+- -1000
+pointcloud_map_x1020_y-980.pcd:
+- 1020
+- -980
+pointcloud_map_x1020_y-960.pcd:
+- 1020
+- -960
+pointcloud_map_x1020_y-940.pcd:
+- 1020
+- -940
+pointcloud_map_x1020_y-920.pcd:
+- 1020
+- -920
+pointcloud_map_x1020_y-900.pcd:
+- 1020
+- -900
+pointcloud_map_x1020_y-880.pcd:
+- 1020
+- -880
+pointcloud_map_x1020_y-860.pcd:
+- 1020
+- -860
+pointcloud_map_x1020_y-840.pcd:
+- 1020
+- -840
+pointcloud_map_x1040_y-1660.pcd:
+- 1040
+- -1660
+pointcloud_map_x1040_y-1640.pcd:
+- 1040
+- -1640
+pointcloud_map_x1040_y-1620.pcd:
+- 1040
+- -1620
+pointcloud_map_x1040_y-1600.pcd:
+- 1040
+- -1600
+pointcloud_map_x1040_y-1580.pcd:
+- 1040
+- -1580
+pointcloud_map_x1040_y-1560.pcd:
+- 1040
+- -1560
+pointcloud_map_x1040_y-1540.pcd:
+- 1040
+- -1540
+pointcloud_map_x1040_y-1520.pcd:
+- 1040
+- -1520
+pointcloud_map_x1040_y-1500.pcd:
+- 1040
+- -1500
+pointcloud_map_x1040_y-1480.pcd:
+- 1040
+- -1480
+pointcloud_map_x1040_y-1460.pcd:
+- 1040
+- -1460
+pointcloud_map_x1040_y-1440.pcd:
+- 1040
+- -1440
+pointcloud_map_x1040_y-1420.pcd:
+- 1040
+- -1420
+pointcloud_map_x1040_y-1400.pcd:
+- 1040
+- -1400
+pointcloud_map_x1040_y-1380.pcd:
+- 1040
+- -1380
+pointcloud_map_x1040_y-1360.pcd:
+- 1040
+- -1360
+pointcloud_map_x1040_y-1340.pcd:
+- 1040
+- -1340
+pointcloud_map_x1040_y-1320.pcd:
+- 1040
+- -1320
+pointcloud_map_x1040_y-1280.pcd:
+- 1040
+- -1280
+pointcloud_map_x1040_y-1260.pcd:
+- 1040
+- -1260
+pointcloud_map_x1040_y-1240.pcd:
+- 1040
+- -1240
+pointcloud_map_x1040_y-1220.pcd:
+- 1040
+- -1220
+pointcloud_map_x1040_y-1200.pcd:
+- 1040
+- -1200
+pointcloud_map_x1040_y-1180.pcd:
+- 1040
+- -1180
+pointcloud_map_x1040_y-1160.pcd:
+- 1040
+- -1160
+pointcloud_map_x1040_y-1140.pcd:
+- 1040
+- -1140
+pointcloud_map_x1040_y-1120.pcd:
+- 1040
+- -1120
+pointcloud_map_x1040_y-1100.pcd:
+- 1040
+- -1100
+pointcloud_map_x1040_y-1080.pcd:
+- 1040
+- -1080
+pointcloud_map_x1040_y-1060.pcd:
+- 1040
+- -1060
+pointcloud_map_x1040_y-1040.pcd:
+- 1040
+- -1040
+pointcloud_map_x1040_y-1020.pcd:
+- 1040
+- -1020
+pointcloud_map_x1040_y-1000.pcd:
+- 1040
+- -1000
+pointcloud_map_x1040_y-960.pcd:
+- 1040
+- -960
+pointcloud_map_x1040_y-940.pcd:
+- 1040
+- -940
+pointcloud_map_x1040_y-900.pcd:
+- 1040
+- -900
+pointcloud_map_x1040_y-880.pcd:
+- 1040
+- -880
+pointcloud_map_x1040_y-860.pcd:
+- 1040
+- -860
+pointcloud_map_x1040_y-840.pcd:
+- 1040
+- -840
+pointcloud_map_x1060_y-1660.pcd:
+- 1060
+- -1660
+pointcloud_map_x1060_y-1640.pcd:
+- 1060
+- -1640
+pointcloud_map_x1060_y-1620.pcd:
+- 1060
+- -1620
+pointcloud_map_x1060_y-1600.pcd:
+- 1060
+- -1600
+pointcloud_map_x1060_y-1580.pcd:
+- 1060
+- -1580
+pointcloud_map_x1060_y-1560.pcd:
+- 1060
+- -1560
+pointcloud_map_x1060_y-1540.pcd:
+- 1060
+- -1540
+pointcloud_map_x1060_y-1520.pcd:
+- 1060
+- -1520
+pointcloud_map_x1060_y-1500.pcd:
+- 1060
+- -1500
+pointcloud_map_x1060_y-1480.pcd:
+- 1060
+- -1480
+pointcloud_map_x1060_y-1460.pcd:
+- 1060
+- -1460
+pointcloud_map_x1060_y-1440.pcd:
+- 1060
+- -1440
+pointcloud_map_x1060_y-1420.pcd:
+- 1060
+- -1420
+pointcloud_map_x1060_y-1400.pcd:
+- 1060
+- -1400
+pointcloud_map_x1060_y-1380.pcd:
+- 1060
+- -1380
+pointcloud_map_x1060_y-1360.pcd:
+- 1060
+- -1360
+pointcloud_map_x1060_y-1340.pcd:
+- 1060
+- -1340
+pointcloud_map_x1060_y-1320.pcd:
+- 1060
+- -1320
+pointcloud_map_x1060_y-1300.pcd:
+- 1060
+- -1300
+pointcloud_map_x1060_y-1280.pcd:
+- 1060
+- -1280
+pointcloud_map_x1060_y-1260.pcd:
+- 1060
+- -1260
+pointcloud_map_x1060_y-1240.pcd:
+- 1060
+- -1240
+pointcloud_map_x1060_y-1220.pcd:
+- 1060
+- -1220
+pointcloud_map_x1060_y-1200.pcd:
+- 1060
+- -1200
+pointcloud_map_x1060_y-1180.pcd:
+- 1060
+- -1180
+pointcloud_map_x1060_y-1160.pcd:
+- 1060
+- -1160
+pointcloud_map_x1060_y-1140.pcd:
+- 1060
+- -1140
+pointcloud_map_x1060_y-1120.pcd:
+- 1060
+- -1120
+pointcloud_map_x1060_y-1100.pcd:
+- 1060
+- -1100
+pointcloud_map_x1060_y-840.pcd:
+- 1060
+- -840
+pointcloud_map_x1080_y-1640.pcd:
+- 1080
+- -1640
+pointcloud_map_x1080_y-1620.pcd:
+- 1080
+- -1620
+pointcloud_map_x1080_y-1600.pcd:
+- 1080
+- -1600
+pointcloud_map_x1080_y-1580.pcd:
+- 1080
+- -1580
+pointcloud_map_x1080_y-1560.pcd:
+- 1080
+- -1560
+pointcloud_map_x1080_y-1540.pcd:
+- 1080
+- -1540
+pointcloud_map_x1080_y-1520.pcd:
+- 1080
+- -1520
+pointcloud_map_x1080_y-1500.pcd:
+- 1080
+- -1500
+pointcloud_map_x1080_y-1480.pcd:
+- 1080
+- -1480
+pointcloud_map_x1080_y-1460.pcd:
+- 1080
+- -1460
+pointcloud_map_x1080_y-1440.pcd:
+- 1080
+- -1440
+pointcloud_map_x1080_y-1420.pcd:
+- 1080
+- -1420
+pointcloud_map_x1080_y-1400.pcd:
+- 1080
+- -1400
+pointcloud_map_x1080_y-1380.pcd:
+- 1080
+- -1380
+pointcloud_map_x1080_y-1360.pcd:
+- 1080
+- -1360
+pointcloud_map_x1080_y-1340.pcd:
+- 1080
+- -1340
+pointcloud_map_x1080_y-1320.pcd:
+- 1080
+- -1320
+pointcloud_map_x1080_y-1300.pcd:
+- 1080
+- -1300
+pointcloud_map_x1080_y-1280.pcd:
+- 1080
+- -1280
+pointcloud_map_x1080_y-1260.pcd:
+- 1080
+- -1260
+pointcloud_map_x1080_y-1240.pcd:
+- 1080
+- -1240
+pointcloud_map_x1080_y-1220.pcd:
+- 1080
+- -1220
+pointcloud_map_x1080_y-1200.pcd:
+- 1080
+- -1200
+pointcloud_map_x1080_y-1180.pcd:
+- 1080
+- -1180
+pointcloud_map_x1080_y-1160.pcd:
+- 1080
+- -1160
+pointcloud_map_x1080_y-1140.pcd:
+- 1080
+- -1140
+pointcloud_map_x1080_y-1120.pcd:
+- 1080
+- -1120
+pointcloud_map_x1100_y-1580.pcd:
+- 1100
+- -1580
+pointcloud_map_x1100_y-1560.pcd:
+- 1100
+- -1560
+pointcloud_map_x1100_y-1540.pcd:
+- 1100
+- -1540
+pointcloud_map_x1100_y-1520.pcd:
+- 1100
+- -1520
+pointcloud_map_x1100_y-1500.pcd:
+- 1100
+- -1500
+pointcloud_map_x1100_y-1480.pcd:
+- 1100
+- -1480
+pointcloud_map_x1100_y-1460.pcd:
+- 1100
+- -1460
+pointcloud_map_x1100_y-1440.pcd:
+- 1100
+- -1440
+pointcloud_map_x1100_y-1420.pcd:
+- 1100
+- -1420
+pointcloud_map_x1100_y-1400.pcd:
+- 1100
+- -1400
+pointcloud_map_x1100_y-1380.pcd:
+- 1100
+- -1380
+pointcloud_map_x1100_y-1360.pcd:
+- 1100
+- -1360
+pointcloud_map_x1100_y-1340.pcd:
+- 1100
+- -1340
+pointcloud_map_x1100_y-1320.pcd:
+- 1100
+- -1320
+pointcloud_map_x1100_y-1300.pcd:
+- 1100
+- -1300
+pointcloud_map_x1100_y-1280.pcd:
+- 1100
+- -1280
+pointcloud_map_x1100_y-1260.pcd:
+- 1100
+- -1260
+pointcloud_map_x1100_y-1240.pcd:
+- 1100
+- -1240
+pointcloud_map_x1100_y-1220.pcd:
+- 1100
+- -1220
+pointcloud_map_x1100_y-1200.pcd:
+- 1100
+- -1200
+pointcloud_map_x1100_y-1180.pcd:
+- 1100
+- -1180
+pointcloud_map_x1100_y-1160.pcd:
+- 1100
+- -1160
+pointcloud_map_x1100_y-1140.pcd:
+- 1100
+- -1140
+pointcloud_map_x1120_y-1560.pcd:
+- 1120
+- -1560
+pointcloud_map_x1120_y-1540.pcd:
+- 1120
+- -1540
+pointcloud_map_x1120_y-1520.pcd:
+- 1120
+- -1520
+pointcloud_map_x1120_y-1500.pcd:
+- 1120
+- -1500
+pointcloud_map_x1120_y-1480.pcd:
+- 1120
+- -1480
+pointcloud_map_x1120_y-1420.pcd:
+- 1120
+- -1420
+pointcloud_map_x1120_y-1400.pcd:
+- 1120
+- -1400
+pointcloud_map_x1120_y-1380.pcd:
+- 1120
+- -1380
+pointcloud_map_x1120_y-1360.pcd:
+- 1120
+- -1360
+pointcloud_map_x1120_y-1340.pcd:
+- 1120
+- -1340
+pointcloud_map_x1120_y-1320.pcd:
+- 1120
+- -1320
+pointcloud_map_x1120_y-1300.pcd:
+- 1120
+- -1300
+pointcloud_map_x1120_y-1280.pcd:
+- 1120
+- -1280
+pointcloud_map_x1120_y-1260.pcd:
+- 1120
+- -1260
+pointcloud_map_x1120_y-1240.pcd:
+- 1120
+- -1240
+pointcloud_map_x1120_y-1220.pcd:
+- 1120
+- -1220
+pointcloud_map_x1120_y-1200.pcd:
+- 1120
+- -1200
+pointcloud_map_x1120_y-1180.pcd:
+- 1120
+- -1180
+pointcloud_map_x1120_y-1160.pcd:
+- 1120
+- -1160
+pointcloud_map_x1120_y-1140.pcd:
+- 1120
+- -1140
+pointcloud_map_x1140_y-1660.pcd:
+- 1140
+- -1660
+pointcloud_map_x1140_y-1480.pcd:
+- 1140
+- -1480
+pointcloud_map_x1140_y-1400.pcd:
+- 1140
+- -1400
+pointcloud_map_x1140_y-1380.pcd:
+- 1140
+- -1380
+pointcloud_map_x1140_y-1360.pcd:
+- 1140
+- -1360
+pointcloud_map_x1140_y-1340.pcd:
+- 1140
+- -1340
+pointcloud_map_x1140_y-1320.pcd:
+- 1140
+- -1320
+pointcloud_map_x1140_y-1300.pcd:
+- 1140
+- -1300
+pointcloud_map_x1140_y-1280.pcd:
+- 1140
+- -1280
+pointcloud_map_x1140_y-1260.pcd:
+- 1140
+- -1260
+pointcloud_map_x1140_y-1240.pcd:
+- 1140
+- -1240
+pointcloud_map_x1140_y-1220.pcd:
+- 1140
+- -1220
+pointcloud_map_x1140_y-1200.pcd:
+- 1140
+- -1200
+pointcloud_map_x1140_y-1180.pcd:
+- 1140
+- -1180
+pointcloud_map_x1140_y-1160.pcd:
+- 1140
+- -1160
+pointcloud_map_x1160_y-1400.pcd:
+- 1160
+- -1400
+pointcloud_map_x1160_y-1380.pcd:
+- 1160
+- -1380
+pointcloud_map_x1160_y-1360.pcd:
+- 1160
+- -1360
+pointcloud_map_x1160_y-1340.pcd:
+- 1160
+- -1340
+pointcloud_map_x1160_y-1320.pcd:
+- 1160
+- -1320
+pointcloud_map_x1160_y-1300.pcd:
+- 1160
+- -1300
+pointcloud_map_x1160_y-1280.pcd:
+- 1160
+- -1280
+pointcloud_map_x1160_y-1260.pcd:
+- 1160
+- -1260
+pointcloud_map_x1160_y-1240.pcd:
+- 1160
+- -1240
+pointcloud_map_x1160_y-1220.pcd:
+- 1160
+- -1220
+pointcloud_map_x1160_y-1200.pcd:
+- 1160
+- -1200
+pointcloud_map_x1160_y-1180.pcd:
+- 1160
+- -1180
+pointcloud_map_x1180_y-1380.pcd:
+- 1180
+- -1380
+pointcloud_map_x1180_y-1360.pcd:
+- 1180
+- -1360
+pointcloud_map_x1180_y-1340.pcd:
+- 1180
+- -1340
+pointcloud_map_x1180_y-1320.pcd:
+- 1180
+- -1320
+pointcloud_map_x1180_y-1300.pcd:
+- 1180
+- -1300
+pointcloud_map_x1180_y-1280.pcd:
+- 1180
+- -1280
+pointcloud_map_x1180_y-1260.pcd:
+- 1180
+- -1260
+pointcloud_map_x1180_y-1240.pcd:
+- 1180
+- -1240
+pointcloud_map_x1180_y-1220.pcd:
+- 1180
+- -1220
+pointcloud_map_x1180_y-1200.pcd:
+- 1180
+- -1200
+pointcloud_map_x1180_y-1180.pcd:
+- 1180
+- -1180
+pointcloud_map_x1200_y-1380.pcd:
+- 1200
+- -1380
+pointcloud_map_x1200_y-1360.pcd:
+- 1200
+- -1360
+pointcloud_map_x1200_y-1340.pcd:
+- 1200
+- -1340
+pointcloud_map_x1200_y-1320.pcd:
+- 1200
+- -1320
+pointcloud_map_x1200_y-1300.pcd:
+- 1200
+- -1300
+pointcloud_map_x1200_y-1280.pcd:
+- 1200
+- -1280
+pointcloud_map_x1200_y-1260.pcd:
+- 1200
+- -1260
+pointcloud_map_x1200_y-1240.pcd:
+- 1200
+- -1240
+pointcloud_map_x1200_y-1220.pcd:
+- 1200
+- -1220
+pointcloud_map_x1200_y-1200.pcd:
+- 1200
+- -1200
+pointcloud_map_x1200_y-1180.pcd:
+- 1200
+- -1180
+pointcloud_map_x1220_y-1380.pcd:
+- 1220
+- -1380
+pointcloud_map_x1220_y-1360.pcd:
+- 1220
+- -1360
+pointcloud_map_x1220_y-1340.pcd:
+- 1220
+- -1340
+pointcloud_map_x1220_y-1320.pcd:
+- 1220
+- -1320
+pointcloud_map_x1220_y-1300.pcd:
+- 1220
+- -1300
+pointcloud_map_x1220_y-1280.pcd:
+- 1220
+- -1280
+pointcloud_map_x1220_y-1260.pcd:
+- 1220
+- -1260
+pointcloud_map_x1220_y-1240.pcd:
+- 1220
+- -1240
+pointcloud_map_x1220_y-1220.pcd:
+- 1220
+- -1220
+pointcloud_map_x1220_y-1200.pcd:
+- 1220
+- -1200
+pointcloud_map_x1240_y-1360.pcd:
+- 1240
+- -1360
+pointcloud_map_x1240_y-1340.pcd:
+- 1240
+- -1340
+pointcloud_map_x1240_y-1320.pcd:
+- 1240
+- -1320
+pointcloud_map_x1240_y-1300.pcd:
+- 1240
+- -1300
+pointcloud_map_x1240_y-1280.pcd:
+- 1240
+- -1280
+pointcloud_map_x1240_y-1260.pcd:
+- 1240
+- -1260
+pointcloud_map_x1240_y-1240.pcd:
+- 1240
+- -1240
+pointcloud_map_x1240_y-1220.pcd:
+- 1240
+- -1220
+pointcloud_map_x1260_y-1360.pcd:
+- 1260
+- -1360
+pointcloud_map_x1260_y-1340.pcd:
+- 1260
+- -1340
+pointcloud_map_x1260_y-1320.pcd:
+- 1260
+- -1320

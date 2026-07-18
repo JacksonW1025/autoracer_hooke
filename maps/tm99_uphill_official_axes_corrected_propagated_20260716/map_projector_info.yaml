@@ -1,0 +1,5 @@
+projector_type: LocalCartesian
+vertical_datum: WGS84
+map_origin:
+  latitude: 29.0697514213
+  longitude: 110.4705323434

@@ -108,6 +108,9 @@ class CourseBuildConfig:
     max_decel_mps2: float = -1.5
     holdout_p95_limit_m: float = 0.75
     holdout_max_limit_m: float = 1.0
+    holdout_alignment_method: str = "normalized_arc_length"
+    holdout_projection_window_m: float = 10.0
+    holdout_projection_sample_interval_m: float = 0.25
 
 
 def sha256_file(path: Path) -> str:
@@ -207,6 +210,29 @@ def cumulative_distances(points: Sequence[tuple[float, float, float]]) -> list[f
     return distances
 
 
+def curvature_speed_envelope(
+    curvatures: Sequence[float], distances: Sequence[float], window_m: float
+) -> list[float]:
+    """Return the worst absolute curvature seen across a spatial window."""
+    if len(curvatures) != len(distances) or not curvatures:
+        raise ValueError("curvature envelope inputs must be non-empty and aligned")
+    if window_m < 0.0:
+        raise ValueError("curvature envelope window must be non-negative")
+    if any(current < previous for previous, current in zip(distances, distances[1:])):
+        raise ValueError("curvature envelope distances must be monotonic")
+    half_window_m = 0.5 * window_m
+    return [
+        max(
+            abs(curvatures[index])
+            for index in range(
+                bisect.bisect_left(distances, distance - half_window_m),
+                bisect.bisect_right(distances, distance + half_window_m),
+            )
+        )
+        for distance in distances
+    ]
+
+
 def interpolate_path(
     points: Sequence[tuple[float, float, float]],
     distances: Sequence[float],
@@ -286,12 +312,68 @@ def build_course_samples(
     }
 
 
+def _point_segment_distance_xy(
+    point: tuple[float, float],
+    start: tuple[float, float, float],
+    end: tuple[float, float, float],
+) -> float:
+    dx = end[0] - start[0]
+    dy = end[1] - start[1]
+    length_squared = dx * dx + dy * dy
+    if length_squared <= 1e-12:
+        return math.hypot(point[0] - start[0], point[1] - start[1])
+    ratio = (
+        (point[0] - start[0]) * dx + (point[1] - start[1]) * dy
+    ) / length_squared
+    ratio = min(1.0, max(0.0, ratio))
+    projection_x = start[0] + ratio * dx
+    projection_y = start[1] + ratio * dy
+    return math.hypot(point[0] - projection_x, point[1] - projection_y)
+
+
 def holdout_errors(
-    course: Sequence[CourseSample], holdout_path: Sequence[tuple[float, float, float]]
+    course: Sequence[CourseSample],
+    holdout_path: Sequence[tuple[float, float, float]],
+    *,
+    alignment_method: str = "normalized_arc_length",
+    projection_window_m: float = 10.0,
+    projection_sample_interval_m: float = 0.25,
 ) -> list[float]:
+    if alignment_method not in {"normalized_arc_length", "local_path_projection"}:
+        raise ValueError(f"unsupported holdout alignment method: {alignment_method}")
     holdout_distances = cumulative_distances(holdout_path)
     course_length = course[-1].s
     holdout_length = holdout_distances[-1]
+    if alignment_method == "local_path_projection":
+        if projection_window_m <= 0.0 or projection_sample_interval_m <= 0.0:
+            raise ValueError("holdout projection window and interval must be positive")
+        projected_path = resample_path(
+            holdout_path, projection_sample_interval_m
+        )
+        projected_distances = cumulative_distances(projected_path)
+        errors = []
+        for sample in course:
+            fraction = 0.0 if course_length <= 0.0 else sample.s / course_length
+            expected = fraction * holdout_length
+            lower_distance = max(0.0, expected - projection_window_m)
+            upper_distance = min(holdout_length, expected + projection_window_m)
+            first = max(0, bisect.bisect_left(projected_distances, lower_distance) - 1)
+            last = min(
+                len(projected_path) - 1,
+                bisect.bisect_right(projected_distances, upper_distance),
+            )
+            errors.append(
+                min(
+                    _point_segment_distance_xy(
+                        (sample.x, sample.y),
+                        projected_path[index],
+                        projected_path[index + 1],
+                    )
+                    for index in range(first, last)
+                )
+            )
+        return errors
+
     errors = []
     for sample in course:
         fraction = 0.0 if course_length <= 0.0 else sample.s / course_length
@@ -648,7 +730,13 @@ def build_asset(
         samples, road_extent_metrics = apply_road_extents(
             samples, load_road_extents(road_extents), config
         )
-    errors = holdout_errors(samples, holdout_path)
+    errors = holdout_errors(
+        samples,
+        holdout_path,
+        alignment_method=config.holdout_alignment_method,
+        projection_window_m=config.holdout_projection_window_m,
+        projection_sample_interval_m=config.holdout_projection_sample_interval_m,
+    )
     validation = validate_course(
         samples,
         errors,
@@ -725,6 +813,17 @@ def build_asset(
             "radius": config.smoothing_radius,
             "max_offset_m": config.max_smoothing_offset_m,
         },
+        "holdout_alignment": {
+            "method": config.holdout_alignment_method,
+            "projection_window_m": config.holdout_projection_window_m,
+            "projection_sample_interval_m": config.holdout_projection_sample_interval_m,
+            "semantics": (
+                "local_path_projection removes bounded longitudinal phase error "
+                "without allowing matches to remote switchback segments"
+                if config.holdout_alignment_method == "local_path_projection"
+                else "equal normalized cumulative arc length"
+            ),
+        },
         "validation": validation,
         "assets": {
             "course.csv": {
@@ -789,10 +888,13 @@ def _velocity_profile(
 def _accelerations(
     points: Sequence[tuple[float, float, float]], speeds: Sequence[float]
 ) -> list[float]:
-    accelerations = [0.0]
-    for index in range(1, len(points)):
-        ds = max(_distance_xy(points[index - 1], points[index]), 1e-6)
-        accelerations.append((speeds[index] ** 2 - speeds[index - 1] ** 2) / (2.0 * ds))
+    """Associate feedforward acceleration with each point's outgoing segment."""
+    accelerations = [0.0] * len(points)
+    for index in range(len(points) - 1):
+        ds = max(_distance_xy(points[index], points[index + 1]), 1e-6)
+        accelerations[index] = (
+            speeds[index + 1] ** 2 - speeds[index] ** 2
+        ) / (2.0 * ds)
     return accelerations
 
 

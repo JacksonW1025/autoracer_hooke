@@ -91,6 +91,7 @@ def select_progress_index(
     config: LocalPlannerConfig,
     forward_distance_m=None,
 ):
+    initial_search = previous_index is None
     if previous_index is None:
         end_index = max(
             1,
@@ -119,9 +120,12 @@ def select_progress_index(
         position_error = _pose_distance(point.pose, ego_pose)
         point_yaw = _yaw_from_quaternion(point.pose.orientation)
         heading_error = abs(_normalize_angle(point_yaw - ego_yaw))
+        # EKF height is measurement-held when pose updates pause. After the
+        # route layer is initialized, the monotonic forward window provides
+        # layer disambiguation without treating stale height as a track loss.
         if (
             position_error <= config.nearest_position_gate_m
-            and dz <= config.z_gate_m
+            and (not initial_search or dz <= config.z_gate_m)
             and heading_error <= config.heading_gate_rad
         ):
             gated.append(index)
@@ -599,13 +603,12 @@ def _apply_local_velocity_envelope(
 
     for index, point in enumerate(points):
         point.longitudinal_velocity_mps = float(speeds[index])
-        if index == 0:
-            point.acceleration_mps2 = 0.0
-            continue
-        ds = max(_point_distance(points[index - 1], point), 1e-3)
-        point.acceleration_mps2 = (
-            speeds[index] ** 2 - speeds[index - 1] ** 2
+    for index in range(len(points) - 1):
+        ds = max(_point_distance(points[index], points[index + 1]), 1e-3)
+        points[index].acceleration_mps2 = (
+            speeds[index + 1] ** 2 - speeds[index] ** 2
         ) / (2.0 * ds)
+    points[-1].acceleration_mps2 = 0.0
 
 
 def _update_time_from_start(points):
