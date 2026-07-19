@@ -71,7 +71,7 @@ public:
     command_limits_.minimum_command_speed_mps =
       declare_parameter<double>("minimum_command_speed_mps", 0.3);
     command_limits_.max_steering_tire_angle_rad =
-      declare_parameter<double>("max_steering_tire_angle_rad", 0.262);
+      declare_parameter<double>("max_steering_tire_angle_rad", 0.349);
     firmware_command_timeout_ms_ = declare_parameter<std::int64_t>(
       "firmware_command_timeout_ms", kExpectedFirmwareCommandTimeoutMs);
     emergency_status_timeout_ms_ = declare_parameter<std::int64_t>(

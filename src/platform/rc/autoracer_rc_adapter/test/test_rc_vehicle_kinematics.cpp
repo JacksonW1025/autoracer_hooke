@@ -42,17 +42,17 @@ TEST(RcVehicleKinematics, ClampsConfirmedProductBoundaries) {
   const VehicleCommandLimits limits;
   const auto positive = control_to_chassis_motion(3.5, 0.8, limits);
   EXPECT_DOUBLE_EQ(positive.speed_mps, 3.0);
-  EXPECT_DOUBLE_EQ(positive.steering_tire_angle_rad, 0.262);
+  EXPECT_DOUBLE_EQ(positive.steering_tire_angle_rad, 0.349);
   EXPECT_TRUE(positive.speed_saturated);
   EXPECT_TRUE(positive.steering_saturated);
 
   const auto negative = control_to_chassis_motion(-3.5, -0.8, limits);
   EXPECT_DOUBLE_EQ(negative.speed_mps, -3.0);
-  EXPECT_DOUBLE_EQ(negative.steering_tire_angle_rad, -0.262);
+  EXPECT_DOUBLE_EQ(negative.steering_tire_angle_rad, -0.349);
   EXPECT_TRUE(negative.speed_saturated);
   EXPECT_TRUE(negative.steering_saturated);
 
-  const auto boundary = control_to_chassis_motion(3.0, -0.262, limits);
+  const auto boundary = control_to_chassis_motion(3.0, -0.349, limits);
   EXPECT_FALSE(boundary.speed_saturated);
   EXPECT_FALSE(boundary.steering_saturated);
 }

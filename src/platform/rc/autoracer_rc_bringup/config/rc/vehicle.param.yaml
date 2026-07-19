@@ -3,7 +3,7 @@ rc_vehicle_interface:
     baud_rate: 115200
     maximum_command_speed_mps: 3.0
     minimum_command_speed_mps: 0.3
-    max_steering_tire_angle_rad: 0.262
+    max_steering_tire_angle_rad: 0.349
     firmware_command_timeout_ms: 250
     emergency_status_timeout_ms: 250
     hall_feedback_acquisition_timeout_ms: 1500

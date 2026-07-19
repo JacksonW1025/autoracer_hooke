@@ -83,17 +83,17 @@ make_feedback_frame(
 TEST(RcSerialProtocol, EncodesExactAckermannAndSoftwareStopFrames) {
   ChassisCommand command;
   command.speed_mps = 0.500;
-  command.steering_tire_angle_rad = 0.262;
+  command.steering_tire_angle_rad = 0.349;
   const std::array<std::uint8_t, kRcCommandFrameSize> expected{
     0x7BU, 0x01U, 0x01U, 0x01U, 0xF4U, 0x01U,
-    0x06U, 0x00U, 0x00U, 0x89U, 0x7DU};
+    0x5DU, 0x00U, 0x00U, 0xD2U, 0x7DU};
   EXPECT_EQ(encode_command_frame(command), expected);
 
   command.speed_mps = -3.0;
-  command.steering_tire_angle_rad = -0.262;
+  command.steering_tire_angle_rad = -0.349;
   const std::array<std::uint8_t, kRcCommandFrameSize> expected_reverse{
     0x7BU, 0x01U, 0x01U, 0xF4U, 0x48U, 0xFEU,
-    0xFAU, 0x00U, 0x00U, 0xC3U, 0x7DU};
+    0xA3U, 0x00U, 0x00U, 0x9AU, 0x7DU};
   EXPECT_EQ(encode_command_frame(command), expected_reverse);
 
   command.enable = false;
@@ -223,8 +223,8 @@ TEST(RcSerialProtocol, EnforcesWireRangeAndFiniteValues) {
 TEST(RcSerialProtocol, DecodesExactTelemetryLayoutSourcesAndUnits) {
   const std::array<std::uint8_t, kRcFeedbackFrameSize> golden{
     0x7BU, 0x02U, 0x5AU, 0xFFU, 0xFFU, 0xFFU, 0xFDU, 0xFEU,
-    0x0CU, 0x01U, 0x06U, 0xFFU, 0x9CU, 0x2FU, 0x76U, 0x00U,
-    0x32U, 0x00U, 0x00U, 0x01U, 0x44U, 0xA1U, 0x38U, 0x7DU};
+    0x0CU, 0x01U, 0x5DU, 0xFFU, 0x9CU, 0x2FU, 0x76U, 0x00U,
+    0x32U, 0x00U, 0x00U, 0x01U, 0x44U, 0xA1U, 0x63U, 0x7DU};
   const auto feedback = decode_feedback_frame(golden);
   ASSERT_TRUE(feedback.has_value());
   EXPECT_EQ(feedback->status_flags, 0x02U);
@@ -234,7 +234,7 @@ TEST(RcSerialProtocol, DecodesExactTelemetryLayoutSourcesAndUnits) {
   EXPECT_EQ(feedback->sequence, 0x5AU);
   EXPECT_EQ(feedback->hall_delta_count_command_signed, -3);
   EXPECT_DOUBLE_EQ(feedback->hall_speed_command_signed_mps, -0.500);
-  EXPECT_DOUBLE_EQ(feedback->steering_angle_estimate_rad, 0.262);
+  EXPECT_DOUBLE_EQ(feedback->steering_angle_estimate_rad, 0.349);
   EXPECT_DOUBLE_EQ(feedback->yaw_rate_estimate_rad_s, -0.100);
   EXPECT_EQ(feedback->battery_mv, 12150U);
   EXPECT_EQ(feedback->dt_ms, 50U);

@@ -15,22 +15,22 @@
     nominal:
       vel_lim: 3.0
       reference_speed_points: [0.0, 1.0, 3.0, 5.0]
-      steer_cmd_lim: [0.262, 0.262, 0.262, 0.262]
+      steer_cmd_lim: [0.349, 0.349, 0.349, 0.349]
       steer_rate_lim_for_steer_cmd: [0.9, 0.9, 0.9, 0.8]
       lon_acc_lim_for_lon_vel: [0.6, 0.6, 0.6, 0.6]
       lon_jerk_lim_for_lon_acc: [8.0, 5.0, 4.0, 3.0]
       lat_acc_lim_for_steer_cmd: [2.0, 2.0, 1.8, 1.6]
       lat_jerk_lim_for_steer_cmd: [7.0, 7.0, 6.0, 5.0]
       lat_jerk_lim_for_steer_rate: 10.0
-      steer_cmd_diff_lim_from_current_steer: [0.262, 0.262, 0.262, 0.262]
+      steer_cmd_diff_lim_from_current_steer: [0.349, 0.349, 0.349, 0.349]
     on_transition:
       vel_lim: 3.0
       reference_speed_points: [0.0, 1.0, 3.0, 5.0]
-      steer_cmd_lim: [0.262, 0.262, 0.262, 0.262]
+      steer_cmd_lim: [0.349, 0.349, 0.349, 0.349]
       steer_rate_lim_for_steer_cmd: [0.9, 0.9, 0.9, 0.8]
       lon_acc_lim_for_lon_vel: [0.6, 0.6, 0.6, 0.6]
       lon_jerk_lim_for_lon_acc: [8.0, 5.0, 4.0, 3.0]
       lat_acc_lim_for_steer_cmd: [2.0, 2.0, 1.8, 1.6]
       lat_jerk_lim_for_steer_cmd: [7.0, 7.0, 6.0, 5.0]
       lat_jerk_lim_for_steer_rate: 10.0
-      steer_cmd_diff_lim_from_current_steer: [0.262, 0.262, 0.262, 0.262]
+      steer_cmd_diff_lim_from_current_steer: [0.349, 0.349, 0.349, 0.349]

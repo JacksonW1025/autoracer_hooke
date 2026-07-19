@@ -88,7 +88,7 @@ def test_vehicle_parameters_match_frozen_firmware_and_confirmed_boundaries():
     assert params["baud_rate"] == 115200
     assert params["maximum_command_speed_mps"] == 3.0
     assert params["minimum_command_speed_mps"] == 0.3
-    assert params["max_steering_tire_angle_rad"] == 0.262
+    assert params["max_steering_tire_angle_rad"] == 0.349
     assert params["firmware_command_timeout_ms"] == 250
     assert params["emergency_status_timeout_ms"] == 250
     assert params["hall_feedback_acquisition_timeout_ms"] == 1500
@@ -225,7 +225,7 @@ def test_rc_vehicle_info_matches_the_confirmed_geometry():
         "left_overhang": 0.050,
         "right_overhang": 0.050,
         "vehicle_height": 0.515,
-        "max_steer_angle": 0.262,
+        "max_steer_angle": 0.349,
     }
     assert round(
         params["wheel_base"]
@@ -246,8 +246,8 @@ def test_rc_gate_uses_rc_speed_and_steering_boundaries():
     for profile_name in ("nominal", "on_transition"):
         profile = params[profile_name]
         assert profile["vel_lim"] == 3.0
-        assert profile["steer_cmd_lim"] == [0.262] * 4
-        assert profile["steer_cmd_diff_lim_from_current_steer"] == [0.262] * 4
+        assert profile["steer_cmd_lim"] == [0.349] * 4
+        assert profile["steer_cmd_diff_lim_from_current_steer"] == [0.349] * 4
         assert max(profile["steer_rate_lim_for_steer_cmd"]) <= 0.9
         assert profile["lon_acc_lim_for_lon_vel"] == [0.6] * 4
     assert "0.488" not in VEHICLE_CMD_GATE_SOURCE
