@@ -86,6 +86,8 @@ public:
       declare_parameter<std::int64_t>("reconnect_period_ms", 1000);
     base_frame_id_ =
       declare_parameter<std::string>("base_frame_id", "base_link");
+    telemetry_only_ =
+      declare_parameter<bool>("telemetry_only", false);
 
     validate_parameters();
     emergency_status_monitor_ =
@@ -96,24 +98,26 @@ public:
 
     const auto command_qos =
       rclcpp::QoS(rclcpp::KeepLast(1)).reliable().durability_volatile();
-    command_subscription_ =
-      create_subscription<autoware_control_msgs::msg::Control>(
-      "/control/command/control_cmd", command_qos,
-      std::bind(
-        &RcVehicleInterfaceNode::on_control_command, this,
-        std::placeholders::_1));
-    gear_subscription_ =
-      create_subscription<autoware_vehicle_msgs::msg::GearCommand>(
-      "/control/command/gear_cmd", command_qos,
-      std::bind(
-        &RcVehicleInterfaceNode::on_gear_command, this,
-        std::placeholders::_1));
-    emergency_subscription_ =
-      create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
-      "/control/command/emergency_cmd", command_qos,
-      std::bind(
-        &RcVehicleInterfaceNode::on_emergency_status, this,
-        std::placeholders::_1));
+    if (!telemetry_only_) {
+      command_subscription_ =
+        create_subscription<autoware_control_msgs::msg::Control>(
+        "/control/command/control_cmd", command_qos,
+        std::bind(
+          &RcVehicleInterfaceNode::on_control_command, this,
+          std::placeholders::_1));
+      gear_subscription_ =
+        create_subscription<autoware_vehicle_msgs::msg::GearCommand>(
+        "/control/command/gear_cmd", command_qos,
+        std::bind(
+          &RcVehicleInterfaceNode::on_gear_command, this,
+          std::placeholders::_1));
+      emergency_subscription_ =
+        create_subscription<tier4_vehicle_msgs::msg::VehicleEmergencyStamped>(
+        "/control/command/emergency_cmd", command_qos,
+        std::bind(
+          &RcVehicleInterfaceNode::on_emergency_status, this,
+          std::placeholders::_1));
+    }
     velocity_publisher_ =
       create_publisher<autoware_vehicle_msgs::msg::VelocityReport>(
       "/vehicle/status/velocity_status", command_qos);
@@ -126,12 +130,14 @@ public:
     control_mode_publisher_ =
       create_publisher<autoware_vehicle_msgs::msg::ControlModeReport>(
       "/vehicle/status/control_mode", command_qos);
-    control_mode_service_ =
-      create_service<autoware_vehicle_msgs::srv::ControlModeCommand>(
-      "/control/control_mode_request",
-      std::bind(
-        &RcVehicleInterfaceNode::on_control_mode_request, this,
-        std::placeholders::_1, std::placeholders::_2));
+    if (!telemetry_only_) {
+      control_mode_service_ =
+        create_service<autoware_vehicle_msgs::srv::ControlModeCommand>(
+        "/control/control_mode_request",
+        std::bind(
+          &RcVehicleInterfaceNode::on_control_mode_request, this,
+          std::placeholders::_1, std::placeholders::_2));
+    }
 
     next_reconnect_attempt_ = std::chrono::steady_clock::now();
     last_stats_log_ = std::chrono::steady_clock::now();
@@ -139,27 +145,38 @@ public:
       std::chrono::milliseconds(serial_poll_period_ms_),
       std::bind(&RcVehicleInterfaceNode::on_serial_timer, this));
 
-    RCLCPP_INFO(
-      get_logger(),
-      "RC vehicle interface configured for %s at 115200 8N1; it "
-      "does not write merely because the serial port opened; active motion "
-      "requires a fresh clear emergency status, accepted AUTONOMOUS mode "
-      "and a fresh Control message; a formal emergency or safety fault "
-      "sends one firmware software-stop frame; Control velocity/steering map "
-      "directly to firmware speed/steering; Control acceleration and "
-      "jerk are unsupported by this chassis and intentionally ignored; "
-      "gear is a platform-side direction contract, not chassis hardware; "
-      "a historical firmware fault latch is cleared only by a one-shot, "
-      "zero-valued diagnostic handshake before motion is released",
-      serial_port_.c_str());
+    if (telemetry_only_) {
+      RCLCPP_INFO(
+        get_logger(),
+        "RC vehicle interface configured for telemetry-only access to %s at "
+        "115200 8N1; the serial port is opened read-only once, tty output "
+        "remains suspended, all command endpoints are absent, all frame "
+        "writes are blocked, and disconnects do not reconnect",
+        serial_port_.c_str());
+    } else {
+      RCLCPP_INFO(
+        get_logger(),
+        "RC vehicle interface configured for %s at 115200 8N1; it "
+        "does not write merely because the serial port opened; active motion "
+        "requires a fresh clear emergency status, accepted AUTONOMOUS mode "
+        "and a fresh Control message; a formal emergency or safety fault "
+        "sends one firmware software-stop frame; Control velocity/steering "
+        "map directly to firmware speed/steering; Control acceleration and "
+        "jerk are unsupported by this chassis and intentionally ignored; "
+        "gear is a platform-side direction contract, not chassis hardware; "
+        "a historical firmware fault latch is cleared only by a one-shot, "
+        "zero-valued diagnostic handshake before motion is released",
+        serial_port_.c_str());
+    }
   }
 
   ~RcVehicleInterfaceNode() override
   {
-    if (serial_fd_ >= 0 && has_transmitted_command_) {
+    if (!telemetry_only_ && serial_fd_ >= 0 && has_transmitted_command_) {
       (void)transmit_software_stop("orderly shutdown");
     }
     if (serial_fd_ >= 0) {
+      discard_telemetry_output(serial_fd_);
       (void)::close(serial_fd_);
       serial_fd_ = -1;
     }
@@ -198,6 +215,13 @@ private:
 
   bool configure_serial(const int file_descriptor) const
   {
+    if (telemetry_only_ && ::tcflow(file_descriptor, TCOOFF) != 0) {
+      RCLCPP_ERROR(
+        get_logger(), "failed to suspend tty output for %s: %s",
+        serial_port_.c_str(), std::strerror(errno));
+      return false;
+    }
+
     termios settings{};
     if (::tcgetattr(file_descriptor, &settings) != 0) {
       RCLCPP_ERROR(
@@ -229,7 +253,20 @@ private:
         serial_port_.c_str(), std::strerror(errno));
       return false;
     }
+    if (telemetry_only_ && ::tcflush(file_descriptor, TCOFLUSH) != 0) {
+      RCLCPP_ERROR(
+        get_logger(), "failed to flush tty output for %s: %s",
+        serial_port_.c_str(), std::strerror(errno));
+      return false;
+    }
     return true;
+  }
+
+  void discard_telemetry_output(const int file_descriptor) const noexcept
+  {
+    if (telemetry_only_) {
+      (void)::tcflush(file_descriptor, TCOFLUSH);
+    }
   }
 
   void try_open_serial()
@@ -242,12 +279,17 @@ private:
     if (now < next_reconnect_attempt_) {
       return;
     }
+    if (telemetry_only_ && telemetry_open_attempted_) {
+      return;
+    }
+    telemetry_open_attempted_ = telemetry_only_;
     next_reconnect_attempt_ =
       now + std::chrono::milliseconds(reconnect_period_ms_);
 
     const int candidate = ::open(
       serial_port_.c_str(),
-      O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
+      (telemetry_only_ ? O_RDONLY : O_RDWR) |
+      O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
     if (candidate < 0) {
       RCLCPP_WARN_THROTTLE(
         get_logger(), *get_clock(), 5000,
@@ -256,6 +298,7 @@ private:
       return;
     }
     if (!configure_serial(candidate)) {
+      discard_telemetry_output(candidate);
       (void)::close(candidate);
       return;
     }
@@ -265,6 +308,9 @@ private:
     ++connection_count_;
     RCLCPP_INFO(
       get_logger(),
+      telemetry_only_ ?
+      "opened %s once in read-only raw 115200 8N1 telemetry mode with tty "
+      "output suspended (connection=%llu)" :
       "opened %s in raw 115200 8N1 mode (connection=%llu)",
       serial_port_.c_str(),
       static_cast<unsigned long long>(connection_count_));
@@ -275,6 +321,7 @@ private:
     if (serial_fd_ < 0) {
       return;
     }
+    discard_telemetry_output(serial_fd_);
     (void)::close(serial_fd_);
     serial_fd_ = -1;
     autonomous_requested_ = false;
@@ -286,8 +333,10 @@ private:
     hall_feedback_monitor_.reset();
     feedback_decoder_.discard_buffer();
     ++disconnect_count_;
-    next_reconnect_attempt_ = std::chrono::steady_clock::now() +
-      std::chrono::milliseconds(reconnect_period_ms_);
+    if (!telemetry_only_) {
+      next_reconnect_attempt_ = std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(reconnect_period_ms_);
+    }
     RCLCPP_WARN(
       get_logger(), "closed %s after %s (disconnects=%llu)",
       serial_port_.c_str(), reason,
@@ -296,6 +345,13 @@ private:
 
   bool write_frame(const std::array<std::uint8_t, kRcCommandFrameSize> & frame)
   {
+    if (telemetry_only_) {
+      ++blocked_transmit_count_;
+      RCLCPP_ERROR(
+        get_logger(),
+        "blocked an internal frame-write attempt in telemetry-only mode");
+      return false;
+    }
     if (serial_fd_ < 0) {
       return false;
     }
@@ -418,7 +474,7 @@ private:
         "this is not a physical emergency stop",
         reason);
     }
-    if (serial_fd_ >= 0 && !safety_stop_sent_) {
+    if (!telemetry_only_ && serial_fd_ >= 0 && !safety_stop_sent_) {
       safety_stop_sent_ = transmit_software_stop(reason);
     }
   }
@@ -951,7 +1007,7 @@ private:
     RCLCPP_INFO(
       get_logger(),
       "serial stats connected=%s valid=%llu bcc=%llu tail=%llu protocol=%llu "
-      "discarded=%llu tx=%llu "
+      "discarded=%llu telemetry_only=%s tx=%llu blocked_tx=%llu "
       "read_errors=%llu write_errors=%llu connections=%llu disconnects=%llu "
       "battery_mv=%u "
       "status_flags=0x%02x status_bits=0x%08x seq=%u dt_ms=%u "
@@ -969,7 +1025,9 @@ private:
       static_cast<unsigned long long>(decoder_stats.tail_errors),
       static_cast<unsigned long long>(decoder_stats.protocol_errors),
       static_cast<unsigned long long>(decoder_stats.discarded_bytes),
+      telemetry_only_ ? "true" : "false",
       static_cast<unsigned long long>(transmitted_frame_count_),
+      static_cast<unsigned long long>(blocked_transmit_count_),
       static_cast<unsigned long long>(read_error_count_),
       static_cast<unsigned long long>(write_error_count_),
       static_cast<unsigned long long>(connection_count_),
@@ -1030,9 +1088,11 @@ private:
   std::int64_t hall_feedback_loss_timeout_ms_{250};
   std::int64_t serial_poll_period_ms_{10};
   std::int64_t reconnect_period_ms_{1000};
+  bool telemetry_only_{false};
   VehicleCommandLimits command_limits_;
 
   int serial_fd_{-1};
+  bool telemetry_open_attempted_{false};
   FeedbackStreamDecoder feedback_decoder_;
   EmergencyStatusMonitor emergency_status_monitor_{250};
   HallFeedbackMonitor hall_feedback_monitor_{1500, 250};
@@ -1062,6 +1122,7 @@ private:
   double last_steering_estimate_rad_{0.0};
   double last_yaw_rate_estimate_rad_s_{0.0};
   std::uint64_t transmitted_frame_count_{0U};
+  std::uint64_t blocked_transmit_count_{0U};
   std::uint64_t read_error_count_{0U};
   std::uint64_t write_error_count_{0U};
   std::uint64_t connection_count_{0U};

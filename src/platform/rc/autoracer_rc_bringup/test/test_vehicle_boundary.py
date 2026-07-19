@@ -83,6 +83,27 @@ def test_vehicle_launch_uses_a_stable_overridable_chassis_identity():
         assert unstable_name not in VEHICLE_CONFIG_SOURCE
 
 
+def test_telemetry_only_mode_is_explicit_receive_only_and_fail_closed():
+    assert 'LaunchConfiguration("telemetry_only")' in VEHICLE_LAUNCH_SOURCE
+    assert '"telemetry_only",\n                default_value="false"' in (
+        VEHICLE_LAUNCH_SOURCE
+    )
+    assert '"telemetry_only": ParameterValue(' in VEHICLE_LAUNCH_SOURCE
+    assert 'declare_parameter<bool>("telemetry_only", false)' in (
+        VEHICLE_NODE_SOURCE
+    )
+    assert "if (!telemetry_only_)" in VEHICLE_NODE_SOURCE
+    assert "telemetry_only_ ? O_RDONLY : O_RDWR" in VEHICLE_NODE_SOURCE
+    assert "telemetry_open_attempted_" in VEHICLE_NODE_SOURCE
+    assert "::tcflow(file_descriptor, TCOOFF)" in VEHICLE_NODE_SOURCE
+    assert "::tcflush(file_descriptor, TCOFLUSH)" in VEHICLE_NODE_SOURCE
+    assert "discard_telemetry_output(serial_fd_)" in VEHICLE_NODE_SOURCE
+    assert "blocked an internal frame-write attempt" in VEHICLE_NODE_SOURCE
+    assert "blocked_transmit_count_" in VEHICLE_NODE_SOURCE
+    assert "output suspended" in VEHICLE_NODE_SOURCE
+    assert "disconnects do not reconnect" in VEHICLE_NODE_SOURCE
+
+
 def test_vehicle_parameters_match_frozen_firmware_and_confirmed_boundaries():
     params = _vehicle_parameters()
     assert params["baud_rate"] == 115200

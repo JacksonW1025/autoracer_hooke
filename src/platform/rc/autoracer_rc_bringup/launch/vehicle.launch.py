@@ -8,6 +8,7 @@ from launch_ros.parameter_descriptions import ParameterFile, ParameterValue
 
 def generate_launch_description():
     serial_port = LaunchConfiguration("serial_port")
+    telemetry_only = LaunchConfiguration("telemetry_only")
     vehicle_param_file = LaunchConfiguration("vehicle_param_file")
     use_sim_time = LaunchConfiguration("use_sim_time")
 
@@ -26,6 +27,11 @@ def generate_launch_description():
             DeclareLaunchArgument(
                 "vehicle_param_file", default_value=default_vehicle_param_file
             ),
+            DeclareLaunchArgument(
+                "telemetry_only",
+                default_value="false",
+                description="Read chassis telemetry without any command endpoint.",
+            ),
             DeclareLaunchArgument("use_sim_time", default_value="false"),
             Node(
                 package="autoracer_rc_adapter",
@@ -36,6 +42,9 @@ def generate_launch_description():
                     ParameterFile(vehicle_param_file, allow_substs=True),
                     {
                         "serial_port": ParameterValue(serial_port, value_type=str),
+                        "telemetry_only": ParameterValue(
+                            telemetry_only, value_type=bool
+                        ),
                         "use_sim_time": ParameterValue(use_sim_time, value_type=bool),
                     },
                 ],

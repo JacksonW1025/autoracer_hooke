@@ -10,12 +10,16 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>autoracer_localization</exec_depend>
+  <exec_depend>autoracer_planning</exec_depend>
   <exec_depend>autoracer_rc_adapter</exec_depend>
   <exec_depend>autoracer_rc_description</exec_depend>
+  <exec_depend>autoware_gnss_poser</exec_depend>
   <exec_depend>hipnuc_imu</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>lslidar_driver</exec_depend>
+  <exec_depend>nmea_navsat_driver</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
   <test_depend>python3-yaml</test_depend>

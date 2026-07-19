@@ -39,7 +39,7 @@ repositories:
     url: https://github.com/tier4/autoware_core.git
     version: f24f324ef73307b0da6a8959735ecc9aca5ff133
 
-  # Only packages listed in vendor-packages.tsv are copied into the underlay.
+  # Only packages listed in vendor-packages-rc.tsv are copied into the underlay.
   autoware/universe:
     type: git
     url: https://github.com/tier4/autoware_universe.git
@@ -50,10 +50,12 @@ repositories:
     url: https://github.com/autowarefoundation/managed_transform_buffer.git
     version: b12c9c11bccdb0ea24ac3665c91f0933ba43752f
 
+  # Public 0.50.0 source plus the locked gnss_enabled patch is byte-equivalent
+  # to the launcher package previously used by this product.
   autoware/launcher:
     type: git
-    url: https://github.com/tier4/autoware_launch.x1.git
-    version: d9fa76bfb2201d6015c0544765d6bfa67430e7d2
+    url: https://github.com/autowarefoundation/autoware_launch.git
+    version: 0f3946af9c5ec1cba491681b6927c6fcf577ed25
 
   vendor/nebula:
     type: git
@@ -84,8 +86,3 @@ repositories:
     type: git
     url: https://github.com/ros-drivers/nmea_navsat_driver.git
     version: 6b1195aac34de64e88bcc476fd425900256095f1
-
-  whale_components:
-    type: git
-    url: git@gitee.com:shaobodang/whale_components.git
-    version: eef52bab445729a9c495c15f0d3c62b6a6f443ec

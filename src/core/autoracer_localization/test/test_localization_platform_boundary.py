@@ -31,3 +31,11 @@ def test_localization_launch_does_not_own_platform_normalization():
         "topic_tools",
     ):
         assert token not in LAUNCH_SOURCE
+
+
+def test_tiled_map_loader_publishes_metadata():
+    assert '"enable_selected_load": True' in LAUNCH_SOURCE
+    assert (
+        '("output/pointcloud_map_metadata", "/map/pointcloud_map_metadata")'
+        in LAUNCH_SOURCE
+    )

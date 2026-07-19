@@ -3,7 +3,7 @@ IMU_publisher:
     baud_rate: 115200
     frame_id: imu_link
     imu_switch: true
-    imu_topic: /sensing/imu/imu_data
+    imu_topic: /sensing/imu/raw/imu_data
     euler_switch: false
     magnetic_switch: false
     temperature_switch: false

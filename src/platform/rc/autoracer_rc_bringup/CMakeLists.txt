@@ -17,6 +17,10 @@ if(BUILD_TESTING)
     autoracer_rc_vehicle_boundary
     test/test_vehicle_boundary.py
   )
+  ament_add_pytest_test(
+    autoracer_rc_localization_bench_boundary
+    test/test_localization_bench_boundary.py
+  )
 endif()
 
 ament_package()
