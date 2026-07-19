@@ -1,6 +1,5 @@
 rc_vehicle_interface:
   ros__parameters:
-    serial_port: /dev/autoracer_rc_chassis
     baud_rate: 115200
     maximum_command_speed_mps: 3.0
     minimum_command_speed_mps: 0.3

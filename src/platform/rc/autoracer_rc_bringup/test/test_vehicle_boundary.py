@@ -71,6 +71,10 @@ def _runtime_parameters():
 def test_vehicle_launch_uses_a_stable_overridable_chassis_identity():
     assert "/dev/autoracer_rc_chassis" in VEHICLE_LAUNCH_SOURCE
     assert 'LaunchConfiguration("serial_port")' in VEHICLE_LAUNCH_SOURCE
+    assert '"serial_port": ParameterValue(serial_port, value_type=str)' in (
+        VEHICLE_LAUNCH_SOURCE
+    )
+    assert "serial_port" not in _vehicle_parameters()
     assert "1a86" in UDEV_SOURCE
     assert "55d4" in UDEV_SOURCE
     assert "0003" in UDEV_SOURCE
@@ -81,7 +85,6 @@ def test_vehicle_launch_uses_a_stable_overridable_chassis_identity():
 
 def test_vehicle_parameters_match_frozen_firmware_and_confirmed_boundaries():
     params = _vehicle_parameters()
-    assert params["serial_port"] == "/dev/autoracer_rc_chassis"
     assert params["baud_rate"] == 115200
     assert params["maximum_command_speed_mps"] == 3.0
     assert params["minimum_command_speed_mps"] == 0.3
