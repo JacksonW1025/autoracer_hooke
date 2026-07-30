@@ -144,7 +144,27 @@ def test_build_asset_uses_continuous_gt_and_independent_holdout(tmp_path):
         preview,
         config,
     )
-    preview_samples = load_course_csv(preview / "course.csv")
+    preview_manifest, preview_samples = load_course_asset(preview)
+    assert "road_extents.csv" not in preview_manifest["assets"]
+    assert "road_eval_functional_corridor" not in preview_manifest["validation"]["checks"]
+
+    preview_rows = list(
+        csv.DictReader((preview / "course.csv").open(encoding="ascii", newline=""))
+    )
+    preview_rows[-1]["target_velocity"] = "0.500000000"
+    with (preview / "course.csv").open("w", encoding="ascii", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=preview_rows[0])
+        writer.writeheader()
+        writer.writerows(preview_rows)
+    preview_manifest["assets"]["course.csv"]["sha256"] = sha256_file(
+        preview / "course.csv"
+    )
+    (preview / "manifest.json").write_text(
+        json.dumps(preview_manifest), encoding="ascii"
+    )
+    with pytest.raises(ValueError, match="terminate at zero velocity"):
+        load_course_asset(preview)
+
     road_file = tmp_path / "road.rd5"
     road_file.write_text("synthetic road\n", encoding="ascii")
     road_extents = tmp_path / "road_extents.csv"

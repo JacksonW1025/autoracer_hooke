@@ -410,6 +410,78 @@ def load_course_csv(path: Path) -> list[CourseSample]:
     return samples
 
 
+def _validate_runtime_course_contract(
+    manifest: dict, samples: Sequence[CourseSample]
+) -> None:
+    if manifest.get("frame_id") != "map":
+        raise ValueError("course manifest frame_id must be map")
+
+    map_id = manifest.get("map_id")
+    map_contract = manifest.get("map")
+    if (
+        not isinstance(map_id, str)
+        or not map_id
+        or not isinstance(map_contract, dict)
+        or map_contract.get("id") != map_id
+    ):
+        raise ValueError("course manifest has no consistent map_id contract")
+
+    assets = manifest.get("assets")
+    course_contract = assets.get("course.csv") if isinstance(assets, dict) else None
+    if not isinstance(course_contract, dict):
+        raise ValueError("course manifest has no course.csv hash contract")
+    if int(course_contract.get("rows", -1)) != len(samples):
+        raise ValueError("course.csv row count does not match its manifest")
+
+    checks = manifest.get("validation", {}).get("checks")
+    required_checks = (
+        "finite",
+        "s_strictly_increasing",
+        "positive_offsets",
+        "speed_bounded",
+        "terminal_stop",
+    )
+    if not isinstance(checks, dict) or not all(
+        checks.get(name) is True for name in required_checks
+    ):
+        raise ValueError("course manifest has not passed the common route checks")
+
+    if not all(
+        math.isfinite(value)
+        for sample in samples
+        for value in asdict(sample).values()
+    ):
+        raise ValueError("course contains a non-finite value")
+    if abs(samples[0].s) > 1e-6:
+        raise ValueError("course must start at s=0")
+    if not all(
+        current.s > previous.s for previous, current in zip(samples, samples[1:])
+    ):
+        raise ValueError("course s must be strictly increasing")
+    if not all(
+        sample.left_offset > 0.0 and sample.right_offset > 0.0
+        for sample in samples
+    ):
+        raise ValueError("course offsets must be positive")
+
+    speed_profile = manifest.get("speed_profile")
+    if not isinstance(speed_profile, dict):
+        raise ValueError("course manifest has no speed profile")
+    try:
+        max_speed = float(speed_profile["max_speed_mps"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("course maximum speed is missing or invalid") from error
+    if not math.isfinite(max_speed) or max_speed <= 0.0:
+        raise ValueError("course maximum speed is invalid")
+    if not all(
+        -1e-9 <= sample.target_velocity <= max_speed + 1e-6
+        for sample in samples
+    ):
+        raise ValueError("course target velocity exceeds its manifest bounds")
+    if abs(samples[-1].target_velocity) > 1e-9:
+        raise ValueError("course must terminate at zero velocity")
+
+
 def load_road_extents(path: Path) -> list[RoadExtentSample]:
     extents: list[RoadExtentSample] = []
     with path.open("r", encoding="ascii", newline="") as stream:
@@ -526,7 +598,16 @@ def load_course_asset(asset_dir: Path) -> tuple[dict, list[CourseSample]]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema_version") != 2:
         raise ValueError("course manifest schema version is not 2")
-    for filename, contract in manifest.get("assets", {}).items():
+    assets = manifest.get("assets")
+    if not isinstance(assets, dict) or "course.csv" not in assets:
+        raise ValueError("course manifest has no course.csv asset")
+    for filename, contract in assets.items():
+        if (
+            not isinstance(filename, str)
+            or Path(filename).name != filename
+            or not isinstance(contract, dict)
+        ):
+            raise ValueError("course manifest contains an invalid asset contract")
         asset_path = asset_dir / filename
         if not asset_path.is_file():
             raise ValueError(f"course asset is missing: {asset_path}")
@@ -539,15 +620,9 @@ def load_course_asset(asset_dir: Path) -> tuple[dict, list[CourseSample]]:
             )
     if manifest.get("validation", {}).get("status") != "PASS":
         raise ValueError("course manifest validation status is not PASS")
-    if (
-        manifest.get("validation", {})
-        .get("checks", {})
-        .get("road_eval_functional_corridor")
-        is not True
-        or "road_extents.csv" not in manifest.get("assets", {})
-    ):
-        raise ValueError("course manifest has no validated RoadEval functional corridor")
-    return manifest, load_course_csv(course_path)
+    samples = load_course_csv(course_path)
+    _validate_runtime_course_contract(manifest, samples)
+    return manifest, samples
 
 
 def validate_course_map_contract(manifest: dict, map_path: Path) -> None:

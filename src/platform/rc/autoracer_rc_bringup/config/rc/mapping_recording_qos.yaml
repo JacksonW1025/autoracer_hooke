@@ -1,0 +1,34 @@
+/sensing/lidar/raw/pointcloud:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/sensing/imu/raw/imu_data:
+  history: keep_last
+  depth: 200
+  reliability: best_effort
+  durability: volatile
+
+/g90/raw/nmea_sentence:
+  history: keep_last
+  depth: 200
+  reliability: best_effort
+  durability: volatile
+
+/tf_static:
+  history: keep_all
+  reliability: reliable
+  durability: transient_local
+
+/tf:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile
+
+/diagnostics:
+  history: keep_last
+  depth: 100
+  reliability: best_effort
+  durability: volatile

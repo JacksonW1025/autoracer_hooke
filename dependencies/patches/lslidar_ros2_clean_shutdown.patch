@@ -1,0 +1,109 @@
+diff --git a/src/vendor/lslidar_ros2/lslidar_driver/include/lslidar_driver/lslidar_driver.h b/src/vendor/lslidar_ros2/lslidar_driver/include/lslidar_driver/lslidar_driver.h
+index e740925..090a3d5 100644
+--- a/src/vendor/lslidar_ros2/lslidar_driver/include/lslidar_driver/lslidar_driver.h
++++ b/src/vendor/lslidar_ros2/lslidar_driver/include/lslidar_driver/lslidar_driver.h
+@@ -189,7 +189,7 @@ namespace lslidar_driver {
+ 
+         LslidarDriver(const rclcpp::NodeOptions &options);
+ 
+-        virtual ~LslidarDriver() {}
++        virtual ~LslidarDriver();
+ 
+         bool checkPacketValidity(lslidar_msgs::msg::LslidarPacket::UniquePtr &packet);
+ 
+diff --git a/src/vendor/lslidar_ros2/lslidar_driver/src/input.cpp b/src/vendor/lslidar_ros2/lslidar_driver/src/input.cpp
+index f778b7b..27ec60f 100644
+--- a/src/vendor/lslidar_ros2/lslidar_driver/src/input.cpp
++++ b/src/vendor/lslidar_ros2/lslidar_driver/src/input.cpp
+@@ -1,7 +1,6 @@
+ #include "lslidar_driver/input.h"
+ #include <cmath>
+ 
+-extern volatile sig_atomic_t flag;
+ namespace lslidar_driver {
+ ////////////////////////////////////////////////////////////////////////
+ // Input base class implementation
+@@ -95,7 +94,7 @@ namespace lslidar_driver {
+ 
+         sockaddr_in sender_address{};
+         socklen_t sender_address_len = sizeof(sender_address);
+-        while (flag == 1) {
++        while (rclcpp::ok()) {
+             // Receive packets that should now be available from the
+             // socket using a blocking read.
+             // poll() until input available
+@@ -129,11 +128,7 @@ namespace lslidar_driver {
+             }
+         }
+ 
+-        if (flag == 0) {
+-            throw std::runtime_error("Signal received, process terminated.");
+-        }
+-
+-        return 0;
++        return rclcpp::ok() ? 0 : 1;
+     }
+ 
+ ////////////////////////////////////////////////////////////////////////
+@@ -192,7 +187,7 @@ namespace lslidar_driver {
+         struct pcap_pkthdr *header;
+         const u_char *pkt_data;
+ 
+-        while (flag == 1) {
++        while (rclcpp::ok()) {
+             int res;
+             if ((res = pcap_next_ex(pcap_, &header, &pkt_data)) >= 0) {
+                 // Skip packets not for the correct port and from the
+@@ -235,10 +230,6 @@ namespace lslidar_driver {
+             empty_ = true;  // maybe the file disappeared?
+         }                 // loop back and try again
+ 
+-        if (flag == 0) {
+-            throw std::runtime_error("Signal received, process terminated.");
+-        }
+-        
+-  		return 0;
++        return 1;
+     }
+ }
+diff --git a/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver.cpp b/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver.cpp
+index 8e57cf4..39a0df7 100644
+--- a/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver.cpp
++++ b/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver.cpp
+@@ -50,6 +50,15 @@ namespace lslidar_driver {
+         return;
+     }
+ 
++    LslidarDriver::~LslidarDriver() {
++        if (difop_thread_ && difop_thread_->joinable()) {
++            difop_thread_->join();
++        }
++        if (poll_thread_ && poll_thread_->joinable()) {
++            poll_thread_->join();
++        }
++    }
++
+     bool LslidarDriver::checkPacketValidity(lslidar_msgs::msg::LslidarPacket::UniquePtr &packet) {
+         for (size_t blk_idx = 0; blk_idx < 6; ++blk_idx) {
+             if (packet->data[blk_idx * 100] != 0xff && packet->data[blk_idx * 100 + 1] != 0xee) {
+diff --git a/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver_node.cpp b/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver_node.cpp
+index 9274ef2..0190032 100644
+--- a/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver_node.cpp
++++ b/src/vendor/lslidar_ros2/lslidar_driver/src/lslidar_driver_node.cpp
+@@ -2,16 +2,9 @@
+ #include "std_msgs/msg/string.h"
+ 
+ using namespace lslidar_driver;
+-volatile sig_atomic_t flag = 1;
+-
+-static void my_handler([[maybe_unused]] int sig) {
+-    LS_ERROR << "Signal received, ending process." << LS_END;
+-    flag = 0;
+-}
+ 
+ int main(int argc, char **argv) {
+     rclcpp::init(argc, argv);
+-    signal(SIGINT, my_handler);
+     auto node = std::make_shared<lslidar_driver::LslidarDriver>();
+     if (!node->initialize()) {
+         LS_ERROR << "cannot initialize lslidar driver." << LS_END;

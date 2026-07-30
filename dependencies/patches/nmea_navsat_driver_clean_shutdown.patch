@@ -1,0 +1,42 @@
+diff --git a/src/vendor/nmea_navsat_driver/src/libnmea_navsat_driver/nodes/nmea_topic_serial_reader.py b/src/vendor/nmea_navsat_driver/src/libnmea_navsat_driver/nodes/nmea_topic_serial_reader.py
+--- a/src/vendor/nmea_navsat_driver/src/libnmea_navsat_driver/nodes/nmea_topic_serial_reader.py
++++ b/src/vendor/nmea_navsat_driver/src/libnmea_navsat_driver/nodes/nmea_topic_serial_reader.py
+@@ -50,20 +50,26 @@ def main(args=None):
+     # Get the frame_id
+     frame_id = driver.get_frame_id()
+ 
++    GPS = None
+     try:
+         GPS = serial.Serial(port=serial_port, baudrate=serial_baud, timeout=2)
+-        try:
+-            while rclpy.ok():
+-                data = GPS.readline().strip()
++        while rclpy.ok():
++            data = GPS.readline().strip()
+ 
+-                sentence = Sentence()
+-                sentence.header.stamp = driver.get_clock().now().to_msg()
+-                sentence.header.frame_id = frame_id
+-                sentence.sentence = data.decode("ascii")
+-                nmea_pub.publish(sentence)
+-
+-        except Exception as e:
+-            driver.get_logger().error("Ros error: {0}".format(e))
+-            GPS.close()  # Close GPS serial port
++            sentence = Sentence()
++            sentence.header.stamp = driver.get_clock().now().to_msg()
++            sentence.header.frame_id = frame_id
++            sentence.sentence = data.decode("ascii")
++            nmea_pub.publish(sentence)
++    except KeyboardInterrupt:
++        pass
+     except serial.SerialException as ex:
+         driver.get_logger().fatal("Could not open serial port: I/O error({0}): {1}".format(ex.errno, ex.strerror))
++    except Exception as e:
++        driver.get_logger().error("Ros error: {0}".format(e))
++    finally:
++        if GPS is not None:
++            GPS.close()
++        driver.destroy_node()
++        if rclpy.ok():
++            rclpy.shutdown()

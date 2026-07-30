@@ -1,0 +1,22 @@
+transforms:
+  # base_link is the rear-axle center. The C32 frame origin is its laser center,
+  # 53.5 mm below the measured top-cover center (400 mm above base_link).
+  - parent: base_link
+    child: lidar_top
+    translation: {x: 0.280, y: 0.0, z: 0.3465}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  - parent: base_link
+    child: imu_link
+    translation: {x: 0.200, y: 0.0, z: 0.240}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}
+
+  # gnss_link is the G90 ANT1 main antenna reference point: left when viewed
+  # from behind toward the vehicle front. ANT2 is at (0.280, -0.140, 0.240),
+  # so the ANT1-to-ANT2 baseline is 0.280 m toward vehicle right. In top view,
+  # the baseline passes through the lidar_top center; the approved antenna
+  # reference height is the same as imu_link.
+  - parent: base_link
+    child: gnss_link
+    translation: {x: 0.280, y: 0.140, z: 0.240}
+    rotation_rpy: {roll: 0.0, pitch: 0.0, yaw: 0.0}

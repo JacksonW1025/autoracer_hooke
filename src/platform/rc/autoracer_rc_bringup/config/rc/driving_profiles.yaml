@@ -1,0 +1,11 @@
+# Only user-approved, named real-vehicle profiles belong here.
+schema_version: 1
+profiles:
+  low_speed_1mps:
+    display_name: "1 m/s 低速验证"
+    approved: true
+    max_speed_mps: 1.0
+    max_accel_mps2: 0.4
+    max_decel_mps2: -0.6
+    command_latency_sec: 0.2
+    stopping_margin_m: 5.0
