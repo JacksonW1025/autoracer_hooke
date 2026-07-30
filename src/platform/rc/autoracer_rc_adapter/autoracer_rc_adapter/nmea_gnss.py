@@ -27,6 +27,11 @@ class Gst:
 
 
 @dataclass(frozen=True)
+class GstUnavailable:
+    """A checksum-valid GST epoch without a usable covariance estimate."""
+
+
+@dataclass(frozen=True)
 class Hdt:
     heading_true_deg: float
 
@@ -37,7 +42,7 @@ class Ths:
     mode: str
 
 
-ParsedSentence = Union[Gga, Gst, Hdt, Ths]
+ParsedSentence = Union[Gga, Gst, GstUnavailable, Hdt, Ths]
 
 
 class Quaternion(NamedTuple):
@@ -117,9 +122,10 @@ def _positive(value: float, name: str) -> float:
 
 
 class NmeaGnssGate:
-    """Accept only a complete RTK-Fixed position, heading and covariance epoch."""
+    """Accept a complete usable RTK position, heading and covariance epoch."""
 
     _TIME_EPSILON = 1e-9
+    _USABLE_RTK_QUALITIES = {4: "rtk_fixed", 5: "rtk_float"}
 
     def __init__(
         self,
@@ -179,6 +185,11 @@ class NmeaGnssGate:
         self._gst = gst
         self._gst_stamp = _finite_timestamp(stamp, "GST stamp")
 
+    def reject_gst(self) -> None:
+        """Immediately revoke a previous covariance when GST is unavailable."""
+        self._gst = None
+        self._gst_stamp = None
+
     def _rejected(self, gga: Gga, stamp: float, reason: str) -> FixDecision:
         self._last_decision_accepted = False
         return FixDecision(
@@ -201,7 +212,8 @@ class NmeaGnssGate:
         sample_stamp = _finite_timestamp(stamp, "GGA stamp")
         self._last_gga_stamp = sample_stamp
 
-        if gga.quality != 4:
+        rtk_state = self._USABLE_RTK_QUALITIES.get(gga.quality)
+        if rtk_state is None:
             return self._rejected(gga, sample_stamp, f"quality_{gga.quality}")
         if any(
             value is None
@@ -233,7 +245,7 @@ class NmeaGnssGate:
             longitude_deg=gga.longitude_deg,
             altitude_ellipsoid_m=gga.altitude_ellipsoid_m,
             accepted=True,
-            reason="rtk_fixed",
+            reason=rtk_state,
             orientation=self._orientation,
             east_variance_m2=self._gst.longitude_stddev_m**2,
             north_variance_m2=self._gst.latitude_stddev_m**2,
@@ -370,9 +382,14 @@ def _parse_gga(fields: list[str]) -> Gga:
     )
 
 
-def _parse_gst(fields: list[str]) -> Gst:
+def _parse_gst(fields: list[str]) -> Union[Gst, GstUnavailable]:
     if len(fields) < 9:
         raise NmeaParseError("GST has too few fields")
+    uncertainty_fields = fields[6:9]
+    if all(field == "" for field in uncertainty_fields):
+        return GstUnavailable()
+    if any(field == "" for field in uncertainty_fields):
+        raise NmeaParseError("incomplete GST standard deviation")
     latitude = _finite_float(fields[6], "GST latitude standard deviation")
     longitude = _finite_float(fields[7], "GST longitude standard deviation")
     altitude = _finite_float(fields[8], "GST altitude standard deviation")

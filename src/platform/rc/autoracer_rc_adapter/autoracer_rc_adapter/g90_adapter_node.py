@@ -9,6 +9,7 @@ from autoware_sensing_msgs.msg import GnssInsOrientationStamped
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from nmea_msgs.msg import Sentence
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.time import Time
@@ -19,6 +20,7 @@ from .nmea_gnss import (
     FixDecision,
     Gga,
     Gst,
+    GstUnavailable,
     Hdt,
     NmeaGnssGate,
     NmeaParseError,
@@ -272,6 +274,9 @@ class G90NmeaAdapter(Node):
         elif isinstance(parsed, Gst):
             self._gate.accept_gst(parsed, stamp)
             self._last_gst_stamp = stamp
+        elif isinstance(parsed, GstUnavailable):
+            self._gate.reject_gst()
+            self._last_gst_stamp = None
         elif isinstance(parsed, Gga):
             self._last_gga_stamp = stamp
             self._last_parse_error = ""
@@ -320,7 +325,8 @@ class G90NmeaAdapter(Node):
         receiver = self._last_receiver_decision
         if effective is not None and effective.accepted:
             status.level = DiagnosticStatus.OK
-            status.message = "RTK Fixed accepted by the Core GNSS boundary"
+            state = "Fixed" if effective.quality == 4 else "Float"
+            status.message = f"RTK {state} accepted by the Core GNSS boundary"
         elif self._last_parse_error:
             status.level = DiagnosticStatus.WARN
             status.message = f"Invalid NMEA: {self._last_parse_error}"
@@ -332,9 +338,18 @@ class G90NmeaAdapter(Node):
             status.message = effective.reason
 
         runtime_reason = self._runtime_prerequisite_reason()
+        if receiver is None:
+            receiver_rtk_state = "unknown"
+        elif receiver.quality == 4:
+            receiver_rtk_state = "fixed"
+        elif receiver.quality == 5:
+            receiver_rtk_state = "float"
+        else:
+            receiver_rtk_state = f"quality_{receiver.quality}"
         values = {
-            "receiver_rtk_fixed": str(bool(receiver and receiver.accepted)).lower(),
-            "core_boundary_fixed": str(bool(effective and effective.accepted)).lower(),
+            "receiver_fix_usable": str(bool(receiver and receiver.accepted)).lower(),
+            "receiver_rtk_state": receiver_rtk_state,
+            "core_gnss_usable": str(bool(effective and effective.accepted)).lower(),
             "reason": "waiting" if effective is None else effective.reason,
             "runtime_prerequisite": runtime_reason or "ready",
             "localization_output_enabled": str(self._enable_localization_output).lower(),
@@ -367,7 +382,7 @@ def main(args=None) -> None:
     node = G90NmeaAdapter()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()

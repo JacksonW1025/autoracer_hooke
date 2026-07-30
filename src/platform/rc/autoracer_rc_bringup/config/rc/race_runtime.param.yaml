@@ -1,7 +1,9 @@
 race_runtime_manager:
   ros__parameters:
     update_rate_hz: 20.0
-    auto_start: true
+    # Launching the full RC graph only prepares the system. The operator must
+    # explicitly call /autoracer/race/start after the entry reports READY.
+    auto_start: false
     startup_timeout_sec: 90.0
     localization_timeout_sec: 0.20
     trajectory_timeout_sec: 0.35

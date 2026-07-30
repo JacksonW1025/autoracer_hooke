@@ -277,6 +277,7 @@ def test_rc_gate_uses_rc_speed_and_steering_boundaries():
 def test_rc_runtime_grants_only_velocity_the_hall_acquisition_window():
     params = _runtime_parameters()
     vehicle_params = _vehicle_parameters()
+    assert params["auto_start"] is False
     assert params["velocity_status_timeout_sec"] == 1.75
     assert params["vehicle_status_timeout_sec"] == 0.25
     assert params["velocity_status_timeout_sec"] > (

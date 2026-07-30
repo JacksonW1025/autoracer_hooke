@@ -4,8 +4,10 @@ from diagnostic_msgs.msg import DiagnosticStatus
 from nmea_msgs.msg import Sentence
 import pytest
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from sensor_msgs.msg import NavSatFix, NavSatStatus
 
+import autoracer_rc_adapter.g90_adapter_node as g90_adapter_node
 from autoracer_rc_adapter.g90_adapter_node import G90NmeaAdapter
 
 
@@ -49,30 +51,64 @@ def capture_publishers(node):
     return events
 
 
-def send_complete_fixed_epoch(node):
+def test_external_shutdown_is_a_clean_exit(monkeypatch):
+    events = []
+
+    class FakeNode:
+        def destroy_node(self):
+            events.append("destroy")
+
+    fake_node = FakeNode()
+
+    monkeypatch.setattr(
+        g90_adapter_node.rclpy,
+        "init",
+        lambda args=None: events.append("init"),
+    )
+    monkeypatch.setattr(
+        g90_adapter_node,
+        "G90NmeaAdapter",
+        lambda: fake_node,
+    )
+
+    def stop_spin(node):
+        assert node is fake_node
+        events.append("spin")
+        raise ExternalShutdownException()
+
+    monkeypatch.setattr(g90_adapter_node.rclpy, "spin", stop_spin)
+    monkeypatch.setattr(g90_adapter_node.rclpy, "ok", lambda: False)
+
+    g90_adapter_node.main()
+
+    assert events == ["init", "spin", "destroy"]
+
+
+def send_complete_rtk_epoch(node, quality=4):
     node._on_sentence(sentence("GNTHS,90.0,A", 10.0))
     node._on_sentence(
         sentence("GPGST,092750.00,0.4,0.3,0.2,45.0,0.10,0.20,0.30", 10.05)
     )
     node._on_sentence(
         sentence(
-            "GNGGA,092750.00,2232.1234,N,11401.5678,E,4,18,0.7,"
+            f"GNGGA,092750.00,2232.1234,N,11401.5678,E,{quality},18,0.7,"
             "12.3,M,-2.4,M,0.5,0001",
             10.1,
         )
     )
 
 
-def test_stage4_default_never_exposes_unapproved_fixed_to_core(node):
+def test_default_never_exposes_unapproved_gnss_to_core(node):
     events = capture_publishers(node)
-    send_complete_fixed_epoch(node)
+    send_complete_rtk_epoch(node)
 
     assert [name for name, _ in events] == ["fix", "diagnostics"]
     fix = events[0][1]
     assert fix.status.status == NavSatStatus.STATUS_NO_FIX
     values = {item.key: item.value for item in events[1][1].status[0].values}
-    assert values["receiver_rtk_fixed"] == "true"
-    assert values["core_boundary_fixed"] == "false"
+    assert values["receiver_fix_usable"] == "true"
+    assert values["receiver_rtk_state"] == "fixed"
+    assert values["core_gnss_usable"] == "false"
     assert values["reason"] == "localization_output_disabled"
 
 
@@ -83,7 +119,7 @@ def test_calibrated_georeferenced_epoch_matches_standard_gnss_contract(node):
     node._map_projector_type = "LocalCartesianUTM"
     node._tf_ready = lambda: True
 
-    send_complete_fixed_epoch(node)
+    send_complete_rtk_epoch(node)
 
     assert [name for name, _ in events] == ["orientation", "fix", "diagnostics"]
     orientation = events[0][1]
@@ -103,14 +139,36 @@ def test_calibrated_georeferenced_epoch_matches_standard_gnss_contract(node):
     assert fix.position_covariance_type == NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
 
 
-def test_local_map_projector_blocks_even_receiver_rtk_fixed(node):
+def test_rtk_float_matches_standard_usable_gnss_contract(node):
+    events = capture_publishers(node)
+    node._enable_localization_output = True
+    node._yaw_stddev_rad = math.radians(1.5)
+    node._map_projector_type = "LocalCartesianUTM"
+    node._tf_ready = lambda: True
+
+    send_complete_rtk_epoch(node, quality=5)
+
+    assert [name for name, _ in events] == ["orientation", "fix", "diagnostics"]
+    fix = events[1][1]
+    assert fix.status.status == NavSatStatus.STATUS_GBAS_FIX
+    values = {item.key: item.value for item in events[2][1].status[0].values}
+    assert values["receiver_fix_usable"] == "true"
+    assert values["receiver_rtk_state"] == "float"
+    assert values["core_gnss_usable"] == "true"
+    assert values["reason"] == "rtk_float"
+    assert events[2][1].status[0].message == (
+        "RTK Float accepted by the Core GNSS boundary"
+    )
+
+
+def test_local_map_projector_blocks_even_receiver_rtk_fix(node):
     events = capture_publishers(node)
     node._enable_localization_output = True
     node._yaw_stddev_rad = math.radians(1.5)
     node._map_projector_type = "Local"
     node._tf_ready = lambda: True
 
-    send_complete_fixed_epoch(node)
+    send_complete_rtk_epoch(node)
 
     assert [name for name, _ in events] == ["fix", "diagnostics"]
     assert events[0][1].status.status == NavSatStatus.STATUS_NO_FIX
@@ -142,6 +200,29 @@ def test_missing_gst_never_falls_back_to_invented_covariance(node):
     assert events[0][1].position_covariance_type == NavSatFix.COVARIANCE_TYPE_UNKNOWN
     values = {item.key: item.value for item in events[1][1].status[0].values}
     assert values["reason"] == "covariance_missing"
+
+
+def test_empty_gst_revokes_previous_covariance_without_parse_error(node):
+    events = capture_publishers(node)
+    node._on_sentence(sentence("GNTHS,90.0,A", 10.0))
+    node._on_sentence(
+        sentence("GPGST,092750.00,0.4,0.3,0.2,45.0,0.10,0.20,0.30", 10.01)
+    )
+    node._on_sentence(sentence("GPGST,,,,,,,,", 10.05))
+    node._on_sentence(
+        sentence(
+            "GNGGA,092750.00,2232.1234,N,11401.5678,E,4,18,0.7,"
+            "12.3,M,-2.4,M,0.5,0001",
+            10.1,
+        )
+    )
+
+    assert [name for name, _ in events] == ["fix", "diagnostics"]
+    assert events[0][1].status.status == NavSatStatus.STATUS_NO_FIX
+    values = {item.key: item.value for item in events[1][1].status[0].values}
+    assert values["reason"] == "covariance_missing"
+    assert values["invalid_sentence_count"] == "0"
+    assert values["last_parse_error"] == "none"
 
 
 def test_statusless_hdt_is_diagnostic_only_by_default(node):
@@ -184,13 +265,13 @@ def test_unavailable_ths_revokes_previous_heading(node):
     assert values["reason"] == "heading_mode_v"
 
 
-def test_invalid_gga_immediately_revokes_previous_fixed(node):
+def test_invalid_gga_immediately_revokes_previous_usable_fix(node):
     events = capture_publishers(node)
     node._enable_localization_output = True
     node._yaw_stddev_rad = math.radians(1.5)
     node._map_projector_type = "MGRS"
     node._tf_ready = lambda: True
-    send_complete_fixed_epoch(node)
+    send_complete_rtk_epoch(node)
     events.clear()
 
     invalid = sentence(

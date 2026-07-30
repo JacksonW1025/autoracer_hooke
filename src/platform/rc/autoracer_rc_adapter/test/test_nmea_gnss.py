@@ -5,6 +5,7 @@ import pytest
 from autoracer_rc_adapter.nmea_gnss import (
     Gga,
     Gst,
+    GstUnavailable,
     Hdt,
     NmeaGnssGate,
     NmeaParseError,
@@ -93,11 +94,24 @@ def test_gst_is_interpreted_as_standard_deviation():
     assert parsed == Gst(0.10, 0.20, 0.30)
 
 
-@pytest.mark.parametrize("invalid", ("0", "-0.1", "nan", "inf", ""))
+def test_checksum_valid_empty_gst_is_covariance_unavailable():
+    assert parse_nmea_sentence(
+        sentence("GPGST,,,,,,,,")
+    ) == GstUnavailable()
+
+
+@pytest.mark.parametrize("invalid", ("0", "-0.1", "nan", "inf"))
 def test_gst_requires_positive_finite_uncertainty(invalid):
     with pytest.raises(NmeaParseError):
         parse_nmea_sentence(
             sentence(f"GPGST,092750.00,0.4,0.3,0.2,45.0,0.10,{invalid},0.30")
+        )
+
+
+def test_partially_empty_gst_is_rejected_as_malformed():
+    with pytest.raises(NmeaParseError, match="incomplete GST"):
+        parse_nmea_sentence(
+            sentence("GPGST,092750.00,0.4,0.3,0.2,45.0,0.10,,0.30")
         )
 
 
@@ -135,7 +149,7 @@ def test_invalid_ths_mode_is_rejected():
         parse_nmea_sentence(sentence("GNTHS,90.0,D"))
 
 
-def test_fixed_requires_fresh_heading_and_fresh_gst():
+def test_usable_rtk_requires_fresh_heading_and_fresh_gst():
     gate = NmeaGnssGate(heading_max_age_sec=0.3, gst_max_age_sec=0.5)
     assert gate.accept_gga(gga(), 1.0).reason == "heading_missing"
     gate.accept_heading(90.0, 1.1)
@@ -156,8 +170,31 @@ def test_explicit_heading_rejection_revokes_previous_heading():
     assert decision.reason == "heading_mode_v"
 
 
-@pytest.mark.parametrize("quality", (0, 1, 2, 5, 9))
-def test_only_gga_quality_four_is_accepted(quality):
+def test_unavailable_gst_revokes_previous_covariance():
+    gate = NmeaGnssGate()
+    gate.accept_heading(90.0, 1.0)
+    gate.accept_gst(Gst(0.1, 0.2, 0.3), 1.0)
+    gate.reject_gst()
+    decision = gate.accept_gga(gga(), 1.1)
+    assert decision.accepted is False
+    assert decision.reason == "covariance_missing"
+
+
+@pytest.mark.parametrize(
+    ("quality", "reason"),
+    ((4, "rtk_fixed"), (5, "rtk_float")),
+)
+def test_rtk_fixed_and_float_are_accepted(quality, reason):
+    gate = NmeaGnssGate()
+    gate.accept_heading(90.0, 1.0)
+    gate.accept_gst(Gst(0.1, 0.2, 0.3), 1.0)
+    decision = gate.accept_gga(gga(quality), 1.1)
+    assert decision.accepted is True
+    assert decision.reason == reason
+
+
+@pytest.mark.parametrize("quality", (0, 1, 2, 9))
+def test_non_rtk_gga_qualities_are_rejected(quality):
     gate = NmeaGnssGate()
     gate.accept_heading(90.0, 1.0)
     gate.accept_gst(Gst(0.1, 0.2, 0.3), 1.0)
@@ -187,7 +224,7 @@ def test_stale_or_future_supporting_samples_fail_closed():
     assert gate.accept_gga(gga(), 1.9).reason == "heading_stale"
 
 
-def test_fixed_silence_and_clock_reset_each_revoke_once():
+def test_usable_fix_silence_and_clock_reset_each_revoke_once():
     gate = NmeaGnssGate(fix_timeout_sec=0.5)
     gate.accept_heading(90.0, 1.0)
     gate.accept_gst(Gst(0.1, 0.2, 0.3), 1.0)

@@ -8,3 +8,10 @@ IMU_publisher:
     magnetic_switch: false
     temperature_switch: false
     pressure_switch: false
+
+imu_qos_adapter:
+  ros__parameters:
+    # Conservative RC platform floor for the HIPNUC driver, which reports
+    # unknown angular-velocity covariance as all zeros. Outdoor calibration
+    # may replace this value; zero must never reach gyro_odometer/EKF.
+    fallback_angular_velocity_stddev_radps: 0.02

@@ -37,7 +37,8 @@ def test_bench_launch_is_wall_clock_uninitialized_and_online():
     assert '"use_sim_time": "false"' in BENCH_SOURCE
     assert '"system_run_mode": "online"' in BENCH_SOURCE
     assert '"initial_pose": "[]"' in BENCH_SOURCE
-    assert '"gnss_enabled": "false"' in BENCH_SOURCE
+    assert 'DeclareLaunchArgument(\n                "gnss_enabled",\n                default_value="false"' in BENCH_SOURCE
+    assert '"gnss_enabled": gnss_enabled' in BENCH_SOURCE
     assert '"input_pointcloud": "/sensing/lidar/concatenated/pointcloud"' in (
         BENCH_SOURCE
     )
@@ -52,11 +53,17 @@ def test_vehicle_feedback_is_opt_in_and_forced_receive_only():
     assert '"telemetry_only": "false"' not in BENCH_SOURCE
 
 
-def test_bench_excludes_user_skipped_g90_from_runtime():
+def test_bench_g90_and_core_gnss_are_opt_in_but_use_the_production_path():
     assert "/dev/serial/by-id/" in BENCH_SOURCE
     assert "5AA6079369-if00" in BENCH_SOURCE
-    assert '"launch_g90": "false"' in BENCH_SOURCE
-    assert '"launch_g90_driver": "false"' in BENCH_SOURCE
+    assert "/dev/autoracer_rc_g90" not in BENCH_SOURCE
+    assert 'DeclareLaunchArgument(\n                "launch_g90",\n                default_value="false"' in BENCH_SOURCE
+    assert 'DeclareLaunchArgument(\n                "launch_g90_driver",\n                default_value=launch_g90' in BENCH_SOURCE
+    assert '"launch_g90": launch_g90' in BENCH_SOURCE
+    assert '"launch_g90_driver": launch_g90_driver' in BENCH_SOURCE
+    assert '"g90_param_file": g90_param_file' in BENCH_SOURCE
+    assert '"gnss_enabled": gnss_enabled' in BENCH_SOURCE
+    assert "automatic_pose_initializer_enabled" not in BENCH_SOURCE
     for unstable_name in ("/dev/ttyCH343", "/dev/ttyUSB", "/dev/wheeltec_"):
         assert unstable_name not in BENCH_SOURCE
 

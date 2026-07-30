@@ -1,16 +1,20 @@
-# Stage 4 keeps this false: the current maps use a Local projector and the
-# antenna transform, mount angle, and yaw covariance have not been measured.
-# 4P may enable it only with a georeferenced map and approved calibration.
+# Formal pose output uses the current field-calibrated heading contract. GGA
+# quality 4 (RTK Fixed) and 5 (RTK Float) are both usable when every runtime
+# prerequisite is present. The antenna geometry suggests a near-90 degree
+# correction, but the same-bag LIO/direct-map calibration measured 73 degrees
+# as the effective correction for the current receiver, installation, and map
+# conversion chain. A conservative 10 degree yaw standard deviation covers the
+# observed real-data residual while NDT/EKF performs map localization.
 /g90/g90_nmea_adapter:
   ros__parameters:
     frame_id: gnss_link
     base_frame: base_link
-    enable_localization_output: false
-    # Prefer status-bearing THS. Statusless HDT requires separate 4P evidence.
+    enable_localization_output: true
+    # Prefer status-bearing THS. Statusless HDT requires separate evidence.
     allow_statusless_hdt: false
-    heading_mount_offset_deg: 0.0
+    heading_mount_offset_deg: 73.0
     heading_max_age_sec: 0.3
     gst_max_age_sec: 0.5
     fix_timeout_sec: 0.5
-    yaw_stddev_deg: 0.0
+    yaw_stddev_deg: 10.0
     roll_pitch_stddev_deg: 180.0

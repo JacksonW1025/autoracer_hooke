@@ -49,8 +49,6 @@ def generate_launch_description():
             }
         ],
         remappings=[("nmea_sentence", "/g90/raw/nmea_sentence")],
-        respawn=True,
-        respawn_delay=2.0,
         condition=IfCondition(launch_g90_driver),
     )
 
@@ -179,6 +177,7 @@ def generate_launch_description():
                 executable="imu_qos_adapter_node",
                 name="imu_qos_adapter",
                 output="screen",
+                parameters=[ParameterFile(imu_param_file, allow_substs=True)],
                 remappings=[
                     ("input", "/sensing/imu/raw/imu_data"),
                     ("output", "/sensing/imu/imu_data"),

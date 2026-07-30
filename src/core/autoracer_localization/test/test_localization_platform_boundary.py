@@ -39,3 +39,12 @@ def test_tiled_map_loader_publishes_metadata():
         '("output/pointcloud_map_metadata", "/map/pointcloud_map_metadata")'
         in LAUNCH_SOURCE
     )
+
+
+def test_gnss_initialization_switch_is_forwarded_without_changing_pilot_default():
+    assert 'gnss_enabled = LaunchConfiguration("gnss_enabled")' in LAUNCH_SOURCE
+    assert '"gnss_enabled": gnss_enabled' in LAUNCH_SOURCE
+    assert (
+        'DeclareLaunchArgument(\n                "gnss_enabled",\n'
+        '                default_value="true"'
+    ) in LAUNCH_SOURCE
