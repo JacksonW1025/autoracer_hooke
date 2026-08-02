@@ -1,10 +1,11 @@
 # Formal pose output uses the current field-calibrated heading contract. GGA
 # quality 4 (RTK Fixed) and 5 (RTK Float) are both usable when every runtime
-# prerequisite is present. The antenna geometry suggests a near-90 degree
-# correction, but the same-bag LIO/direct-map calibration measured 73 degrees
-# as the effective correction for the current receiver, installation, and map
-# conversion chain. A conservative 10 degree yaw standard deviation covers the
-# observed real-data residual while NDT/EKF performs map localization.
+# prerequisite is present. The current published map and route use the
+# same-bag value of 90 degrees, supported by the fixed LIO reference, RTK
+# trajectory tangent and direct point-cloud scan. The runtime entry rejects a
+# map whose recorded offset differs from this exact parameter. A conservative
+# 10 degree yaw standard deviation covers the observed real-data residual while
+# NDT/EKF performs map localization.
 /g90/g90_nmea_adapter:
   ros__parameters:
     frame_id: gnss_link
@@ -12,7 +13,7 @@
     enable_localization_output: true
     # Prefer status-bearing THS. Statusless HDT requires separate evidence.
     allow_statusless_hdt: false
-    heading_mount_offset_deg: 73.0
+    heading_mount_offset_deg: 90.0
     heading_max_age_sec: 0.3
     gst_max_age_sec: 0.5
     fix_timeout_sec: 0.5

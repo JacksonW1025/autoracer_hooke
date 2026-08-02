@@ -33,6 +33,9 @@ def generate_launch_description():
     chassis_serial_port = LaunchConfiguration("chassis_serial_port")
     imu_device = LaunchConfiguration("imu_device")
     g90_device = LaunchConfiguration("g90_device")
+    g90_com2_device = LaunchConfiguration("g90_com2_device")
+    g90_ntrip_config_file = LaunchConfiguration("g90_ntrip_config_file")
+    g90_param_file = LaunchConfiguration("g90_param_file")
 
     return LaunchDescription(
         [
@@ -58,6 +61,18 @@ def generate_launch_description():
                 "g90_device",
                 description="Stable /dev/serial/by-id identity for the G90 receiver.",
             ),
+            DeclareLaunchArgument(
+                "g90_com2_device",
+                default_value="/dev/autoracer_g90_com2",
+                description="Stable udev alias for G90 corrections.",
+            ),
+            DeclareLaunchArgument(
+                "g90_ntrip_config_file",
+                description="Private 0600 NTRIP configuration file.",
+            ),
+            DeclareLaunchArgument(
+                "g90_param_file", default_value=_rc_config("g90.param.yaml")
+            ),
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     _launch_file("autoracer_rc_bringup", "sensing.launch.py")
@@ -68,8 +83,12 @@ def generate_launch_description():
                     "launch_imu": "true",
                     "launch_g90": "true",
                     "launch_g90_driver": "true",
+                    "launch_g90_corrections": "true",
                     "imu_device": imu_device,
                     "g90_device": g90_device,
+                    "g90_com2_device": g90_com2_device,
+                    "g90_ntrip_config_file": g90_ntrip_config_file,
+                    "g90_param_file": g90_param_file,
                 }.items(),
             ),
             IncludeLaunchDescription(
@@ -92,6 +111,7 @@ def generate_launch_description():
                     "max_speed_mps": max_speed_mps,
                     "max_accel_mps2": max_accel_mps2,
                     "max_decel_mps2": max_decel_mps2,
+                    "departure_speed_mps": "0.3",
                     "command_latency_sec": command_latency_sec,
                     "stopping_margin_m": stopping_margin_m,
                     "vehicle_info_param_file": _rc_config(
