@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-MAPPING_ROOT="/home/wheeltec/Desktop/work/rc-mapping"
-PRODUCT_ROOT="/home/wheeltec/Desktop/work/autoracer_hooke"
+PRODUCT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE_ROOT="$(dirname "${PRODUCT_ROOT}")"
+MAPPING_ROOT="${RC_MAPPING_ROOT:-${WORKSPACE_ROOT}/rc-mapping}"
 RECORDINGS_ROOT="${MAPPING_ROOT}/recordings"
 RUNTIME_ROOT="${MAPPING_ROOT}/.runtime"
 ACTIVE_ROOT="${RUNTIME_ROOT}/active"
@@ -11,8 +12,10 @@ PREFLIGHT_TOOL="${PRODUCT_ROOT}/scripts/autoracer_rc_recording_preflight.py"
 STOP_SCRIPT="${PRODUCT_ROOT}/scripts/autoracer_rc_recording_stop.sh"
 
 G90_DEVICE="/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AA6079369-if00"
+G90_COM2_DEVICE="${RC_G90_COM2_DEVICE:-/dev/autoracer_g90_com2}"
+G90_NTRIP_CONFIG_FILE="${RC_G90_NTRIP_CONFIG_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/autoracer-rc/g90-ntrip.env}"
 IMU_DEVICE="/dev/serial/by-id/usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_0003-if00-port0"
-LIDAR_INTERFACE="enP8p1s0"
+LIDAR_INTERFACE="${RC_LIDAR_INTERFACE:-}"
 LIDAR_HOST_ADDRESS="192.168.1.102/32"
 LIDAR_DEVICE_ADDRESS="192.168.1.200"
 
@@ -39,7 +42,7 @@ usage() {
 
 说明：
   - 正式操作请使用 scripts/autoracer_rc.sh 的“录制建图数据”。
-  - 录制接受 RTK Fixed/Float、完整 GST、THS A，并执行固定 10 秒预检。
+  - 录制接受 RTK Fixed/Float、完整 GST、THS A，并执行固定 5 秒质量窗口。
   - GGA quality 4/5 按原值记录，绝不把 Float 重标为 Fixed。
   - 只录 LiDAR/IMU/G90 原始数据；不启动底盘、Planning、Control 或车辆输出。
   - RC_MAPPING_ALLOW_DEGRADED_LIDAR=1 只为本会话审计放行 lidar_rate/
@@ -126,9 +129,31 @@ source "${PRODUCT_ROOT}/install/local_setup.bash" 2> >(
 )
 set -u
 
-for command_name in ros2 python3 git setsid timeout sha256sum ip df ps awk grep tr tail wc cp date readlink tee; do
+for command_name in ros2 python3 git setsid timeout sha256sum ip df ps awk grep tr tail wc cp date readlink tee stat; do
   command -v "${command_name}" >/dev/null 2>&1 || fail "缺少命令 ${command_name}"
 done
+
+discover_lidar_interface() {
+  [[ -n "${LIDAR_INTERFACE}" ]] && return 0
+
+  LIDAR_INTERFACE="$(
+    ip -o -4 addr show 2>/dev/null |
+      awk -v address="${LIDAR_HOST_ADDRESS}" '$4 == address {print $2; exit}'
+  )"
+  if [[ -n "${LIDAR_INTERFACE}" ]]; then
+    return 0
+  fi
+
+  local route
+  route="$(ip -4 route get "${LIDAR_DEVICE_ADDRESS}" 2>/dev/null || true)"
+  if [[ "${route}" == *"src ${LIDAR_HOST_ADDRESS%/*}"* ]]; then
+    LIDAR_INTERFACE="$(
+      awk '{for (i = 1; i <= NF; ++i) if ($i == "dev") {print $(i + 1); exit}}' \
+        <<<"${route}"
+    )"
+  fi
+}
+discover_lidar_interface
 
 BRINGUP_PREFIX="$(ros2 pkg prefix autoracer_rc_bringup 2>/dev/null)" ||
   fail "当前 install 中找不到 autoracer_rc_bringup"
@@ -145,6 +170,7 @@ REQUIRED_AVAILABLE_BYTES="${RESERVED_FREE_BYTES}"
 
 lidar_network_status() {
   local failures=0
+  [[ -n "${LIDAR_INTERFACE}" ]] || return 1
   ip link show dev "${LIDAR_INTERFACE}" >/dev/null 2>&1 || failures=$((failures + 1))
   [[ -r "/sys/class/net/${LIDAR_INTERFACE}/operstate" ]] || failures=$((failures + 1))
   if [[ -r "/sys/class/net/${LIDAR_INTERFACE}/operstate" ]]; then
@@ -165,6 +191,10 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   printf '录制时长：不限；磁盘保留线：%s bytes；当前可用：%s bytes\n' \
     "${RESERVED_FREE_BYTES}" "${AVAILABLE_BYTES}"
   [[ -e "${G90_DEVICE}" ]] && printf 'G90 稳定设备路径：存在\n' || printf 'G90 稳定设备路径：缺失\n'
+  [[ -e "${G90_COM2_DEVICE}" ]] && printf 'G90 COM2 稳定设备路径：存在\n' || printf 'G90 COM2 稳定设备路径：缺失\n'
+  [[ -f "${G90_NTRIP_CONFIG_FILE}" && ! -L "${G90_NTRIP_CONFIG_FILE}" ]] \
+    && printf 'G90 私有差分配置：存在\n' \
+    || printf 'G90 私有差分配置：缺失或类型错误\n'
   [[ -e "${IMU_DEVICE}" ]] && printf 'IMU 稳定设备路径：存在\n' || printf 'IMU 稳定设备路径：缺失\n'
   lidar_network_status && printf 'LiDAR 网络：就绪\n' ||
     printf 'LiDAR 网络：未就绪（LiDAR 关闭时这是预期结果）\n'
@@ -172,7 +202,7 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   printf 'GNSS 录制准入：RTK Fixed（4）或 Float（5），保留真实 quality\n'
   printf 'LiDAR 降级放行：%s（仅限 rate/maximum_gap，按原值留证）\n' \
     "${ALLOW_DEGRADED_LIDAR}"
-  printf '预检等待：不设超时，按 Q 取消；固定质量窗口：10 秒\n'
+  printf '预检等待：不设超时，按 Q 取消；全部在线后固定质量窗口：5 秒\n'
   printf 'DRY RUN：静态命令检查完成。\n'
   START_SUCCEEDED="true"
   exit 0
@@ -184,14 +214,46 @@ fi
 
 [[ -e "${G90_DEVICE}" && -r "${G90_DEVICE}" && -w "${G90_DEVICE}" ]] ||
   fail "G90 稳定设备路径不存在或当前用户无读写权限：${G90_DEVICE}"
+[[ -e "${G90_COM2_DEVICE}" && -r "${G90_COM2_DEVICE}" && -w "${G90_COM2_DEVICE}" ]] ||
+  fail "G90 COM2 稳定设备路径不存在或当前用户无读写权限：${G90_COM2_DEVICE}"
+[[ -f "${G90_NTRIP_CONFIG_FILE}" && ! -L "${G90_NTRIP_CONFIG_FILE}" ]] ||
+  fail "G90 私有差分配置必须是普通文件：${G90_NTRIP_CONFIG_FILE}"
+[[ "$(stat -Lc '%u' "${G90_NTRIP_CONFIG_FILE}")" == "$(id -u)" \
+  && "$(stat -Lc '%a' "${G90_NTRIP_CONFIG_FILE}")" == "600" ]] ||
+  fail "G90 私有差分配置必须由当前用户持有且权限严格为 0600"
+if ! NTRIP_VALIDATION_ERROR="$(
+  python3 - "${G90_NTRIP_CONFIG_FILE}" "${G90_COM2_DEVICE}" <<'PY' 2>&1
+from pathlib import Path
+import sys
+
+from autoracer_rc_adapter.g90_ntrip_relay_node import (
+    NtripConfigError,
+    load_ntrip_config,
+)
+
+try:
+    load_ntrip_config(
+        Path(sys.argv[1]),
+        serial_device=sys.argv[2],
+        serial_baud=115200,
+    )
+except NtripConfigError as error:
+    print(error)
+    raise SystemExit(1)
+PY
+)"; then
+  fail "G90 私有差分配置无效：${NTRIP_VALIDATION_ERROR}"
+fi
 [[ -e "${IMU_DEVICE}" && -r "${IMU_DEVICE}" && -w "${IMU_DEVICE}" ]] ||
   fail "IMU 稳定设备路径不存在或当前用户无读写权限：${IMU_DEVICE}"
 lidar_network_status || fail \
-  "LiDAR 网络未就绪；必须先让 ${LIDAR_INTERFACE} 为 UP、配置 ${LIDAR_HOST_ADDRESS}，并确保 ${LIDAR_DEVICE_ADDRESS} 经该接口路由"
+  "LiDAR 网络未就绪；必须先让 ${LIDAR_INTERFACE:-未发现接口} 为 UP、配置 ${LIDAR_HOST_ADDRESS}，并确保 ${LIDAR_DEVICE_ADDRESS} 经该接口路由"
 
 if command -v fuser >/dev/null 2>&1; then
   fuser "$(readlink -f "${G90_DEVICE}")" >/dev/null 2>&1 &&
     fail "G90 串口已被其他进程占用；先停止旧 sensing/reader"
+  fuser "$(readlink -f "${G90_COM2_DEVICE}")" >/dev/null 2>&1 &&
+    fail "G90 COM2 已被其他进程占用；先停止旧差分 relay"
   fuser "$(readlink -f "${IMU_DEVICE}")" >/dev/null 2>&1 &&
     fail "IMU 串口已被其他进程占用；先停止旧 sensing/driver"
 fi
@@ -273,7 +335,8 @@ EOF
 
 export SESSION_ID SESSION_DIR LABEL SITE OPERATOR_NAME
 export PRODUCT_BRANCH PRODUCT_HEAD PRODUCT_DIRTY_COUNT LOCKED_PILOT_HEAD LOCKED_ANCESTOR
-export FIRMWARE_BASELINE G90_DEVICE IMU_DEVICE LIDAR_INTERFACE LIDAR_HOST_ADDRESS
+export PRODUCT_ROOT FIRMWARE_BASELINE G90_DEVICE G90_COM2_DEVICE IMU_DEVICE
+export LIDAR_INTERFACE LIDAR_HOST_ADDRESS
 export LIDAR_DEVICE_ADDRESS AVAILABLE_BYTES REQUIRED_AVAILABLE_BYTES ALLOW_DEGRADED_LIDAR
 python3 - <<'PY'
 import json
@@ -321,12 +384,13 @@ payload = {
         "scope": "raw mapping recording input only",
     },
     "devices": {
-        "g90": {"path": os.environ["G90_DEVICE"], "baud": 115200, "expected_output": "GGA/GST/THS at 10 Hz; script sends no configuration commands"},
+        "g90": {"path": os.environ["G90_DEVICE"], "baud": 115200, "expected_output": "GGA/GST/THS at 10 Hz; script sends no receiver configuration commands"},
+        "g90_corrections": {"path": os.environ["G90_COM2_DEVICE"], "baud": 115200, "transport": "project-owned NTRIP relay; credentials excluded"},
         "imu": {"path": os.environ["IMU_DEVICE"]},
         "lidar": {"interface": os.environ["LIDAR_INTERFACE"], "host_address": os.environ["LIDAR_HOST_ADDRESS"], "device_address": os.environ["LIDAR_DEVICE_ADDRESS"]},
     },
     "product": {
-        "root": "/home/wheeltec/Desktop/work/autoracer_hooke",
+        "root": os.environ["PRODUCT_ROOT"],
         "branch": os.environ["PRODUCT_BRANCH"],
         "head": os.environ["PRODUCT_HEAD"],
         "locked_pilot_head": os.environ["LOCKED_PILOT_HEAD"],
@@ -380,7 +444,10 @@ SENSING_COMMAND=(
   launch_imu:=true
   launch_g90:=false
   launch_g90_driver:=true
+  launch_g90_corrections:=true
   "g90_device:=${G90_DEVICE}"
+  "g90_com2_device:=${G90_COM2_DEVICE}"
+  "g90_ntrip_config_file:=${G90_NTRIP_CONFIG_FILE}"
   g90_baud:=115200
   "imu_device:=${IMU_DEVICE}"
 )
@@ -410,18 +477,14 @@ PREFLIGHT_COMMAND=(
   --lidar-qos-file "${QOS_FILE}"
 )
 printf '正在检查 LiDAR、IMU、RTK Fixed/Float、GST、THS A 和静态 TF。\n'
-printf '持续等待 READY，不设超时；按 Q 取消。满足条件后固定观察 10 秒。详细状态：%s\n' \
+printf '会持续逐项显示设备、差分和定位状态；按 Q 取消。全部在线后立即采样 5 秒，不再额外稳定等待。\n'
+printf '完整预检日志：%s\n' \
   "${SESSION_DIR}/logs/preflight.log"
 printf '%q ' "${PREFLIGHT_COMMAND[@]}" >"${SESSION_DIR}/manifests/preflight_command.txt"
 printf '\n' >>"${SESSION_DIR}/manifests/preflight_command.txt"
 set +e
-if [[ "${VERBOSE}" == "true" ]]; then
-  "${PREFLIGHT_COMMAND[@]}" 2>&1 | tee "${SESSION_DIR}/logs/preflight.log"
-  PREFLIGHT_RESULT=${PIPESTATUS[0]}
-else
-  "${PREFLIGHT_COMMAND[@]}" >"${SESSION_DIR}/logs/preflight.log" 2>&1
-  PREFLIGHT_RESULT=$?
-fi
+"${PREFLIGHT_COMMAND[@]}" 2>&1 | tee "${SESSION_DIR}/logs/preflight.log"
+PREFLIGHT_RESULT=${PIPESTATUS[0]}
 set -e
 if ((PREFLIGHT_RESULT == 2)); then
   printf 'operator cancelled before mapping preflight reached READY\n' \

@@ -1,7 +1,7 @@
 /sensing/lidar/raw/pointcloud:
   history: keep_last
   depth: 100
-  reliability: best_effort
+  reliability: reliable
   durability: volatile
 
 /sensing/imu/raw/imu_data:

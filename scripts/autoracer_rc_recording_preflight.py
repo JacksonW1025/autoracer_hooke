@@ -17,9 +17,11 @@ import subprocess
 import sys
 import termios
 import time
-from typing import Any
 import tty
+import unicodedata
+from typing import Any
 
+from diagnostic_msgs.msg import DiagnosticArray
 import rclpy
 from nmea_msgs.msg import Sentence
 from rclpy.node import Node
@@ -28,9 +30,9 @@ from sensor_msgs.msg import Imu, PointCloud2
 from tf2_msgs.msg import TFMessage
 
 
-WINDOW_SECONDS = 10.0
-READINESS_STABILITY_SECONDS = 5.0
-LIDAR_PROBE_DISCOVERY_SECONDS = 2.0
+WINDOW_SECONDS = 5.0
+READINESS_STABILITY_SECONDS = 0.0
+PROGRESS_HEARTBEAT_SECONDS = 5.0
 LIDAR_PROBE_STOP_TIMEOUT_SECONDS = 30.0
 LIDAR_PROBE_CACHE_BYTES = 256 * 1024 * 1024
 
@@ -38,6 +40,7 @@ LIDAR_TOPIC = "/sensing/lidar/raw/pointcloud"
 IMU_TOPIC = "/sensing/imu/raw/imu_data"
 NMEA_TOPIC = "/g90/raw/nmea_sentence"
 TF_STATIC_TOPIC = "/tf_static"
+DIAGNOSTICS_TOPIC = "/diagnostics"
 
 LIDAR_FRAME = "lidar_top"
 IMU_FRAME = "imu_link"
@@ -59,6 +62,174 @@ MAXIMUM_GAP_SECONDS = {
 }
 MAXIMUM_DIFFERENTIAL_AGE_SECONDS = 2.0
 ACCEPTED_GGA_QUALITIES = frozenset({4, 5})
+ACQUISITION_FRESHNESS_SECONDS = {
+    "lidar": 0.5,
+    "imu": 0.2,
+    "nmea": 0.5,
+    "GGA": 0.5,
+    "GST": 0.5,
+    "THS": 0.5,
+    "COM2": 2.5,
+}
+
+
+def g90_com2_ready(values: dict[str, str]) -> bool:
+    """Return whether the project-owned correction path is usable now."""
+
+    return (
+        values.get("worker_alive") == "true"
+        and values.get("serial_open") == "true"
+        and values.get("caster_connected") == "true"
+        and values.get("rtcm_fresh") == "true"
+        and values.get("credential_expired") == "false"
+    )
+
+
+def diagnostic_level(value: Any) -> int:
+    """Normalize ROS ``byte`` fields across generated Python representations."""
+
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        encoded = bytes(value)
+        if len(encoded) != 1:
+            raise ValueError("diagnostic level byte must contain exactly one octet")
+        return encoded[0]
+    return int(value)
+
+
+def g90_com2_summary(values: dict[str, str]) -> tuple[str, str]:
+    """Return a concise state/detail pair without exposing private NTRIP data."""
+
+    if not values:
+        return "等待", "尚未收到差分节点状态"
+    if values.get("credential_expired") == "true":
+        return "故障", "NTRIP 凭据已过期"
+    if values.get("worker_alive") != "true":
+        return "故障", "差分 relay 未运行"
+    if values.get("serial_open") != "true":
+        return "故障", "COM2 串口未打开"
+    if values.get("caster_connected") != "true":
+        return "等待", "COM2 已打开，CORS 尚未连接"
+    if values.get("rtcm_fresh") != "true":
+        return "等待", "COM2/CORS 已连接，尚无新鲜 RTCM"
+    return "正常", "新鲜 RTCM 正在写入 COM2"
+
+
+StatusItem = tuple[str, str, str]
+DEFAULT_TERMINAL_COLUMNS = 80
+MINIMUM_TERMINAL_COLUMNS = 20
+
+
+def display_width(text: str) -> int:
+    """Return terminal cell width, including double-width Chinese characters."""
+
+    width = 0
+    for character in text:
+        if unicodedata.combining(character):
+            continue
+        width += 2 if unicodedata.east_asian_width(character) in {"F", "W"} else 1
+    return width
+
+
+def terminal_columns() -> int:
+    """Read the controlling terminal width even though stdout is piped to tee."""
+
+    if sys.stdin.isatty():
+        try:
+            columns = os.get_terminal_size(sys.stdin.fileno()).columns
+        except OSError:
+            columns = DEFAULT_TERMINAL_COLUMNS
+    else:
+        columns = DEFAULT_TERMINAL_COLUMNS
+    return max(MINIMUM_TERMINAL_COLUMNS, columns)
+
+
+def split_display_lines(text: str, columns: int) -> tuple[str, ...]:
+    """Split text without producing a line wider than the terminal."""
+
+    columns = max(1, columns)
+    remaining = text.strip()
+    if not remaining:
+        return ("",)
+    lines: list[str] = []
+    while display_width(remaining) > columns:
+        prefix_width = 0
+        cutoff = 0
+        for index, character in enumerate(remaining):
+            character_width = display_width(character)
+            if cutoff and prefix_width + character_width > columns:
+                break
+            prefix_width += character_width
+            cutoff = index + 1
+        cutoff = max(1, cutoff)
+        prefix = remaining[:cutoff]
+        break_at = prefix.rfind(" ")
+        if break_at > 0:
+            lines.append(prefix[:break_at].rstrip())
+            remaining = remaining[break_at + 1 :].lstrip()
+        else:
+            lines.append(prefix.rstrip())
+            remaining = remaining[cutoff:].lstrip()
+    lines.append(remaining.rstrip())
+    return tuple(lines)
+
+
+def pad_display(text: str, width: int) -> str:
+    return text + " " * max(0, width - display_width(text))
+
+
+def render_status_rows(items: tuple[StatusItem, ...], columns: int) -> tuple[str, ...]:
+    """Render one device per row, wrapping details to the current terminal width."""
+
+    if not items:
+        return ()
+    columns = max(MINIMUM_TERMINAL_COLUMNS, columns)
+    label_width = max(display_width(label) for label, _, _ in items)
+    rendered: list[str] = []
+    for label, state, detail in items:
+        prefix = f"{pad_display(label, label_width)}  {state}  "
+        prefix_width = display_width(prefix)
+        if columns - prefix_width < 8:
+            rendered.extend(split_display_lines(f"{label}  {state}", columns))
+            detail_prefix = "  "
+            detail_width = columns - display_width(detail_prefix)
+            rendered.extend(
+                detail_prefix + line
+                for line in split_display_lines(detail, detail_width)
+            )
+            continue
+
+        detail_lines = split_display_lines(detail, columns - prefix_width)
+        rendered.append(prefix + detail_lines[0])
+        continuation = " " * prefix_width
+        rendered.extend(continuation + line for line in detail_lines[1:])
+    return tuple(rendered)
+
+
+def changed_status_items(
+    previous: tuple[StatusItem, ...], current: tuple[StatusItem, ...]
+) -> tuple[StatusItem, ...]:
+    previous_by_label = {label: (state, detail) for label, state, detail in previous}
+    return tuple(
+        item
+        for item in current
+        if previous_by_label.get(item[0]) != (item[1], item[2])
+    )
+
+
+def readiness_summary(items: tuple[StatusItem, ...]) -> str:
+    faults = [label for label, state, _ in items if state == "故障"]
+    waiting = [label for label, state, _ in items if state not in {"正常", "故障"}]
+    parts: list[str] = []
+    if faults:
+        parts.append("故障：" + "、".join(faults))
+    if waiting:
+        parts.append("等待：" + "、".join(waiting))
+    return "；".join(parts) if parts else "全部输入在线"
+
+
+def print_wrapped(text: str) -> None:
+    for line in split_display_lines(text, terminal_columns()):
+        print(line, flush=True)
 
 
 class OperatorCancelled(Exception):
@@ -279,6 +450,14 @@ class LidarProbeRecorder:
             raise RuntimeError(
                 f"LiDAR probe recorder exited before the fixed window (code {return_code})"
             )
+
+    def subscription_ready(self) -> bool:
+        """Return true only after rosbag2 confirms the requested topic subscription."""
+        try:
+            log_text = self.log_path.read_text(encoding="utf-8", errors="replace")
+        except FileNotFoundError:
+            return False
+        return f"Subscribed to topic '{LIDAR_TOPIC}'" in log_text
 
     def stop(self) -> int | None:
         if self.process is None:
@@ -563,6 +742,12 @@ class MappingPreflight(Node):
         self.create_subscription(Imu, IMU_TOPIC, self.on_imu, sensor_qos)
         self.create_subscription(Sentence, NMEA_TOPIC, self.on_nmea, sensor_qos)
         self.create_subscription(TFMessage, TF_STATIC_TOPIC, self.on_tf_static, tf_static_qos)
+        self.create_subscription(
+            DiagnosticArray,
+            DIAGNOSTICS_TOPIC,
+            self.on_diagnostics,
+            10,
+        )
 
         self.window_active = False
         self.static_transforms: set[tuple[str, str]] = set()
@@ -572,6 +757,12 @@ class MappingPreflight(Node):
         self.latest_gga_valid = False
         self.latest_gst_valid = False
         self.latest_ths_valid = False
+        self.latest_lidar_detail = "尚未收到点云"
+        self.latest_imu_detail = "尚未收到 IMU"
+        self.latest_gga_detail: dict[str, Any] = {}
+        self.latest_gst_detail: dict[str, Any] = {}
+        self.latest_ths_detail: dict[str, Any] = {}
+        self.latest_com2_values: dict[str, str] = {}
         self.acquisition_counts = {
             "lidar": 0,
             "lidar_metadata_parse_errors": 0,
@@ -607,6 +798,7 @@ class MappingPreflight(Node):
         self.gst_stddev_m: list[list[float]] = []
         self.ths_modes: list[str] = []
         self.ths_headings_deg: list[float] = []
+        self.com2_window_samples: list[dict[str, str]] = []
 
     def begin_window(self) -> None:
         self.acquisition_counts_at_window_start = dict(self.acquisition_counts)
@@ -646,12 +838,20 @@ class MappingPreflight(Node):
         except ValueError as error:
             self.acquisition_counts["lidar_metadata_parse_errors"] += 1
             self.latest_lidar_valid = False
+            self.latest_lidar_detail = f"点云 metadata 无法解析：{error}"
             self.latest_seen["lidar"] = received
             if self.window_active and len(self.lidar_metadata_parse_errors) < 20:
                 self.lidar_metadata_parse_errors.append(str(error))
             return
         frame = normalize_frame(raw_frame)
         self.latest_lidar_valid = frame == LIDAR_FRAME and REQUIRED_LIDAR_FIELDS <= fields
+        missing_fields = sorted(REQUIRED_LIDAR_FIELDS - fields)
+        if frame != LIDAR_FRAME:
+            self.latest_lidar_detail = f"frame={frame or '<empty>'}，应为 {LIDAR_FRAME}"
+        elif missing_fields:
+            self.latest_lidar_detail = f"缺少字段 {missing_fields}"
+        else:
+            self.latest_lidar_detail = f"frame={LIDAR_FRAME}，字段正常"
         self.latest_seen["lidar"] = received
         if not self.window_active:
             return
@@ -666,6 +866,11 @@ class MappingPreflight(Node):
         self.acquisition_counts["imu"] += 1
         frame = normalize_frame(message.header.frame_id)
         self.latest_imu_valid = frame == IMU_FRAME
+        self.latest_imu_detail = (
+            f"frame={IMU_FRAME}"
+            if self.latest_imu_valid
+            else f"frame={frame or '<empty>'}，应为 {IMU_FRAME}"
+        )
         self.latest_seen["imu"] = received
         if not self.window_active:
             return
@@ -676,6 +881,7 @@ class MappingPreflight(Node):
     def on_nmea(self, message: Sentence) -> None:
         received = time.monotonic()
         self.acquisition_counts["nmea"] += 1
+        self.latest_seen["nmea"] = received
         formatter = "INVALID"
         parsed: dict[str, Any] = {"accepted": False}
         error_text = ""
@@ -687,12 +893,15 @@ class MappingPreflight(Node):
 
         if formatter == "GGA":
             self.latest_gga_valid = bool(parsed.get("accepted"))
+            self.latest_gga_detail = dict(parsed)
             self.latest_seen["GGA"] = received
         elif formatter == "GST":
             self.latest_gst_valid = bool(parsed.get("accepted"))
+            self.latest_gst_detail = dict(parsed)
             self.latest_seen["GST"] = received
         elif formatter == "THS":
             self.latest_ths_valid = bool(parsed.get("accepted"))
+            self.latest_ths_detail = dict(parsed)
             self.latest_seen["THS"] = received
 
         if not self.window_active:
@@ -731,27 +940,166 @@ class MappingPreflight(Node):
                 )
             )
 
+    def on_diagnostics(self, message: DiagnosticArray) -> None:
+        received = time.monotonic()
+        for status in message.status:
+            if status.hardware_id != "G90-COM2":
+                continue
+            values = {str(item.key): str(item.value) for item in status.values}
+            values["level"] = str(diagnostic_level(status.level))
+            values["message"] = str(status.message)
+            self.latest_com2_values = values
+            self.latest_seen["COM2"] = received
+            if self.window_active:
+                self.com2_window_samples.append(
+                    {
+                        key: values.get(key, "unknown")
+                        for key in (
+                            "worker_alive",
+                            "serial_open",
+                            "caster_connected",
+                            "rtcm_fresh",
+                            "credential_expired",
+                        )
+                    }
+                )
+
     def readiness_blockers(self) -> list[str]:
         current = time.monotonic()
         blockers: list[str] = []
-        freshness = {"lidar": 0.5, "imu": 0.2, "GGA": 0.5, "GST": 0.5, "THS": 0.5}
-        conditions = {
-            "lidar": self.latest_lidar_valid,
-            "imu": self.latest_imu_valid,
-            "GGA": self.latest_gga_valid,
-            "GST": self.latest_gst_valid,
-            "THS": self.latest_ths_valid,
-        }
-        for key, valid in conditions.items():
+        conditions = (
+            ("lidar", "LiDAR", self.latest_lidar_valid),
+            ("imu", "IMU", self.latest_imu_valid),
+            ("GGA", "GGA RTK", self.latest_gga_valid),
+            ("GST", "GST 协方差", self.latest_gst_valid),
+            ("THS", "THS 航向", self.latest_ths_valid),
+        )
+        for key, label, valid in conditions:
             seen = self.latest_seen.get(key)
-            if not valid:
-                blockers.append(f"{key} not valid")
-            elif seen is None or current - seen > freshness[key]:
-                blockers.append(f"{key} stale")
+            if seen is None:
+                blockers.append(f"{label} 尚无数据")
+            elif current - seen > ACQUISITION_FRESHNESS_SECONDS[key]:
+                blockers.append(f"{label} 数据已中断")
+            elif not valid:
+                if key == "GGA" and "quality" in self.latest_gga_detail:
+                    blockers.append(
+                        f"GGA quality={self.latest_gga_detail['quality']}，需要 4/5"
+                    )
+                elif key == "THS" and "mode" in self.latest_ths_detail:
+                    blockers.append(
+                        f"THS mode={self.latest_ths_detail['mode'] or '<empty>'}，需要 A"
+                    )
+                else:
+                    blockers.append(f"{label} 当前无效")
+
+        nmea_seen = self.latest_seen.get("nmea")
+        if nmea_seen is None:
+            blockers.append("G90 COM1 尚无 NMEA 数据")
+        elif current - nmea_seen > ACQUISITION_FRESHNESS_SECONDS["nmea"]:
+            blockers.append("G90 COM1 NMEA 数据已中断")
+
+        com2_seen = self.latest_seen.get("COM2")
+        if com2_seen is None:
+            blockers.append("G90 COM2 尚未上报差分状态")
+        elif current - com2_seen > ACQUISITION_FRESHNESS_SECONDS["COM2"]:
+            blockers.append("G90 COM2 差分状态已中断")
+        elif not g90_com2_ready(self.latest_com2_values):
+            _, detail = g90_com2_summary(self.latest_com2_values)
+            blockers.append(f"G90 COM2：{detail}")
+
         missing_tf = sorted(REQUIRED_STATIC_TRANSFORMS - self.static_transforms)
         if missing_tf:
-            blockers.append(f"missing static transforms: {missing_tf}")
+            blockers.append(f"静态 TF 缺失：{missing_tf}")
         return blockers
+
+    def status_items(self) -> tuple[StatusItem, ...]:
+        """Return stable per-device state without coupling it to terminal layout."""
+
+        current = time.monotonic()
+
+        def is_fresh(key: str) -> bool:
+            seen = self.latest_seen.get(key)
+            return seen is not None and (
+                current - seen <= ACQUISITION_FRESHNESS_SECONDS[key]
+            )
+
+        if not is_fresh("lidar"):
+            lidar = ("等待", "无数据或数据已中断")
+        elif self.latest_lidar_valid:
+            lidar = ("正常", self.latest_lidar_detail)
+        else:
+            lidar = ("故障", self.latest_lidar_detail)
+
+        if not is_fresh("imu"):
+            imu = ("等待", "无数据或数据已中断")
+        elif self.latest_imu_valid:
+            imu = ("正常", self.latest_imu_detail)
+        else:
+            imu = ("故障", self.latest_imu_detail)
+
+        com1 = (
+            ("正常", "NMEA 持续输出")
+            if is_fresh("nmea")
+            else ("等待", "无 NMEA 或数据已中断")
+        )
+
+        com2_state, com2_detail = g90_com2_summary(self.latest_com2_values)
+        if self.latest_seen.get("COM2") is not None and not is_fresh("COM2"):
+            com2_state, com2_detail = "故障", "差分状态已中断"
+
+        if not is_fresh("GGA"):
+            gga = ("等待", "无数据或数据已中断")
+        elif self.latest_gga_valid:
+            quality = int(self.latest_gga_detail.get("quality", -1))
+            solution = "RTK Fixed" if quality == 4 else "RTK Float"
+            gga = ("正常", f"{solution}，quality={quality}")
+        elif "quality" in self.latest_gga_detail:
+            gga = (
+                "等待",
+                f"quality={self.latest_gga_detail['quality']}，需要 4/5",
+            )
+        else:
+            gga = ("等待", "当前数据无效")
+
+        if not is_fresh("GST"):
+            gst = ("等待", "无数据或数据已中断")
+        elif self.latest_gst_valid:
+            gst = ("正常", "完整且新鲜")
+        else:
+            gst = ("等待", "协方差不可用或不完整")
+
+        if not is_fresh("THS"):
+            ths = ("等待", "无数据或数据已中断")
+        elif self.latest_ths_valid:
+            ths = ("正常", "mode=A")
+        else:
+            mode = self.latest_ths_detail.get("mode", "<empty>") or "<empty>"
+            ths = ("等待", f"mode={mode}，需要 A")
+
+        missing_tf = sorted(REQUIRED_STATIC_TRANSFORMS - self.static_transforms)
+        tf_state = (
+            ("正常", "3/3")
+            if not missing_tf
+            else ("等待", f"缺少 {missing_tf}")
+        )
+        return (
+            ("LiDAR", *lidar),
+            ("IMU", *imu),
+            ("G90 COM1", *com1),
+            ("G90 COM2", com2_state, com2_detail),
+            ("RTK", *gga),
+            ("GST", *gst),
+            ("THS", *ths),
+            ("静态 TF", *tf_state),
+        )
+
+    def status_snapshot(self) -> tuple[str, ...]:
+        """Return one stable, human-readable evidence string per device."""
+
+        return tuple(
+            f"{label} {state}：{detail}"
+            for label, state, detail in self.status_items()
+        )
 
     def result(self, *, acquisition_wait_seconds: float) -> dict[str, Any]:
         checks: list[dict[str, Any]] = []
@@ -843,6 +1191,19 @@ class MappingPreflight(Node):
                 "single_nonempty_reference_station": True,
             },
         )
+        add_check(
+            "g90_com2_correction_stream",
+            bool(self.com2_window_samples)
+            and all(g90_com2_ready(sample) for sample in self.com2_window_samples),
+            {
+                "sample_count": len(self.com2_window_samples),
+                "all_ready": bool(self.com2_window_samples)
+                and all(
+                    g90_com2_ready(sample) for sample in self.com2_window_samples
+                ),
+            },
+            "every fixed-window G90-COM2 diagnostic sample ready",
+        )
         add_check("gst_positive_complete", len(self.gst_stddev_m) == len(self.reception_times["GST"]), {"valid": len(self.gst_stddev_m), "received": len(self.reception_times["GST"])}, "all GST epochs")
         add_check("ths_mode_a", bool(self.ths_modes) and set(self.ths_modes) == {"A"} and len(self.ths_headings_deg) == len(self.reception_times["THS"]), {"modes": sorted(set(self.ths_modes)), "valid_headings": len(self.ths_headings_deg), "received": len(self.reception_times["THS"])}, "all THS epochs mode A with heading")
         missing_tf = sorted(REQUIRED_STATIC_TRANSFORMS - self.static_transforms)
@@ -856,7 +1217,7 @@ class MappingPreflight(Node):
             "completed_at": now_iso8601(),
             "clock_contract": "ROS wall clock; use_sim_time=false",
             "lidar_observation_contract": {
-                "acquisition": "Python raw CDR metadata only until readiness is stable",
+                "acquisition": "Python raw CDR metadata until all inputs are simultaneously valid",
                 "fixed_window_transport": "C++ ros2 bag record using the formal QoS file",
                 "rate_and_gap": "rosbag2 receipt timestamp for every fixed-window sample",
                 "metadata": "CDR stamp/frame/fields parsed from every recorded sample",
@@ -902,6 +1263,16 @@ def nmea_sentence(payload: str) -> str:
 def self_test() -> int:
     from rclpy.serialization import serialize_message
     from sensor_msgs.msg import PointField
+
+    for raw_level, expected_level in ((b"\x00", 0), (b"\x01", 1), (2, 2)):
+        if diagnostic_level(raw_level) != expected_level:
+            raise RuntimeError("self-test failed to normalize a diagnostic level")
+    try:
+        diagnostic_level(b"\x00\x01")
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("self-test accepted a multi-byte diagnostic level")
 
     examples = [
         ("GNGGA,092750.00,2232.1234,N,11401.5678,E,4,18,0.7,12.3,M,-2.4,M,0.8,1234", "GGA"),
@@ -962,6 +1333,50 @@ def self_test() -> int:
     else:
         raise RuntimeError("self-test accepted an unsupported PointCloud2 CDR representation")
     ensure_process_alive(os.getpid())
+    if g90_com2_ready({}):
+        raise RuntimeError("self-test accepted an empty G90 COM2 state")
+    ready_correction = {
+        "worker_alive": "true",
+        "serial_open": "true",
+        "caster_connected": "true",
+        "rtcm_fresh": "true",
+        "credential_expired": "false",
+    }
+    if not g90_com2_ready(ready_correction):
+        raise RuntimeError("self-test rejected a ready G90 COM2 state")
+    if g90_com2_summary(ready_correction)[0] != "正常":
+        raise RuntimeError("self-test did not report a ready G90 COM2 state")
+
+    render_items: tuple[StatusItem, ...] = (
+        ("LiDAR", "正常", "frame=lidar_top，字段正常"),
+        ("IMU", "正常", "frame=imu_link"),
+        ("G90 COM1", "正常", "NMEA 持续输出"),
+        ("G90 COM2", "正常", "新鲜 RTCM 正在写入 COM2"),
+        ("RTK", "等待", "quality=0，需要 4/5"),
+        ("GST", "等待", "协方差不可用或不完整"),
+        ("THS", "等待", "mode=V，需要 A"),
+        (
+            "静态 TF",
+            "等待",
+            "缺少 base_link 到 lidar_top、imu_link、gnss_link 的静态变换",
+        ),
+    )
+    for columns in (60, 80, 120):
+        rendered = render_status_rows(render_items, columns)
+        if not rendered or any(display_width(line) > columns for line in rendered):
+            raise RuntimeError(
+                f"self-test rendered a status line wider than {columns} columns"
+            )
+        if any("｜" in line for line in rendered):
+            raise RuntimeError("self-test rendered a multi-device separator")
+    updated_items = render_items[:4] + (
+        ("RTK", "正常", "RTK Float，quality=5"),
+    ) + render_items[5:]
+    changed = changed_status_items(render_items, updated_items)
+    if changed != (("RTK", "正常", "RTK Float，quality=5"),):
+        raise RuntimeError("self-test did not isolate the changed status row")
+    if readiness_summary(render_items) != "等待：RTK、GST、THS、静态 TF":
+        raise RuntimeError("self-test produced an unexpected readiness summary")
     print("preflight parser self-test: PASS")
     return 0
 
@@ -1022,7 +1437,7 @@ def main() -> int:
     try:
         cancel_input.enable()
         next_progress_report = start_monotonic
-        readiness_stable_since: float | None = None
+        previous_items: tuple[StatusItem, ...] | None = None
         while True:
             if cancel_input.requested():
                 raise OperatorCancelled
@@ -1030,27 +1445,37 @@ def main() -> int:
             rclpy.spin_once(node, timeout_sec=0.1)
             blockers = node.readiness_blockers()
             current = time.monotonic()
-            if blockers:
-                readiness_stable_since = None
-                progress = "waiting for mapping inputs: " + "; ".join(blockers)
-            else:
-                if readiness_stable_since is None:
-                    readiness_stable_since = current
-                    print(
-                        "all mapping inputs valid; verifying continuous stability for "
-                        f"{READINESS_STABILITY_SECONDS:.1f} seconds",
-                        flush=True,
-                    )
-                stable_seconds = current - readiness_stable_since
-                if stable_seconds >= READINESS_STABILITY_SECONDS:
-                    break
-                progress = (
-                    "holding continuous input stability: "
-                    f"{stable_seconds:.1f}/{READINESS_STABILITY_SECONDS:.1f} seconds"
+            elapsed = current - start_monotonic
+            items = node.status_items()
+            changed_items = (
+                items
+                if previous_items is None
+                else changed_status_items(previous_items, items)
+            )
+            if changed_items:
+                heading = "当前状态" if previous_items is None else "状态变化"
+                print()
+                print_wrapped(
+                    f"[设备预检 {elapsed:.0f}s] {heading}（按 Q 取消）"
                 )
-            if current >= next_progress_report:
-                print(progress, flush=True)
-                next_progress_report = current + 15.0
+                for line in render_status_rows(changed_items, terminal_columns()):
+                    print(line, flush=True)
+                print_wrapped(readiness_summary(items))
+                previous_items = items
+                next_progress_report = current + PROGRESS_HEARTBEAT_SECONDS
+            elif current >= next_progress_report:
+                print_wrapped(
+                    f"[设备预检 {elapsed:.0f}s] {readiness_summary(items)}"
+                    "（按 Q 取消）"
+                )
+                next_progress_report = current + PROGRESS_HEARTBEAT_SECONDS
+            if not blockers:
+                print()
+                print_wrapped(
+                    "[设备预检] 所有必需输入已同时在线；不再增加稳定等待，"
+                    f"立即进入 {WINDOW_SECONDS:.0f} 秒质量窗口。"
+                )
+                break
 
         acquisition_wait = time.monotonic() - start_monotonic
         node.stop_python_lidar_observer()
@@ -1059,25 +1484,43 @@ def main() -> int:
             arguments.lidar_qos_file,
             arguments.lidar_probe_log,
         )
+        print_wrapped("[质量准备] 正在确认 rosbag2 已订阅 LiDAR 原始点云...")
         lidar_probe.start()
         probe_warmup_start = time.monotonic()
-        while time.monotonic() - probe_warmup_start < LIDAR_PROBE_DISCOVERY_SECONDS:
+        next_probe_report = probe_warmup_start + PROGRESS_HEARTBEAT_SECONDS
+        while not lidar_probe.subscription_ready():
             if cancel_input.requested():
                 raise OperatorCancelled
             ensure_process_alive(arguments.watch_pid)
             lidar_probe.ensure_running()
             rclpy.spin_once(node, timeout_sec=0.05)
+            current = time.monotonic()
+            if current >= next_probe_report:
+                print_wrapped("[质量准备] 仍在等待 rosbag2 LiDAR 订阅确认...")
+                next_probe_report = current + PROGRESS_HEARTBEAT_SECONDS
+        probe_subscription_wait_seconds = time.monotonic() - probe_warmup_start
+        print_wrapped("[质量准备] LiDAR 订阅已确认，开始固定质量采样。")
 
         node.begin_window()
         window_start_monotonic = time.monotonic()
         window_start_epoch_ns = time.time_ns()
+        previous_window_summary = "全部输入在线"
+        print_wrapped(
+            f"[质量窗口] 开始 {WINDOW_SECONDS:.0f} 秒固定采样，输入必须持续在线。"
+        )
         while time.monotonic() - window_start_monotonic < WINDOW_SECONDS:
             if cancel_input.requested():
                 raise OperatorCancelled
             ensure_process_alive(arguments.watch_pid)
             lidar_probe.ensure_running()
             rclpy.spin_once(node, timeout_sec=0.05)
+            blockers = node.readiness_blockers()
+            window_summary = readiness_summary(node.status_items())
+            if window_summary != previous_window_summary:
+                print_wrapped(f"[质量窗口] {window_summary}")
+                previous_window_summary = window_summary
         window_end_epoch_ns = time.time_ns()
+        print_wrapped(f"[质量窗口] {WINDOW_SECONDS:.0f} 秒采样完成。")
         node.window_active = False
         probe_exit_code = lidar_probe.stop()
         probe_state, probe_evidence = analyze_lidar_probe(
@@ -1088,13 +1531,19 @@ def main() -> int:
         probe_evidence["recorder_exit_code"] = probe_exit_code
         probe_evidence["stop_escalation"] = lidar_probe.stop_escalation
         probe_evidence["command"] = lidar_probe.command
-        probe_evidence["discovery_warmup_seconds"] = LIDAR_PROBE_DISCOVERY_SECONDS
+        probe_evidence["subscription_marker_seen"] = True
+        probe_evidence["subscription_wait_seconds"] = probe_subscription_wait_seconds
         node.lidar_probe_evidence = probe_evidence
         node.load_lidar_probe(probe_state)
         payload = node.result(acquisition_wait_seconds=acquisition_wait)
         payload["started_at"] = started_at
         write_json(arguments.output, payload)
-        print(f"mapping preflight: {payload['status']}")
+        if payload["status"] == "PASS":
+            print_wrapped("[预检通过] 所有固定窗口质量检查通过。")
+        else:
+            print_wrapped(
+                "[预检失败] 未通过项：" + "，".join(payload["failures"])
+            )
         return 0 if payload["status"] == "PASS" else 3
     except OperatorCancelled:
         payload = {
@@ -1106,6 +1555,7 @@ def main() -> int:
             "failure": "operator_cancelled",
             "readiness_blockers": blockers,
             "acquisition_counts": node.acquisition_counts,
+            "last_status_snapshot": list(node.status_snapshot()),
         }
         write_json(arguments.output, payload)
         print("mapping preflight: CANCELLED")
@@ -1139,7 +1589,8 @@ def main() -> int:
         if lidar_probe is not None:
             lidar_probe.stop()
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
