@@ -6,7 +6,7 @@ profiles:
   rc:
     repository_manifest: dependencies/autoracer-rc.repos
     package_manifest: dependencies/vendor-packages-rc.tsv
-    package_count: 99
+    package_count: 86
     excluded_repository: whale_components
     excluded_packages:
       - fixposition_driver_lib
@@ -14,7 +14,20 @@ profiles:
       - fixposition_driver_ros2
       - fpsdk_common
       - fpsdk_ros2
+      - nebula_core_common
+      - nebula_core_decoders
+      - nebula_core_hw_interfaces
+      - nebula_core_ros
+      - nebula_hesai
+      - nebula_hesai_common
+      - nebula_hesai_decoders
+      - nebula_hesai_hw_interfaces
+      - nebula_msgs
+      - pandar_msgs
       - rtcm_msgs
+      - sync_tooling_msgs
+      - tier4_api_msgs
+      - tier4_debug_msgs
     launcher_source:
       url: https://github.com/autowarefoundation/autoware_launch.git
       revision: 0f3946af9c5ec1cba491681b6927c6fcf577ed25
@@ -78,5 +91,6 @@ patches:
   - dependencies/patches/lslidar_ros2_clean_shutdown.patch
   - dependencies/patches/lslidar_ros2_humble_package_xml.patch
   - dependencies/patches/nmea_navsat_driver_clean_shutdown.patch
+  - dependencies/patches/nmea_navsat_driver_tf_transformations.patch
   - dependencies/patches/tier4_localization_launch_gnss_enabled.patch
   - dependencies/patches/vehicle_cmd_gate_volatile_commands.patch
