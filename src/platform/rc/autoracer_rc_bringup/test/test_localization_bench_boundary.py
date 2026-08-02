@@ -59,9 +59,13 @@ def test_bench_g90_and_core_gnss_are_opt_in_but_use_the_production_path():
     assert "/dev/autoracer_rc_g90" not in BENCH_SOURCE
     assert 'DeclareLaunchArgument(\n                "launch_g90",\n                default_value="false"' in BENCH_SOURCE
     assert 'DeclareLaunchArgument(\n                "launch_g90_driver",\n                default_value=launch_g90' in BENCH_SOURCE
+    assert 'DeclareLaunchArgument(\n                "launch_g90_corrections",\n                default_value="false"' in BENCH_SOURCE
     assert '"launch_g90": launch_g90' in BENCH_SOURCE
     assert '"launch_g90_driver": launch_g90_driver' in BENCH_SOURCE
+    assert '"launch_g90_corrections": launch_g90_corrections' in BENCH_SOURCE
     assert '"g90_param_file": g90_param_file' in BENCH_SOURCE
+    assert '"g90_com2_device": g90_com2_device' in BENCH_SOURCE
+    assert '"g90_ntrip_config_file": g90_ntrip_config_file' in BENCH_SOURCE
     assert '"gnss_enabled": gnss_enabled' in BENCH_SOURCE
     assert "automatic_pose_initializer_enabled" not in BENCH_SOURCE
     for unstable_name in ("/dev/ttyCH343", "/dev/ttyUSB", "/dev/wheeltec_"):

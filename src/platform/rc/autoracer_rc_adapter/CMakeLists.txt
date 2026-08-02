@@ -68,7 +68,9 @@ install(
   DESTINATION include
 )
 install(
-  PROGRAMS scripts/g90_nmea_adapter
+  PROGRAMS
+    scripts/g90_nmea_adapter
+    scripts/g90_ntrip_relay
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
@@ -94,6 +96,12 @@ if(BUILD_TESTING)
   )
   ament_add_pytest_test(test_g90_adapter_node
     test/test_g90_adapter_node.py
+    APPEND_ENV
+      PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
+      ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_log
+  )
+  ament_add_pytest_test(test_g90_ntrip_relay_node
+    test/test_g90_ntrip_relay_node.py
     APPEND_ENV
       PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}
       ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_log

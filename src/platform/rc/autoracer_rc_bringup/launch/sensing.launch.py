@@ -17,12 +17,15 @@ def generate_launch_description():
     launch_imu = LaunchConfiguration("launch_imu")
     launch_g90 = LaunchConfiguration("launch_g90")
     launch_g90_driver = LaunchConfiguration("launch_g90_driver")
+    launch_g90_corrections = LaunchConfiguration("launch_g90_corrections")
     lidar_param_file = LaunchConfiguration("lidar_param_file")
     imu_param_file = LaunchConfiguration("imu_param_file")
     imu_device = LaunchConfiguration("imu_device")
     g90_param_file = LaunchConfiguration("g90_param_file")
     g90_device = LaunchConfiguration("g90_device")
     g90_baud = LaunchConfiguration("g90_baud")
+    g90_com2_device = LaunchConfiguration("g90_com2_device")
+    g90_ntrip_config_file = LaunchConfiguration("g90_ntrip_config_file")
 
     package_share = get_package_share_directory("autoracer_rc_bringup")
     default_lidar_param_file = PathJoinSubstitution(
@@ -67,6 +70,24 @@ def generate_launch_description():
         condition=IfCondition(launch_g90),
     )
 
+    g90_ntrip_relay = Node(
+        package="autoracer_rc_adapter",
+        executable="g90_ntrip_relay",
+        namespace="g90",
+        name="g90_ntrip_relay",
+        output="screen",
+        parameters=[
+            {
+                "config_file": ParameterValue(
+                    g90_ntrip_config_file, value_type=str
+                ),
+                "serial_device": ParameterValue(g90_com2_device, value_type=str),
+                "serial_baud": 115200,
+            }
+        ],
+        condition=IfCondition(launch_g90_corrections),
+    )
+
     g90_gnss_normalization = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -102,6 +123,14 @@ def generate_launch_description():
                 ),
             ),
             DeclareLaunchArgument(
+                "launch_g90_corrections",
+                default_value="false",
+                description=(
+                    "Start the project-owned G90 COM2 NTRIP relay. Credentials "
+                    "remain in the private config file and are never ROS parameters."
+                ),
+            ),
+            DeclareLaunchArgument(
                 "lidar_param_file", default_value=default_lidar_param_file
             ),
             DeclareLaunchArgument("imu_param_file", default_value=default_imu_param_file),
@@ -117,6 +146,19 @@ def generate_launch_description():
                 ),
             ),
             DeclareLaunchArgument("g90_baud", default_value="115200"),
+            DeclareLaunchArgument(
+                "g90_com2_device",
+                default_value="/dev/autoracer_g90_com2",
+                description="Stable udev alias for the G90 correction port.",
+            ),
+            DeclareLaunchArgument(
+                "g90_ntrip_config_file",
+                default_value="",
+                description=(
+                    "Absolute path to the runtime-user-owned 0600 NTRIP config; "
+                    "the file contents are never copied into ROS parameters."
+                ),
+            ),
             DeclareLaunchArgument(
                 "imu_device",
                 default_value=(
@@ -186,6 +228,7 @@ def generate_launch_description():
             ),
             g90_serial_reader,
             g90_adapter,
+            g90_ntrip_relay,
             g90_gnss_normalization,
         ]
     )

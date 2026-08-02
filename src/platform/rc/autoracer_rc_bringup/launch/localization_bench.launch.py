@@ -23,7 +23,10 @@ def generate_launch_description():
     chassis_serial_port = LaunchConfiguration("chassis_serial_port")
     launch_g90 = LaunchConfiguration("launch_g90")
     launch_g90_driver = LaunchConfiguration("launch_g90_driver")
+    launch_g90_corrections = LaunchConfiguration("launch_g90_corrections")
     g90_device = LaunchConfiguration("g90_device")
+    g90_com2_device = LaunchConfiguration("g90_com2_device")
+    g90_ntrip_config_file = LaunchConfiguration("g90_ntrip_config_file")
     g90_param_file = LaunchConfiguration("g90_param_file")
     gnss_enabled = LaunchConfiguration("gnss_enabled")
 
@@ -64,6 +67,11 @@ def generate_launch_description():
                 ),
             ),
             DeclareLaunchArgument(
+                "launch_g90_corrections",
+                default_value="false",
+                description="Start the project-owned G90 COM2 correction relay.",
+            ),
+            DeclareLaunchArgument(
                 "g90_device",
                 default_value=(
                     "/dev/serial/by-id/"
@@ -78,6 +86,11 @@ def generate_launch_description():
                     "generated file without editing the product repository."
                 ),
             ),
+            DeclareLaunchArgument(
+                "g90_com2_device",
+                default_value="/dev/autoracer_g90_com2",
+            ),
+            DeclareLaunchArgument("g90_ntrip_config_file", default_value=""),
             DeclareLaunchArgument(
                 "gnss_enabled",
                 default_value="false",
@@ -95,9 +108,12 @@ def generate_launch_description():
                     "launch_imu": "true",
                     "launch_g90": launch_g90,
                     "launch_g90_driver": launch_g90_driver,
+                    "launch_g90_corrections": launch_g90_corrections,
                     "g90_device": g90_device,
                     "g90_baud": "115200",
                     "g90_param_file": g90_param_file,
+                    "g90_com2_device": g90_com2_device,
+                    "g90_ntrip_config_file": g90_ntrip_config_file,
                 }.items(),
             ),
             IncludeLaunchDescription(
