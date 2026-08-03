@@ -1,0 +1,186 @@
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
+@@ -38,6 +38,13 @@
+ and a georeferenced map can share survey errors with GNSS. Cross-source checks are
+ therefore safety monitors, not proof of independent absolute truth.
+ 
++NDT-primary policies keep source-specific timing budgets separate.
++`gnss_pose_timeout_sec` validates the GNSS observation age and remains the
++receive-time budget used by GNSS/NDT consistency checks. `ndt_pose_timeout_sec`
++validates an NDT observation's own source timestamp so normal scan-matching
++latency is not mistaken for stale GNSS. It defaults to `gnss_pose_timeout_sec`,
++so existing and `official` configurations retain their historical behavior.
++
+ For a Fixposition deployment, `gnss_quality_status_required=true` preserves the
+ receiver's exact `RTK_FIXED`, `RTK_FLOAT`, `SPP` and `NO_FIX` state through the
+ measurement boundary. The status must match the GNSS pose timestamp and GNSS1
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml
+@@ -25,6 +25,10 @@
+     # If GNSS data is not received for this duration, trust only NDT
+     gnss_pose_timeout_sec: 1.0
+ 
++    # Maximum NDT source-stamp age accepted by NDT-primary policies. If omitted,
++    # it inherits gnss_pose_timeout_sec for backward compatibility.
++    ndt_pose_timeout_sec: 1.0
++
+     # Optional receiver-state integrity input for ndt_primary_position.
+     # Disabled by default so the upstream official behavior and existing
+     # non-Fixposition deployments remain unchanged.
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+@@ -63,6 +63,12 @@
+           "type": "number",
+           "default": 1.0,
+           "description": "If GNSS data is not received for this duration, trust only NDT"
++        },
++        "ndt_pose_timeout_sec": {
++          "type": "number",
++          "default": 1.0,
++          "exclusiveMinimum": 0.0,
++          "description": "Maximum NDT source-stamp age accepted by NDT-primary policies. When omitted it inherits gnss_pose_timeout_sec, preserving existing configurations"
+         },
+         "gnss_subscription_qos_depth": {
+           "type": "integer",
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+@@ -119,6 +119,7 @@
+   double ndt_std_dev_bound_lower_;
+   double ndt_std_dev_bound_upper_;
+   double gnss_pose_timeout_sec_;
++  double ndt_pose_timeout_sec_;
+   int64_t gnss_subscription_qos_depth_;
+   bool gnss_quality_status_required_;
+   double gnss_quality_status_max_stamp_delta_sec_;
+@@ -214,7 +215,8 @@
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source) const;
+ 
+   bool message_stamp_is_fresh(
+-    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source);
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source,
++    double max_age_sec);
+ 
+   bool ndt_is_fresh() const;
+ 
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -87,6 +87,15 @@
+   ndt_std_dev_bound_lower_ = this->declare_parameter<double>("ndt_std_dev_bound_lower");
+   ndt_std_dev_bound_upper_ = this->declare_parameter<double>("ndt_std_dev_bound_upper");
+   gnss_pose_timeout_sec_ = this->declare_parameter<double>("gnss_pose_timeout_sec");
++  ndt_pose_timeout_sec_ =
++    this->declare_parameter<double>("ndt_pose_timeout_sec", gnss_pose_timeout_sec_);
++  if (
++    fusion_policy_ != FusionPolicy::OFFICIAL &&
++    (!std::isfinite(gnss_pose_timeout_sec_) || gnss_pose_timeout_sec_ <= 0.0 ||
++     !std::isfinite(ndt_pose_timeout_sec_) || ndt_pose_timeout_sec_ <= 0.0)) {
++    throw std::invalid_argument(
++            "GNSS and NDT pose freshness limits must be finite and positive");
++  }
+   gnss_subscription_qos_depth_ =
+     this->declare_parameter<int64_t>("gnss_subscription_qos_depth", 10);
+   if (gnss_subscription_qos_depth_ <= 0) {
+@@ -465,7 +474,7 @@
+     fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
+     if (
+       !pose_message_is_valid(*msg_pose_with_cov_in, "GNSS") ||
+-      !message_stamp_is_fresh(*msg_pose_with_cov_in, "GNSS")) {
++      !message_stamp_is_fresh(*msg_pose_with_cov_in, "GNSS", gnss_pose_timeout_sec_)) {
+       pose_source_ = PoseSource::NDT;
+       publish_pose_type(pose_source_);
+       return;
+@@ -590,7 +599,7 @@
+     fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
+     if (
+       !pose_message_is_valid(*msg_pose_with_cov_in, "NDT") ||
+-      !message_stamp_is_fresh(*msg_pose_with_cov_in, "NDT")) {
++      !message_stamp_is_fresh(*msg_pose_with_cov_in, "NDT", ndt_pose_timeout_sec_)) {
+       RCLCPP_WARN(this->get_logger(), "Rejected invalid or stale NDT pose");
+       return;
+     }
+@@ -698,7 +707,8 @@
+ }
+ 
+ bool PoseCovarianceModifierNode::message_stamp_is_fresh(
+-  const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source)
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source,
++  const double max_age_sec)
+ {
+   const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
+   if (stamp.nanoseconds() <= 0) {
+@@ -706,11 +716,11 @@
+     return false;
+   }
+   const double age_sec = (this->now() - stamp).seconds();
+-  if (!std::isfinite(age_sec) || age_sec > gnss_pose_timeout_sec_ || age_sec < -gnss_pose_timeout_sec_) {
++  if (!std::isfinite(age_sec) || age_sec > max_age_sec || age_sec < -max_age_sec) {
+     RCLCPP_WARN_THROTTLE(
+       this->get_logger(), *this->get_clock(), 1000,
+       "%s pose timestamp is outside the freshness window: age=%.3f sec limit=%.3f sec",
+-      source, age_sec, gnss_pose_timeout_sec_);
++      source, age_sec, max_age_sec);
+     return false;
+   }
+   return true;
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -41,6 +41,8 @@
+   double float_floor_m{0.45};
+   double spp_floor_m{0.55};
+   double xy_upper_m{0.25};
++  double gnss_timeout_sec{1.0};
++  double ndt_timeout_sec{-1.0};
+ };
+ 
+ class ModifierHarness
+@@ -92,6 +94,9 @@
+         {"ndt_std_dev_bound_lower", 0.14},
+         {"ndt_std_dev_bound_upper", 0.30},
+         {"gnss_pose_timeout_sec", timeout_sec},
++        {"ndt_pose_timeout_sec",
++         quality_options.ndt_timeout_sec > 0.0
++           ? quality_options.ndt_timeout_sec : timeout_sec},
+         {"gnss_subscription_qos_depth", gnss_subscription_qos_depth},
+         {"gnss_quality_status_required", quality_options.required},
+         {"gnss_quality_status_max_stamp_delta_sec", quality_options.max_stamp_delta_sec},
+@@ -153,7 +158,7 @@
+   ModifierHarness(
+     const std::string & policy, const QualityContractOptions & quality_options)
+   : ModifierHarness(
+-      policy, 1.0, 0.0, 0.0, false, 0.0, false, false, false,
++      policy, quality_options.gnss_timeout_sec, 0.0, 0.0, false, 0.0, false, false, false,
+       0.5, 3, 0, true, 0.0, 0.0, 0.0, false, false, 10,
+       quality_options)
+   {
+@@ -536,6 +541,31 @@
+   EXPECT_TRUE(harness.outputs().empty());
+ }
+ 
++TEST(PoseCovarianceModifier, ndt_and_gnss_use_independent_source_age_budgets)
++{
++  QualityContractOptions options;
++  options.gnss_timeout_sec = 0.05;
++  options.ndt_timeout_sec = 0.20;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  const auto delayed_but_valid_ndt = harness.make_message(0.15);
++  std::this_thread::sleep_for(70ms);
++  harness.publish_ndt(delayed_but_valid_ndt);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front(), delayed_but_valid_ndt);
++
++  harness.clear();
++  const auto stale_gnss = harness.make_message(0.2);
++  std::this_thread::sleep_for(70ms);
++  harness.publish_gnss(stale_gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++
++  const auto stale_ndt = harness.make_message(0.15);
++  std::this_thread::sleep_for(220ms);
++  harness.publish_ndt(stale_ndt);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_rejects_invalid_covariance)
+ {
+   for (const double invalid : {

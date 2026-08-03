@@ -1,0 +1,675 @@
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
+@@ -38,7 +38,11 @@
+ `gnss_ndt_max_stamp_delta_sec` and `gnss_ndt_xy_innovation_max_m`. They are
+ intended for separately controlled experiments; a non-zero value rejects a GNSS
+ position that is not timestamp-close to, or is too far from, the latest NDT
+-observation.
++observation. The separately disabled
++`gnss_ndt_motion_compensate_innovation` option linearly propagates the last two
++NDT positions to the GNSS timestamp before evaluating only this gate. This avoids
++mistaking normal vehicle motion between asynchronous measurements for spatial
++disagreement; it does not alter either measurement published to the EKF.
+ 
+ ## Assumptions
+ 
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml
+@@ -25,4 +25,7 @@
+     # If GNSS data is not received for this duration, trust only NDT
+     gnss_pose_timeout_sec: 1.0
+ 
++    # Disabled by default: motion-compensate only the GNSS/NDT innovation gate.
++    gnss_ndt_motion_compensate_innovation: false
++
+     enable_debug_topics: true
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+@@ -65,6 +65,11 @@
+           "minimum": 0.0,
+           "description": "Optional position-only GNSS-versus-latest-NDT XY gate; zero disables it"
+         },
++        "gnss_ndt_motion_compensate_innovation": {
++          "type": "boolean",
++          "default": false,
++          "description": "When enabled, compare GNSS with a constant-velocity NDT position at the GNSS timestamp; affects only the consistency gate and never rewrites either measurement"
++        },
+         "enable_debug_topics": {
+           "type": "boolean",
+           "default": true,
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+@@ -20,6 +20,9 @@
+ #include <std_msgs/msg/float64.hpp>
+ #include <std_msgs/msg/string.hpp>
+ 
++#include <array>
++#include <cstdint>
++#include <optional>
+ #include <string>
+ 
+ namespace autoware::pose_covariance_modifier
+@@ -42,6 +45,22 @@
+     NDT_PRIMARY_POSITION = 2,
+   };
+ 
++  enum class ConflictState {
++    UNTRUSTED = 0,
++    TRUSTED = 1,
++    NDT_SUSPECT = 2,
++    GNSS_SUSPECT = 3,
++  };
++
++  struct CausalSourcePair
++  {
++    int64_t stamp_ns;
++    double gnss_x;
++    double gnss_y;
++    double ndt_x;
++    double ndt_y;
++  };
++
+   // covariance matrix indexes
+   const int X_POS_IDX_ = 0;
+   const int Y_POS_IDX_ = 7;
+@@ -60,15 +79,31 @@
+   double gnss_position_only_yaw_variance_;
+   double gnss_ndt_max_stamp_delta_sec_;
+   double gnss_ndt_xy_innovation_max_m_;
++  double gnss_ndt_robust_soft_gate_scale_m_;
++  bool gnss_ndt_motion_compensate_innovation_;
++  bool gnss_ndt_causal_conflict_filter_enabled_;
++  double gnss_ndt_causal_trust_agreement_m_;
++  double gnss_ndt_causal_conflict_m_;
++  double gnss_ndt_causal_source_jump_m_;
++  double gnss_ndt_causal_source_jump_margin_m_;
++  double gnss_ndt_causal_reset_gap_sec_;
++  int64_t gnss_ndt_causal_warmup_count_;
++  int64_t gnss_ndt_causal_ndt_suspect_update_budget_;
+   bool debug_mode_;
+ 
+   rclcpp::Time gnss_pose_received_time_last_;
+   rclcpp::Time ndt_pose_received_time_last_;
+   geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr gnss_pose_with_cov_last_;
++  geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr ndt_pose_with_cov_previous_;
+   geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr ndt_pose_with_cov_last_;
+   PoseSource pose_source_;
+   bool has_valid_ndt_pose_{false};
+   std::string last_valid_ndt_frame_id_;
++  ConflictState conflict_state_{ConflictState::UNTRUSTED};
++  int64_t causal_agreement_count_{0};
++  int64_t causal_ndt_suspect_updates_left_{0};
++  std::optional<CausalSourcePair> causal_source_pair_previous_;
++  std::optional<CausalSourcePair> causal_source_pair_last_;
+ 
+   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     sub_gnss_pose_with_cov_;
+@@ -103,7 +138,17 @@
+ 
+   bool gnss_position_is_trusted(
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
+-    double gnss_pose_stddev_xy) const;
++    double gnss_pose_stddev_xy);
++
++  std::optional<double> gnss_ndt_xy_innovation(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
++
++  std::optional<std::array<double, 2>> gnss_ndt_xy_reference(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
++
++  bool causal_conflict_allows_gnss(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++    const std::array<double, 2> & ndt_reference, double innovation_m);
+ 
+   PoseSource pose_source_from_gnss_stddev(
+     double gnss_pose_yaw_stddev_deg, double gnss_pose_stddev_z, double gnss_pose_stddev_xy) const;
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -65,6 +65,26 @@
+     this->declare_parameter<double>("gnss_ndt_max_stamp_delta_sec", 0.0);
+   gnss_ndt_xy_innovation_max_m_ =
+     this->declare_parameter<double>("gnss_ndt_xy_innovation_max_m", 0.0);
++  gnss_ndt_robust_soft_gate_scale_m_ =
++    this->declare_parameter<double>("gnss_ndt_robust_soft_gate_scale_m", 0.0);
++  gnss_ndt_motion_compensate_innovation_ =
++    this->declare_parameter<bool>("gnss_ndt_motion_compensate_innovation", false);
++  gnss_ndt_causal_conflict_filter_enabled_ =
++    this->declare_parameter<bool>("gnss_ndt_causal_conflict_filter_enabled", false);
++  gnss_ndt_causal_trust_agreement_m_ =
++    this->declare_parameter<double>("gnss_ndt_causal_trust_agreement_m", 0.0);
++  gnss_ndt_causal_conflict_m_ =
++    this->declare_parameter<double>("gnss_ndt_causal_conflict_m", 0.0);
++  gnss_ndt_causal_source_jump_m_ =
++    this->declare_parameter<double>("gnss_ndt_causal_source_jump_m", 0.0);
++  gnss_ndt_causal_source_jump_margin_m_ =
++    this->declare_parameter<double>("gnss_ndt_causal_source_jump_margin_m", 0.0);
++  gnss_ndt_causal_reset_gap_sec_ =
++    this->declare_parameter<double>("gnss_ndt_causal_reset_gap_sec", 0.0);
++  gnss_ndt_causal_warmup_count_ =
++    this->declare_parameter<int64_t>("gnss_ndt_causal_warmup_count", 0);
++  gnss_ndt_causal_ndt_suspect_update_budget_ =
++    this->declare_parameter<int64_t>("gnss_ndt_causal_ndt_suspect_update_budget", 0);
+   if (
+     !std::isfinite(gnss_position_only_yaw_variance_) ||
+     gnss_position_only_yaw_variance_ <= 0.0) {
+@@ -74,9 +94,37 @@
+     !std::isfinite(gnss_ndt_max_stamp_delta_sec_) ||
+     gnss_ndt_max_stamp_delta_sec_ < 0.0 ||
+     !std::isfinite(gnss_ndt_xy_innovation_max_m_) ||
+-    gnss_ndt_xy_innovation_max_m_ < 0.0) {
++    gnss_ndt_xy_innovation_max_m_ < 0.0 ||
++    !std::isfinite(gnss_ndt_robust_soft_gate_scale_m_) ||
++    gnss_ndt_robust_soft_gate_scale_m_ < 0.0) {
+     throw std::invalid_argument("GNSS/NDT consistency limits must be finite and non-negative");
+   }
++  if (
++    gnss_ndt_robust_soft_gate_scale_m_ > 0.0 &&
++    gnss_ndt_xy_innovation_max_m_ <= 0.0) {
++    throw std::invalid_argument(
++            "gnss_ndt_robust_soft_gate_scale_m requires a positive innovation maximum");
++  }
++  if (gnss_ndt_causal_conflict_filter_enabled_) {
++    if (
++      gnss_ndt_xy_innovation_max_m_ <= 0.0 ||
++      !std::isfinite(gnss_ndt_causal_trust_agreement_m_) ||
++      !std::isfinite(gnss_ndt_causal_conflict_m_) ||
++      !std::isfinite(gnss_ndt_causal_source_jump_m_) ||
++      !std::isfinite(gnss_ndt_causal_source_jump_margin_m_) ||
++      !std::isfinite(gnss_ndt_causal_reset_gap_sec_) ||
++      gnss_ndt_causal_trust_agreement_m_ < 0.0 ||
++      gnss_ndt_causal_conflict_m_ <= gnss_ndt_causal_trust_agreement_m_ ||
++      gnss_ndt_causal_conflict_m_ >= gnss_ndt_xy_innovation_max_m_ ||
++      gnss_ndt_causal_source_jump_m_ <= 0.0 ||
++      gnss_ndt_causal_source_jump_margin_m_ < 0.0 ||
++      gnss_ndt_causal_source_jump_margin_m_ >= gnss_ndt_causal_source_jump_m_ ||
++      gnss_ndt_causal_reset_gap_sec_ <= 0.0 ||
++      gnss_ndt_causal_warmup_count_ <= 0 ||
++      gnss_ndt_causal_ndt_suspect_update_budget_ <= 0) {
++      throw std::invalid_argument("causal GNSS/NDT conflict parameters are inconsistent");
++    }
++  }
+   debug_mode_ = this->declare_parameter<bool>("enable_debug_topics");
+ 
+   // subscribers
+@@ -153,6 +201,19 @@
+       // orientation as a neutral yaw carrier, and make yaw uninformative.
+       auto position_only = *msg_pose_with_cov_in;
+       position_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
++      if (gnss_ndt_robust_soft_gate_scale_m_ > 0.0) {
++        const auto innovation_m = gnss_ndt_xy_innovation(*msg_pose_with_cov_in);
++        if (!innovation_m) {
++          pose_source_ = PoseSource::NDT;
++          publish_pose_type(pose_source_);
++          return;
++        }
++        const double ratio = *innovation_m / gnss_ndt_robust_soft_gate_scale_m_;
++        const double covariance_scale = std::max(1.0, ratio * ratio);
++        for (const int index : {0, 1, 6, 7}) {
++          position_only.pose.covariance[index] *= covariance_scale;
++        }
++      }
+       for (int axis = 0; axis < 5; ++axis) {
+         position_only.pose.covariance[axis * 6 + 5] = 0.0;
+         position_only.pose.covariance[5 * 6 + axis] = 0.0;
+@@ -221,6 +282,7 @@
+ 
+     has_valid_ndt_pose_ = true;
+     ndt_pose_received_time_last_ = this->now();
++    ndt_pose_with_cov_previous_ = ndt_pose_with_cov_last_;
+     ndt_pose_with_cov_last_ = msg_pose_with_cov_in;
+     last_valid_ndt_frame_id_ = msg_pose_with_cov_in->header.frame_id;
+     if (gnss_pose_has_timed_out(gnss_pose_received_time_last_)) {
+@@ -349,7 +411,7 @@
+ 
+ bool PoseCovarianceModifierNode::gnss_position_is_trusted(
+   const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
+-  const double gnss_pose_stddev_xy) const
++  const double gnss_pose_stddev_xy)
+ {
+   if (!ndt_is_fresh() || !ndt_pose_with_cov_last_) {
+     RCLCPP_WARN(this->get_logger(), "GNSS position rejected because no fresh valid NDT pose exists");
+@@ -372,14 +434,21 @@
+     }
+   }
+   if (gnss_ndt_xy_innovation_max_m_ > 0.0) {
+-    const double dx =
+-      msg.pose.pose.position.x - ndt_pose_with_cov_last_->pose.pose.position.x;
+-    const double dy =
+-      msg.pose.pose.position.y - ndt_pose_with_cov_last_->pose.pose.position.y;
+-    const double innovation_m = std::hypot(dx, dy);
++    const auto innovation_m = gnss_ndt_xy_innovation(msg);
++    const auto reference = gnss_ndt_xy_reference(msg);
++    if (!innovation_m || !reference) {
++      RCLCPP_WARN(this->get_logger(), "GNSS position rejected because NDT innovation is unavailable");
++      return false;
++    }
+     if (
+-      !std::isfinite(innovation_m) ||
+-      innovation_m > gnss_ndt_xy_innovation_max_m_) {
++      gnss_ndt_causal_conflict_filter_enabled_ &&
++      !causal_conflict_allows_gnss(msg, *reference, *innovation_m)) {
++      RCLCPP_WARN(this->get_logger(), "GNSS position rejected by the causal conflict filter");
++      return false;
++    }
++    if (
++      !gnss_ndt_causal_conflict_filter_enabled_ &&
++      *innovation_m > gnss_ndt_xy_innovation_max_m_) {
+       RCLCPP_WARN(this->get_logger(), "GNSS position rejected by the NDT innovation gate");
+       return false;
+     }
+@@ -387,6 +456,188 @@
+   return gnss_pose_stddev_xy <= threshold_gnss_stddev_xy_bound_upper_;
+ }
+ 
++std::optional<double> PoseCovarianceModifierNode::gnss_ndt_xy_innovation(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const
++{
++  const auto reference = gnss_ndt_xy_reference(msg);
++  if (!reference) {
++    return std::nullopt;
++  }
++  const double innovation_m =
++    std::hypot(
++    msg.pose.pose.position.x - (*reference)[0],
++    msg.pose.pose.position.y - (*reference)[1]);
++  if (!std::isfinite(innovation_m)) {
++    return std::nullopt;
++  }
++  return innovation_m;
++}
++
++std::optional<std::array<double, 2>> PoseCovarianceModifierNode::gnss_ndt_xy_reference(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const
++{
++  if (!ndt_pose_with_cov_last_) {
++    return std::nullopt;
++  }
++  double reference_x = ndt_pose_with_cov_last_->pose.pose.position.x;
++  double reference_y = ndt_pose_with_cov_last_->pose.pose.position.y;
++  if (gnss_ndt_motion_compensate_innovation_ && ndt_pose_with_cov_previous_) {
++    const rclcpp::Time previous_stamp(
++      ndt_pose_with_cov_previous_->header.stamp, this->get_clock()->get_clock_type());
++    const rclcpp::Time latest_stamp(
++      ndt_pose_with_cov_last_->header.stamp, this->get_clock()->get_clock_type());
++    const rclcpp::Time gnss_stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++    const double ndt_interval_sec = (latest_stamp - previous_stamp).seconds();
++    const double gnss_from_latest_sec = (gnss_stamp - latest_stamp).seconds();
++    if (
++      std::isfinite(ndt_interval_sec) && ndt_interval_sec > 1.0e-6 &&
++      std::isfinite(gnss_from_latest_sec)) {
++      const double velocity_x =
++        (ndt_pose_with_cov_last_->pose.pose.position.x -
++         ndt_pose_with_cov_previous_->pose.pose.position.x) /
++        ndt_interval_sec;
++      const double velocity_y =
++        (ndt_pose_with_cov_last_->pose.pose.position.y -
++         ndt_pose_with_cov_previous_->pose.pose.position.y) /
++        ndt_interval_sec;
++      reference_x += velocity_x * gnss_from_latest_sec;
++      reference_y += velocity_y * gnss_from_latest_sec;
++    }
++  }
++  if (!std::isfinite(reference_x) || !std::isfinite(reference_y)) {
++    return std::nullopt;
++  }
++  return std::array<double, 2>{reference_x, reference_y};
++}
++
++bool PoseCovarianceModifierNode::causal_conflict_allows_gnss(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++  const std::array<double, 2> & ndt_reference, const double innovation_m)
++{
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  const CausalSourcePair current{
++    stamp.nanoseconds(),
++    msg.pose.pose.position.x,
++    msg.pose.pose.position.y,
++    ndt_reference[0],
++    ndt_reference[1]};
++
++  if (
++    causal_source_pair_last_ &&
++    static_cast<double>(current.stamp_ns - causal_source_pair_last_->stamp_ns) * 1.0e-9 >
++    gnss_ndt_causal_reset_gap_sec_) {
++    conflict_state_ = ConflictState::UNTRUSTED;
++    causal_agreement_count_ = 0;
++    causal_ndt_suspect_updates_left_ = 0;
++    causal_source_pair_previous_.reset();
++    causal_source_pair_last_.reset();
++  }
++
++  double gnss_prediction_error = 0.0;
++  double ndt_prediction_error = 0.0;
++  bool prediction_available = false;
++  if (causal_source_pair_previous_ && causal_source_pair_last_) {
++    const double previous_interval_sec =
++      static_cast<double>(
++      causal_source_pair_last_->stamp_ns - causal_source_pair_previous_->stamp_ns) *
++      1.0e-9;
++    const double current_interval_sec =
++      static_cast<double>(current.stamp_ns - causal_source_pair_last_->stamp_ns) * 1.0e-9;
++    if (
++      std::isfinite(previous_interval_sec) && previous_interval_sec > 1.0e-6 &&
++      std::isfinite(current_interval_sec) && current_interval_sec > 0.0 &&
++      current_interval_sec <= gnss_ndt_causal_reset_gap_sec_) {
++      const double ratio = current_interval_sec / previous_interval_sec;
++      const double gnss_predicted_x =
++        causal_source_pair_last_->gnss_x +
++        ratio * (causal_source_pair_last_->gnss_x - causal_source_pair_previous_->gnss_x);
++      const double gnss_predicted_y =
++        causal_source_pair_last_->gnss_y +
++        ratio * (causal_source_pair_last_->gnss_y - causal_source_pair_previous_->gnss_y);
++      const double ndt_predicted_x =
++        causal_source_pair_last_->ndt_x +
++        ratio * (causal_source_pair_last_->ndt_x - causal_source_pair_previous_->ndt_x);
++      const double ndt_predicted_y =
++        causal_source_pair_last_->ndt_y +
++        ratio * (causal_source_pair_last_->ndt_y - causal_source_pair_previous_->ndt_y);
++      gnss_prediction_error =
++        std::hypot(current.gnss_x - gnss_predicted_x, current.gnss_y - gnss_predicted_y);
++      ndt_prediction_error =
++        std::hypot(current.ndt_x - ndt_predicted_x, current.ndt_y - ndt_predicted_y);
++      prediction_available =
++        std::isfinite(gnss_prediction_error) && std::isfinite(ndt_prediction_error);
++    }
++  }
++
++  const bool gnss_jump =
++    prediction_available &&
++    gnss_prediction_error >= gnss_ndt_causal_source_jump_m_ &&
++    gnss_prediction_error >=
++    ndt_prediction_error + gnss_ndt_causal_source_jump_margin_m_;
++  const bool ndt_jump =
++    prediction_available &&
++    ndt_prediction_error >= gnss_ndt_causal_source_jump_m_ &&
++    ndt_prediction_error >=
++    gnss_prediction_error + gnss_ndt_causal_source_jump_margin_m_;
++
++  bool allow = false;
++  if (innovation_m > gnss_ndt_xy_innovation_max_m_ || gnss_jump) {
++    conflict_state_ = ConflictState::GNSS_SUSPECT;
++    causal_agreement_count_ = 0;
++    causal_ndt_suspect_updates_left_ = 0;
++  } else {
++    switch (conflict_state_) {
++      case ConflictState::UNTRUSTED:
++        if (innovation_m < gnss_ndt_causal_trust_agreement_m_) {
++          ++causal_agreement_count_;
++          if (causal_agreement_count_ >= gnss_ndt_causal_warmup_count_) {
++            conflict_state_ = ConflictState::TRUSTED;
++            allow = true;
++          }
++        } else if (innovation_m >= gnss_ndt_causal_conflict_m_) {
++          conflict_state_ = ConflictState::GNSS_SUSPECT;
++          causal_agreement_count_ = 0;
++        } else {
++          causal_agreement_count_ = 0;
++        }
++        break;
++      case ConflictState::TRUSTED:
++        if (innovation_m <= gnss_ndt_causal_conflict_m_) {
++          allow = true;
++        } else if (ndt_jump) {
++          conflict_state_ = ConflictState::NDT_SUSPECT;
++          causal_ndt_suspect_updates_left_ =
++            gnss_ndt_causal_ndt_suspect_update_budget_;
++          allow = true;
++        } else {
++          conflict_state_ = ConflictState::GNSS_SUSPECT;
++        }
++        break;
++      case ConflictState::NDT_SUSPECT:
++        if (innovation_m < gnss_ndt_causal_trust_agreement_m_) {
++          conflict_state_ = ConflictState::TRUSTED;
++          allow = true;
++        } else if (
++          causal_ndt_suspect_updates_left_ > 0 &&
++          (!prediction_available ||
++          gnss_prediction_error < gnss_ndt_causal_source_jump_m_)) {
++          --causal_ndt_suspect_updates_left_;
++          allow = true;
++        } else {
++          conflict_state_ = ConflictState::GNSS_SUSPECT;
++          causal_ndt_suspect_updates_left_ = 0;
++        }
++        break;
++      case ConflictState::GNSS_SUSPECT:
++        break;
++    }
++  }
++
++  causal_source_pair_previous_ = causal_source_pair_last_;
++  causal_source_pair_last_ = current;
++  return allow;
++}
++
+ bool PoseCovarianceModifierNode::gnss_pose_has_timed_out(
+   const rclcpp::Time & gnss_pose_received_time_last)
+ {
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -32,7 +32,10 @@
+ public:
+   ModifierHarness(
+     const std::string & policy, const double timeout_sec = 1.0,
+-    const double stamp_delta_sec = 0.0, const double innovation_m = 0.0)
++    const double stamp_delta_sec = 0.0, const double innovation_m = 0.0,
++    const bool motion_compensate_innovation = false,
++    const double robust_soft_gate_scale_m = 0.0,
++    const bool causal_conflict_filter = false)
+   {
+     rclcpp::NodeOptions options;
+     options.arguments(
+@@ -50,9 +53,20 @@
+         {"gnss_position_only_yaw_variance", 1.0},
+         {"gnss_ndt_max_stamp_delta_sec", stamp_delta_sec},
+         {"gnss_ndt_xy_innovation_max_m", innovation_m},
++        {"gnss_ndt_robust_soft_gate_scale_m", robust_soft_gate_scale_m},
++        {"gnss_ndt_motion_compensate_innovation", motion_compensate_innovation},
++        {"gnss_ndt_causal_conflict_filter_enabled", causal_conflict_filter},
++        {"gnss_ndt_causal_trust_agreement_m", 0.6},
++        {"gnss_ndt_causal_conflict_m", 0.8},
++        {"gnss_ndt_causal_source_jump_m", 0.4},
++        {"gnss_ndt_causal_source_jump_margin_m", 0.25},
++        {"gnss_ndt_causal_reset_gap_sec", 2.0},
++        {"gnss_ndt_causal_warmup_count", 3},
++        {"gnss_ndt_causal_ndt_suspect_update_budget", 5},
+         {"enable_debug_topics", false},
+       });
+     subject_ = std::make_shared<Node>(options);
++    base_stamp_ = subject_->now();
+     helper_ = std::make_shared<rclcpp::Node>(
+       "helper", subject_->get_namespace(), rclcpp::NodeOptions{});
+     ndt_pub_ = helper_->create_publisher<Message>("input_ndt_pose_with_cov_topic", 10);
+@@ -110,6 +124,11 @@
+ 
+   void clear() {outputs_.clear();}
+   const std::vector<Message> & outputs() const {return outputs_;}
++  void set_sequence_stamp(Message & msg, const int index) const
++  {
++    msg.header.stamp =
++      (base_stamp_ + rclcpp::Duration::from_seconds(0.05 * static_cast<double>(index)));
++  }
+ 
+ private:
+   template<class Predicate>
+@@ -140,6 +159,7 @@
+   rclcpp::Publisher<Message>::SharedPtr gnss_pub_;
+   rclcpp::Subscription<Message>::SharedPtr output_sub_;
+   std::vector<Message> outputs_;
++  rclcpp::Time base_stamp_{0, 0, RCL_ROS_TIME};
+ };
+ 
+ TEST(PoseCovarianceModifier, official_policy_preserves_xy_boundaries)
+@@ -302,6 +322,171 @@
+   EXPECT_EQ(harness.outputs().front().pose.pose.position, normal_fix.pose.pose.position);
+ }
+ 
++TEST(PoseCovarianceModifier, ndt_primary_position_motion_compensates_only_innovation_gate)
++{
++  const auto exercise = [](const bool enabled) {
++    ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 0.2, enabled);
++    auto ndt_previous = harness.make_message(0.15);
++    ndt_previous.pose.pose.position.x = 10.0;
++    auto ndt_latest = ndt_previous;
++    ndt_latest.header.stamp =
++      (rclcpp::Time(ndt_previous.header.stamp) + rclcpp::Duration::from_seconds(0.1));
++    ndt_latest.pose.pose.position.x = 11.0;
++    auto gnss = ndt_latest;
++    gnss.header.stamp =
++      (rclcpp::Time(ndt_latest.header.stamp) + rclcpp::Duration::from_seconds(0.1));
++    gnss.pose.pose.position.x = 12.0;
++    gnss.pose.covariance[0] = 0.01;
++    gnss.pose.covariance[7] = 0.01;
++
++    harness.publish_ndt(ndt_previous);
++    harness.publish_ndt(ndt_latest);
++    harness.clear();
++    harness.publish_gnss(gnss);
++    return harness.outputs();
++  };
++
++  EXPECT_TRUE(exercise(false).empty());
++  const auto compensated = exercise(true);
++  ASSERT_EQ(compensated.size(), 1U);
++  EXPECT_DOUBLE_EQ(compensated.front().pose.pose.position.x, 12.0);
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_soft_gate_only_inflates_gnss_xy_covariance)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0, false, 0.8);
++  auto ndt = harness.make_message(0.15);
++  auto gnss = harness.make_message(0.1);
++  gnss.pose.pose.position.x += 1.6;
++  gnss.pose.covariance[1] = 0.002;
++  gnss.pose.covariance[6] = 0.002;
++
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  const auto & output = harness.outputs().front();
++  EXPECT_DOUBLE_EQ(output.pose.covariance[0], 0.04);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[1], 0.008);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[6], 0.008);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[7], 0.04);
++  EXPECT_EQ(output.pose.pose.position, gnss.pose.pose.position);
++  EXPECT_EQ(output.pose.pose.orientation, ndt.pose.pose.orientation);
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_soft_gate_retains_hard_outer_limit)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0, false, 0.8);
++  const auto ndt = harness.make_message(0.15);
++  auto false_fix = harness.make_message(0.1);
++  false_fix.pose.pose.position.x += 3.01;
++
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(false_fix);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, causal_conflict_filter_requires_agreement_warmup)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0, true, 0.8, true);
++  for (int index = 0; index < 3; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x = 10.0 + 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    harness.set_sequence_stamp(ndt, 2 * index);
++    harness.set_sequence_stamp(gnss, 2 * index + 1);
++    harness.publish_ndt(ndt);
++    harness.clear();
++    harness.publish_gnss(gnss);
++    EXPECT_EQ(harness.outputs().size(), index == 2 ? 1U : 0U);
++  }
++}
++
++TEST(PoseCovarianceModifier, causal_conflict_filter_locks_out_startup_false_fix)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0, true, 0.8, true);
++  for (int index = 0; index < 5; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x = 10.0 + 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x + (index == 0 ? 1.0 : 0.0);
++    harness.set_sequence_stamp(ndt, 2 * index);
++    harness.set_sequence_stamp(gnss, 2 * index + 1);
++    harness.publish_ndt(ndt);
++    harness.clear();
++    harness.publish_gnss(gnss);
++    EXPECT_TRUE(harness.outputs().empty());
++  }
++}
++
++TEST(PoseCovarianceModifier, causal_conflict_filter_allows_bounded_ndt_jump)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0, true, 0.8, true);
++  for (int index = 0; index < 3; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x = 10.0 + 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    harness.set_sequence_stamp(ndt, 2 * index);
++    harness.set_sequence_stamp(gnss, 2 * index + 1);
++    harness.publish_ndt(ndt);
++    harness.clear();
++    harness.publish_gnss(gnss);
++  }
++
++  auto ndt_jump = harness.make_message(0.15);
++  auto smooth_gnss = harness.make_message(0.1);
++  ndt_jump.pose.pose.position.x = 11.5;
++  smooth_gnss.pose.pose.position.x = 10.6;
++  harness.set_sequence_stamp(ndt_jump, 6);
++  harness.set_sequence_stamp(smooth_gnss, 7);
++  harness.publish_ndt(ndt_jump);
++  harness.clear();
++  harness.publish_gnss(smooth_gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_DOUBLE_EQ(harness.outputs().front().pose.pose.position.x, 10.6);
++}
++
++TEST(PoseCovarianceModifier, causal_conflict_filter_rejects_and_latches_gnss_jump)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0, true, 0.8, true);
++  for (int index = 0; index < 3; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x = 10.0 + 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    harness.set_sequence_stamp(ndt, 2 * index);
++    harness.set_sequence_stamp(gnss, 2 * index + 1);
++    harness.publish_ndt(ndt);
++    harness.clear();
++    harness.publish_gnss(gnss);
++  }
++
++  auto smooth_ndt = harness.make_message(0.15);
++  auto gnss_jump = harness.make_message(0.1);
++  smooth_ndt.pose.pose.position.x = 10.6;
++  gnss_jump.pose.pose.position.x = 11.6;
++  harness.set_sequence_stamp(smooth_ndt, 6);
++  harness.set_sequence_stamp(gnss_jump, 7);
++  harness.publish_ndt(smooth_ndt);
++  harness.clear();
++  harness.publish_gnss(gnss_jump);
++  EXPECT_TRUE(harness.outputs().empty());
++
++  auto next_ndt = harness.make_message(0.15);
++  auto recovered_gnss = harness.make_message(0.1);
++  next_ndt.pose.pose.position.x = 10.8;
++  recovered_gnss.pose.pose.position.x = 10.8;
++  harness.set_sequence_stamp(next_ndt, 8);
++  harness.set_sequence_stamp(recovered_gnss, 9);
++  harness.publish_ndt(next_ndt);
++  harness.clear();
++  harness.publish_gnss(recovered_gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
+ }  // namespace
+ 
+ int main(int argc, char ** argv)

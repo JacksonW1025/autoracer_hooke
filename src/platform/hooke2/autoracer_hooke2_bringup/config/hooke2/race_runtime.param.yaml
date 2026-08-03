@@ -4,6 +4,11 @@ race_runtime_manager:
     auto_start: true
     startup_timeout_sec: 90.0
     localization_timeout_sec: 0.20
+    # Backward-compatible default. TM99's validated candidate enables this
+    # through its versioned runtime parameter file.
+    require_ndt_pose_health: false
+    ndt_pose_timeout_sec: 0.50
+    ndt_pose_source_timeout_sec: 0.50
     trajectory_timeout_sec: 0.35
     control_timeout_sec: 0.20
     vehicle_status_timeout_sec: 0.25

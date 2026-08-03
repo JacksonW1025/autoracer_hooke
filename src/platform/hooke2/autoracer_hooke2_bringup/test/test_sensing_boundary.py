@@ -5,6 +5,9 @@ SENSING_SOURCE = (
     Path(__file__).resolve().parents[1] / "launch" / "sensing.launch.py"
 ).read_text(encoding="utf-8")
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+FIXPOSITION_CONFIG = (
+    PACKAGE_ROOT / "config" / "hooke2" / "fixposition.param.yaml"
+).read_text(encoding="utf-8")
 
 
 def test_hooke2_sensing_owns_static_sensor_transforms():
@@ -20,6 +23,14 @@ def test_fixposition_normalization_terminates_at_standard_topics():
         '"/sensing/imu/imu_data"',
     ):
         assert token in SENSING_SOURCE
+
+
+def test_gnss_poser_uses_independent_receiver_solution_not_fused_ins_output():
+    assert '"input_topic_fix": "/fixposition/gnss1"' in SENSING_SOURCE
+    assert '"input_topic_fix": "/fixposition/fix"' not in SENSING_SOURCE
+    assert '"NOV_B-BESTGNSSPOS"' in FIXPOSITION_CONFIG
+    assert '"FP_A-ODOMETRY"' in FIXPOSITION_CONFIG
+    assert '"FP_A-ODOMSTATUS"' in FIXPOSITION_CONFIG
 
 
 def test_hardware_driver_switch_does_not_disable_normalization():

@@ -1,0 +1,168 @@
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -898,17 +898,29 @@
+   const geometry_msgs::msg::PoseWithCovarianceStamped & msg)
+ {
+   auto position_only = msg;
++  // The stock Autoware EKF consumes one PoseWithCovariance stream and has no
++  // separate GNSS-position topic.  Preserve the receiver's x/y observation,
++  // but explicitly make z/roll/pitch/yaw non-observations.  Copying their
++  // values from the time-aligned NDT sample avoids a synthetic residual; the
++  // very large diagonal variances make their Kalman information negligible.
++  // This keeps the official EKF mathematics untouched while implementing the
++  // conventional H=[x,y] loose-coupling semantics at the message boundary.
++  position_only.pose.pose.position.z = ndt_pose_with_cov_last_->pose.pose.position.z;
+   position_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
+   if (current_gnss_xy_covariance_scale_ > 1.0) {
+     for (const int index : {0, 1, 6, 7}) {
+       position_only.pose.covariance[index] *= current_gnss_xy_covariance_scale_;
+     }
+   }
+-  for (int axis = 0; axis < 5; ++axis) {
+-    position_only.pose.covariance[axis * 6 + 5] = 0.0;
+-    position_only.pose.covariance[5 * 6 + axis] = 0.0;
++  for (const int disabled_axis : {2, 3, 4, 5}) {
++    for (int axis = 0; axis < 6; ++axis) {
++      position_only.pose.covariance[disabled_axis * 6 + axis] = 0.0;
++      position_only.pose.covariance[axis * 6 + disabled_axis] = 0.0;
++    }
++    position_only.pose.covariance[disabled_axis * 6 + disabled_axis] =
++      disabled_axis == 5 ? gnss_position_only_yaw_variance_ :
++      gnss_height_disabled_variance_m2_;
+   }
+-  position_only.pose.covariance[YAW_POS_IDX_] = gnss_position_only_yaw_variance_;
+   pub_pose_with_covariance_stamped_->publish(position_only);
+ }
+ 
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -337,14 +337,24 @@
+ 
+   const auto & output = harness.outputs()[1];
+   EXPECT_EQ(output.header, gnss.header);
+-  EXPECT_EQ(output.pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(output.pose.pose.position.x, gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(output.pose.pose.position.y, gnss.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(output.pose.pose.position.z, ndt.pose.pose.position.z);
+   EXPECT_EQ(output.pose.pose.orientation, ndt.pose.pose.orientation);
+   EXPECT_DOUBLE_EQ(output.pose.covariance[0], gnss.pose.covariance[0]);
+   EXPECT_DOUBLE_EQ(output.pose.covariance[7], gnss.pose.covariance[7]);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[14], 1000000.0);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[21], 1000000.0);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[28], 1000000.0);
+   EXPECT_DOUBLE_EQ(output.pose.covariance[35], 1.0);
+-  for (int axis = 0; axis < 5; ++axis) {
+-    EXPECT_DOUBLE_EQ(output.pose.covariance[axis * 6 + 5], 0.0);
+-    EXPECT_DOUBLE_EQ(output.pose.covariance[5 * 6 + axis], 0.0);
++  for (const int disabled_axis : {2, 3, 4, 5}) {
++    for (int axis = 0; axis < 6; ++axis) {
++      if (axis == disabled_axis) {
++        continue;
++      }
++      EXPECT_DOUBLE_EQ(output.pose.covariance[disabled_axis * 6 + axis], 0.0);
++      EXPECT_DOUBLE_EQ(output.pose.covariance[axis * 6 + disabled_axis], 0.0);
++    }
+   }
+ }
+ 
+@@ -364,7 +374,10 @@
+   ASSERT_EQ(harness.outputs().size(), 2U);
+   const auto & xy = harness.outputs()[0];
+   const auto & height = harness.outputs()[1];
+-  EXPECT_EQ(xy.pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(xy.pose.pose.position.x, gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(xy.pose.pose.position.y, gnss.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(xy.pose.pose.position.z, ndt.pose.pose.position.z);
++  EXPECT_DOUBLE_EQ(xy.pose.covariance[14], 1000000.0);
+   EXPECT_DOUBLE_EQ(xy.pose.covariance[35], 1.0);
+   EXPECT_DOUBLE_EQ(height.pose.pose.position.x, ndt.pose.pose.position.x);
+   EXPECT_DOUBLE_EQ(height.pose.pose.position.y, ndt.pose.pose.position.y);
+@@ -491,7 +504,12 @@
+   harness.publish_gnss(gnss);
+ 
+   ASSERT_EQ(harness.outputs().size(), 1U);
+-  EXPECT_EQ(harness.outputs().front().pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.x, gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.y, gnss.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.z, ndt.pose.pose.position.z);
+   EXPECT_EQ(harness.outputs().front().pose.pose.orientation, ndt.pose.pose.orientation);
+ }
+ 
+@@ -516,7 +534,10 @@
+   harness.publish_gnss(gnss);
+ 
+   ASSERT_EQ(harness.outputs().size(), 2U);
+-  EXPECT_EQ(harness.outputs()[0].pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.pose.position.x, gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.pose.position.y, gnss.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.pose.position.z, ndt.pose.pose.position.z);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.covariance[14], 1000000.0);
+   EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.covariance[35], 1.0);
+   EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.pose.position.x, ndt.pose.pose.position.x);
+   EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.pose.position.y, ndt.pose.pose.position.y);
+@@ -596,7 +617,12 @@
+   harness.clear();
+   harness.publish_gnss(gnss);
+   ASSERT_EQ(harness.outputs().size(), 1U);
+-  EXPECT_EQ(harness.outputs().front().pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.x, gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.y, gnss.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.z, ndt.pose.pose.position.z);
+ }
+ 
+ TEST(PoseCovarianceModifier, trusted_outage_bridge_requires_prior_cross_source_warmup)
+@@ -638,7 +664,10 @@
+   outage_gnss.pose.pose.position.x += 0.6;
+   harness.publish_gnss(outage_gnss);
+   ASSERT_EQ(harness.outputs().size(), 1U);
+-  EXPECT_EQ(harness.outputs().front().pose.pose.position, outage_gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.x, outage_gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.y, outage_gnss.pose.pose.position.y);
+   EXPECT_GT(harness.outputs().front().pose.covariance[0], outage_gnss.pose.covariance[0]);
+   EXPECT_DOUBLE_EQ(
+     harness.outputs().front().pose.covariance[0],
+@@ -700,7 +729,10 @@
+   outage_gnss.pose.pose.position.x += 2.0;
+   harness.publish_gnss(outage_gnss);
+   ASSERT_EQ(harness.outputs().size(), 1U);
+-  EXPECT_EQ(harness.outputs().front().pose.pose.position, outage_gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.x, outage_gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.y, outage_gnss.pose.pose.position.y);
+ }
+ 
+ TEST(PoseCovarianceModifier, trusted_outage_bridge_rejects_seven_of_ten_recent_agreements)
+@@ -743,7 +775,12 @@
+   normal_fix.pose.pose.position.x += 0.5;
+   harness.publish_gnss(normal_fix);
+   ASSERT_EQ(harness.outputs().size(), 1U);
+-  EXPECT_EQ(harness.outputs().front().pose.pose.position, normal_fix.pose.pose.position);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.x, normal_fix.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.y, normal_fix.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.pose.position.z, ndt.pose.pose.position.z);
+ }
+ 
+ TEST(PoseCovarianceModifier, ndt_primary_position_motion_compensates_only_innovation_gate)
+@@ -794,7 +831,9 @@
+   EXPECT_DOUBLE_EQ(output.pose.covariance[1], 0.008);
+   EXPECT_DOUBLE_EQ(output.pose.covariance[6], 0.008);
+   EXPECT_DOUBLE_EQ(output.pose.covariance[7], 0.04);
+-  EXPECT_EQ(output.pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(output.pose.pose.position.x, gnss.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(output.pose.pose.position.y, gnss.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(output.pose.pose.position.z, ndt.pose.pose.position.z);
+   EXPECT_EQ(output.pose.pose.orientation, ndt.pose.pose.orientation);
+ }
+ 

@@ -1,0 +1,73 @@
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+@@ -79,7 +79,7 @@
+         "gnss_require_fresh_time_aligned_ndt": {
+           "type": "boolean",
+           "default": false,
+-          "description": "For ndt_primary_position, reject GNSS unless the latest valid NDT is fresh in receive time and within gnss_ndt_max_stamp_delta_sec in source time"
++          "description": "For ndt_primary_position, require the latest valid NDT to be receive-time fresh and within gnss_ndt_max_stamp_delta_sec before forwarding either enabled GNSS position component; false keeps the first-valid-NDT frame/initialization contract but permits later receiver-qualified XY and height observations to reach the same EKF independently"
+         },
+         "gnss_ndt_trusted_outage_bridge_enabled": {
+           "type": "boolean",
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -851,6 +851,16 @@
+       std::isfinite(stamp_delta_sec) && stamp_delta_sec <= gnss_ndt_max_stamp_delta_sec_;
+   }
+   if (!sources_are_time_comparable) {
++    // Standard loose coupling after initialization: NDT and GNSS are
++    // independent position observations of the same single EKF.  Requiring a
++    // fresh NDT here would couple GNSS availability to the sensor it is meant
++    // to complement.  The initial valid NDT/frame contract above remains
++    // mandatory, receiver covariance validation has already passed, and the
++    // official one-dimensional EKF NIS gate remains the final outlier gate.
++    if (!gnss_require_fresh_time_aligned_ndt_) {
++      reset_trusted_height_outage_bridge();
++      return true;
++    }
+     return !ndt_is_fresh() && trusted_height_outage_bridge_allows_gnss(
+       msg, gnss_pose_stddev_z);
+   }
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -492,6 +492,37 @@
+   EXPECT_EQ(harness.outputs().front().pose.pose.orientation, ndt.pose.pose.orientation);
+ }
+ 
++TEST(PoseCovarianceModifier, independent_xy_and_height_continue_after_initialized_ndt_times_out)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.25, 3.0, false, 0.0, false, false, false,
++    0.5, 3, 0, true, 5.991464547107979, 13.815510557964274, 0.0, true);
++  auto gnss = harness.make_message(0.2, 0.05);
++  gnss.pose.pose.position.x += 0.25;
++  gnss.pose.pose.position.z += 0.10;
++
++  // GNSS never initializes the map-frame filter on its own.
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++
++  const auto ndt = harness.make_message(0.15, 0.20);
++  harness.publish_ndt(ndt);
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  gnss.header.stamp = rclcpp::Time(ndt.header.stamp) + rclcpp::Duration::from_seconds(0.10);
++  harness.publish_gnss(gnss);
++
++  ASSERT_EQ(harness.outputs().size(), 2U);
++  EXPECT_EQ(harness.outputs()[0].pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.covariance[35], 1.0);
++  EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.pose.position.x, ndt.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.pose.position.y, ndt.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.pose.position.z, gnss.pose.pose.position.z);
++  EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.covariance[0], 1000000.0);
++  EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.covariance[7], 1000000.0);
++  EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.covariance[14], 0.1089);
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_position_guard_rejects_gnss_after_ndt_times_out)
+ {
+   ModifierHarness harness(

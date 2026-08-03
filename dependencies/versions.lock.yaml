@@ -47,3 +47,28 @@ repositories:
     revision: eef52bab445729a9c495c15f0d3c62b6a6f443ec
 patches:
   - dependencies/patches/vehicle_cmd_gate_volatile_commands.patch
+  - dependencies/patches/pose_covariance_modifier_ndt_primary.patch
+  - dependencies/patches/localization_gnss_initializer_switch.patch
+  - dependencies/patches/pose_covariance_modifier_robust_research_v2.patch
+  - dependencies/patches/pointcloud_preprocessor_deterministic_random_sample.patch
+  - dependencies/patches/ekf_gnss_bias_state_v41.patch
+  - dependencies/patches/ekf_gnss_bias_delay_tail_v42.patch
+  - dependencies/patches/localization_ndt_executable_switch.patch
+  - dependencies/patches/ekf_gnss_bias_delay_tail_block_copy_v43.patch
+  - dependencies/patches/ekf_position_only_correlated_update_v47.patch
+  - dependencies/patches/ekf_position_only_velocity_update_v48.patch
+  - dependencies/patches/ekf_correlated_dual_projection_v56.patch
+  - dependencies/patches/ekf_position_only_queue_isolation_v57.patch
+  - dependencies/patches/ekf_standard_position_innovation_v85.patch
+  - dependencies/patches/pose_covariance_modifier_standard_loose_coupling_v86.patch
+  - dependencies/patches/pose_covariance_modifier_standard_integrity_v95.patch
+  - dependencies/patches/pose_covariance_modifier_standard_integrity_v95_1.patch
+  - dependencies/patches/pose_covariance_modifier_component_gated_height_v98.patch
+  - dependencies/patches/pose_covariance_modifier_independent_recovery_v99.patch
+  - dependencies/patches/pose_covariance_modifier_split_height_freshness_v100.patch
+  - dependencies/patches/ekf_simple_1d_continuous_prediction_v101.patch
+  - dependencies/patches/pose_covariance_modifier_official_ekf_compat_v106.patch
+  - dependencies/patches/pointcloud_preprocessor_reliable_input_v106_12.patch
+  - dependencies/patches/pose_covariance_modifier_latest_gnss_qos_v107_4.patch
+  - dependencies/patches/pose_covariance_modifier_receiver_state_integrity_v108.patch
+  - dependencies/patches/pose_covariance_modifier_source_specific_freshness_v110.patch

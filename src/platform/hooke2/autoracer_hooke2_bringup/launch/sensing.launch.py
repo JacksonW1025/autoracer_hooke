@@ -67,7 +67,10 @@ def generate_launch_description():
             )
         ),
         launch_arguments={
-            "input_topic_fix": "/fixposition/fix",
+            # Use the primary receiver BESTGNSSPOS solution. /fixposition/fix
+            # is FP_A-ODOMETRY (already fused with INS/wheel information) and
+            # is retained only for compatibility/diagnostics.
+            "input_topic_fix": "/fixposition/gnss1",
             "input_topic_orientation": "/fixposition/autoware_orientation",
             "output_topic_gnss_pose": "/sensing/gnss/pose",
             "output_topic_gnss_pose_cov": "/sensing/gnss/pose_with_covariance",

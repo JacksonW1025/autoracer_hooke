@@ -2,6 +2,11 @@
   ros__parameters:
     input_frame: "base_link"
     output_frame: "base_link"
+    # The CarMaker bridge publishes this local 10 Hz stream reliably.  The
+    # CropBox takes < 4 ms P95, so reliable delivery prevents DDS fragment
+    # loss without creating a processing backlog.  Physical-sensor configs
+    # keep the upstream Autoware best-effort default.
+    input_qos_reliable: True
     min_x: -60.0
     max_x: 60.0
     min_y: -60.0

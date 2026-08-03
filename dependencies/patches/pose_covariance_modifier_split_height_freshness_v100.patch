@@ -1,0 +1,111 @@
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+@@ -79,7 +79,11 @@
+         "gnss_require_fresh_time_aligned_ndt": {
+           "type": "boolean",
+           "default": false,
+-          "description": "For ndt_primary_position, require the latest valid NDT to be receive-time fresh and within gnss_ndt_max_stamp_delta_sec before forwarding either enabled GNSS position component; false keeps the first-valid-NDT frame/initialization contract but permits later receiver-qualified XY and height observations to reach the same EKF independently"
++          "description": "For ndt_primary_position, require the latest valid NDT to be receive-time fresh and within gnss_ndt_max_stamp_delta_sec before forwarding GNSS x/y; false keeps the first-valid-NDT frame/initialization contract but permits later receiver-qualified x/y observations to reach the same EKF independently"
++        },
++        "gnss_height_require_fresh_time_aligned_ndt": {
++          "type": "boolean",
++          "description": "Optional height-specific availability policy. When omitted it inherits gnss_require_fresh_time_aligned_ndt for backward compatibility; false permits receiver-qualified height to update the existing one-dimensional height filter after the first valid NDT initialization while x/y may remain NDT-corroborated"
+         },
+         "gnss_ndt_trusted_outage_bridge_enabled": {
+           "type": "boolean",
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+@@ -106,6 +106,7 @@
+   double gnss_position_only_yaw_variance_;
+   double gnss_ndt_max_stamp_delta_sec_;
+   bool gnss_require_fresh_time_aligned_ndt_;
++  bool gnss_height_require_fresh_time_aligned_ndt_;
+   bool gnss_ndt_trusted_outage_bridge_enabled_;
+   double gnss_ndt_trusted_outage_max_sec_;
+   int64_t gnss_ndt_trusted_outage_warmup_count_;
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -91,6 +91,12 @@
+     this->declare_parameter<double>("gnss_ndt_max_stamp_delta_sec", 0.0);
+   gnss_require_fresh_time_aligned_ndt_ =
+     this->declare_parameter<bool>("gnss_require_fresh_time_aligned_ndt", false);
++  // Preserve the historical coupled behavior unless a deployment explicitly
++  // separates horizontal and vertical availability.  This lets a steep-road
++  // deployment keep GNSS x/y behind an NDT cross-check while allowing the
++  // existing one-dimensional height filter to recover after initialization.
++  gnss_height_require_fresh_time_aligned_ndt_ = this->declare_parameter<bool>(
++    "gnss_height_require_fresh_time_aligned_ndt", gnss_require_fresh_time_aligned_ndt_);
+   gnss_ndt_trusted_outage_bridge_enabled_ =
+     this->declare_parameter<bool>("gnss_ndt_trusted_outage_bridge_enabled", false);
+   gnss_ndt_trusted_outage_max_sec_ =
+@@ -857,7 +863,7 @@
+     // to complement.  The initial valid NDT/frame contract above remains
+     // mandatory, receiver covariance validation has already passed, and the
+     // official one-dimensional EKF NIS gate remains the final outlier gate.
+-    if (!gnss_require_fresh_time_aligned_ndt_) {
++    if (!gnss_height_require_fresh_time_aligned_ndt_) {
+       reset_trusted_height_outage_bridge();
+       return true;
+     }
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -45,7 +45,8 @@
+     const double cross_source_nis_soft_gate = 0.0,
+     const double cross_source_nis_hard_gate = 0.0,
+     const double trusted_outage_agreement_nis = 0.0,
+-    const bool gnss_height_updates_enabled = false)
++    const bool gnss_height_updates_enabled = false,
++    const bool gnss_height_require_fresh_time_aligned_ndt = false)
+   {
+     rclcpp::NodeOptions options;
+     options.arguments(
+@@ -76,6 +77,8 @@
+         {"gnss_position_only_yaw_variance", 1.0},
+         {"gnss_ndt_max_stamp_delta_sec", stamp_delta_sec},
+         {"gnss_require_fresh_time_aligned_ndt", require_fresh_time_aligned_ndt},
++        {"gnss_height_require_fresh_time_aligned_ndt",
++         gnss_height_require_fresh_time_aligned_ndt},
+         {"gnss_ndt_trusted_outage_bridge_enabled", trusted_outage_bridge},
+         {"gnss_ndt_trusted_outage_max_sec", trusted_outage_max_sec},
+         {"gnss_ndt_trusted_outage_warmup_count", trusted_outage_warmup_count},
+@@ -523,6 +526,36 @@
+   EXPECT_DOUBLE_EQ(harness.outputs()[1].pose.covariance[14], 0.1089);
+ }
+ 
++TEST(PoseCovarianceModifier, guarded_xy_and_independent_height_are_separable_after_ndt_timeout)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.25, 3.0, false, 0.0, false, true, false,
++    0.5, 3, 0, true, 5.991464547107979, 13.815510557964274, 0.0, true, false);
++  const auto ndt = harness.make_message(0.15, 0.20);
++  auto gnss = harness.make_message(0.2, 0.05);
++  gnss.pose.pose.position.x += 0.25;
++  gnss.pose.pose.position.z += 0.10;
++
++  harness.publish_ndt(ndt);
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  gnss.header.stamp = rclcpp::Time(ndt.header.stamp) + rclcpp::Duration::from_seconds(0.10);
++  harness.publish_gnss(gnss);
++
++  // Horizontal GNSS is withheld without a current independent NDT sample,
++  // while the separately gated height observation reaches the existing 1-D
++  // filter.  No GNSS yaw or GNSS-only localization path is introduced.
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  const auto & height = harness.outputs().front();
++  EXPECT_DOUBLE_EQ(height.pose.pose.position.x, ndt.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(height.pose.pose.position.y, ndt.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(height.pose.pose.position.z, gnss.pose.pose.position.z);
++  EXPECT_DOUBLE_EQ(height.pose.covariance[0], 1000000.0);
++  EXPECT_DOUBLE_EQ(height.pose.covariance[7], 1000000.0);
++  EXPECT_DOUBLE_EQ(height.pose.covariance[14], 0.1089);
++  EXPECT_EQ(height.pose.pose.orientation, ndt.pose.pose.orientation);
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_position_guard_rejects_gnss_after_ndt_times_out)
+ {
+   ModifierHarness harness(

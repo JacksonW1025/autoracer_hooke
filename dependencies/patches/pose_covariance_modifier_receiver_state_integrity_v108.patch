@@ -1,0 +1,835 @@
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md	2026-08-03 09:05:51.386211233 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md	2026-08-03 08:58:16.860765587 +0800
+@@ -32,10 +32,20 @@
+   and removes yaw cross-covariances. This avoids counting an INSPVAX/INS yaw as an
+   independent GNSS observation when the EKF already consumes the same inertial
+   source. GNSS is blocked before the first valid NDT initializes localization.
+-Afterwards, a current NDT sample is not required for each GNSS update: NDT and
+-GNSS remain independent observations of the same EKF, so an NDT outage does not
+-silently become a dual-sensor outage. The default remains `official`; this policy
+-requires separate validation before product use.
++The default remains `official`; this policy requires separate validation before
++product use. GNSS and NDT are physically different measurements, but they are not
++guaranteed statistically independent: the NDT initial guess contains EKF history,
++and a georeferenced map can share survey errors with GNSS. Cross-source checks are
++therefore safety monitors, not proof of independent absolute truth.
++
++For a Fixposition deployment, `gnss_quality_status_required=true` preserves the
++receiver's exact `RTK_FIXED`, `RTK_FLOAT`, `SPP` and `NO_FIX` state through the
++measurement boundary. The status must match the GNSS pose timestamp and GNSS1
++must be marked `USED`. `NO_FIX`, stale, unknown and not-used measurements are
++rejected. Configured state-specific covariance floors prevent an overconfident
++FLOAT/SPP observation from being weighted like RTK FIXED. This option affects
++only `ndt_primary_position`; it is disabled by default and never changes the
++upstream-compatible `official` policy.
+ 
+ For deployments where that EKF output is also fed back as the next scan-matcher
+ initial guess, `gnss_require_fresh_time_aligned_ndt` can be enabled. In that
+@@ -48,9 +58,9 @@
+ `ndt_primary_position` also exposes disabled-by-default consistency gates:
+ `gnss_ndt_max_stamp_delta_sec` and `gnss_ndt_xy_innovation_max_m`.
+ Cross-source gates are evaluated only while the latest NDT and GNSS are fresh
+-and timestamp-close. A stale or asynchronous NDT skips cross-source comparison;
+-the GNSS message still has to pass its own freshness/covariance checks and the
+-EKF's covariance-aware state innovation gate. The separately disabled
++and timestamp-close. When `gnss_require_fresh_time_aligned_ndt=true`, a stale or
++asynchronous NDT rejects the GNSS observation, preventing GNSS-only operation.
++The separately disabled
+ `gnss_ndt_motion_compensate_innovation` option linearly propagates the last two
+ NDT positions to the GNSS timestamp before evaluating only this gate. This avoids
+ mistaking normal vehicle motion between asynchronous measurements for spatial
+@@ -58,12 +68,15 @@
+ 
+ For covariance-aware integrity monitoring,
+ `gnss_ndt_cross_source_nis_soft_gate` and
+-`gnss_ndt_cross_source_nis_hard_gate` evaluate the horizontal normalized
+-innovation squared (NIS) with `S = R_gnss + R_ndt`. The hard gate rejects a
+-statistically inconsistent GNSS update. Between the soft and hard gates, only
+-the GNSS horizontal covariance is inflated by `NIS / soft_gate`; the GNSS
+-position and every NDT field remain unchanged. Both gates are disabled by
+-default and must be enabled together with `0 < soft < hard`.
++`gnss_ndt_cross_source_nis_hard_gate` evaluate an approximate horizontal
++normalized disagreement with `S = R_gnss + R_ndt`. The formula is a strict NIS
++only when the two errors are independent and their covariances are calibrated;
++those assumptions need not hold in a feedback-initialized, georeferenced system.
++The hard gate is therefore an empirically qualified safety rejection, not a
++chi-square proof. Between the soft and hard gates, only the GNSS horizontal
++covariance is inflated by `score / soft_gate`; the GNSS position and every NDT
++field remain unchanged. Both gates are disabled by default and must be enabled
++together with `0 < soft < hard`.
+ 
+ `gnss_position_updates_enabled=false` is an experiment/control switch for
+ `ndt_primary_position`: GNSS messages still traverse validation and integrity
+@@ -211,6 +224,7 @@
+ | Name                             | Type                                            | Description            |
+ | -------------------------------- | ----------------------------------------------- | ---------------------- |
+ | `input_gnss_pose_with_cov_topic` | `geometry_msgs::msg::PoseWithCovarianceStamped` | Input GNSS pose topic. |
++| `input_gnss_quality_status_topic` | `fixposition_driver_msgs::msg::FpaOdomstatus` | Optional exact receiver solution status for `ndt_primary_position`. |
+ | `input_ndt_pose_with_cov_topic`  | `geometry_msgs::msg::PoseWithCovarianceStamped` | Input NDT pose topic.  |
+ 
+ ### Published topics
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml b/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml	2026-08-03 09:05:51.241209815 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml	2026-08-03 08:57:53.117533354 +0800
+@@ -25,6 +25,17 @@
+     # If GNSS data is not received for this duration, trust only NDT
+     gnss_pose_timeout_sec: 1.0
+ 
++    # Optional receiver-state integrity input for ndt_primary_position.
++    # Disabled by default so the upstream official behavior and existing
++    # non-Fixposition deployments remain unchanged.
++    gnss_quality_status_required: false
++    gnss_quality_status_max_stamp_delta_sec: 0.05
++    gnss_allow_rtk_float: true
++    gnss_allow_spp: true
++    gnss_rtk_fixed_stddev_floor_m: 0.10
++    gnss_rtk_float_stddev_floor_m: 0.45
++    gnss_spp_stddev_floor_m: 0.55
++
+     # Disabled by default: motion-compensate only the GNSS/NDT innovation gate.
+     gnss_ndt_motion_compensate_innovation: false
+ 
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/launch/pose_covariance_modifier.launch.xml b/src/autoware/universe/localization/autoware_pose_covariance_modifier/launch/pose_covariance_modifier.launch.xml
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/launch/pose_covariance_modifier.launch.xml	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/launch/pose_covariance_modifier.launch.xml	2026-08-03 08:56:38.852806992 +0800
+@@ -1,12 +1,14 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <launch>
+   <arg name="autoware_pose_covariance_modifier/input_gnss_pose_with_cov_topic" default="/sensing/gnss/pose_with_covariance"/>
++  <arg name="autoware_pose_covariance_modifier/input_gnss_quality_status_topic" default="/fixposition/fpa/odomstatus"/>
+   <arg name="autoware_pose_covariance_modifier/input_ndt_pose_with_cov_topic" default="/localization/pose_estimator/ndt_scan_matcher/pose_with_covariance"/>
+   <arg name="autoware_pose_covariance_modifier/output_pose_with_covariance_topic" default="/localization/pose_estimator/pose_with_covariance"/>
+   <arg name="param_file" default="$(find-pkg-share autoware_pose_covariance_modifier)/config/pose_covariance_modifier.param.yaml"/>
+ 
+   <node pkg="autoware_pose_covariance_modifier" exec="autoware_pose_covariance_modifier_node" name="pose_covariance_modifier_node" output="both">
+     <remap from="input_gnss_pose_with_cov_topic" to="$(var autoware_pose_covariance_modifier/input_gnss_pose_with_cov_topic)"/>
++    <remap from="input_gnss_quality_status_topic" to="$(var autoware_pose_covariance_modifier/input_gnss_quality_status_topic)"/>
+     <remap from="input_ndt_pose_with_cov_topic" to="$(var autoware_pose_covariance_modifier/input_ndt_pose_with_cov_topic)"/>
+     <remap from="output_pose_with_covariance_topic" to="$(var autoware_pose_covariance_modifier/output_pose_with_covariance_topic)"/>
+     <param from="$(var param_file)"/>
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/package.xml b/src/autoware/universe/localization/autoware_pose_covariance_modifier/package.xml
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/package.xml	2026-08-03 09:05:51.219209599 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/package.xml	2026-08-03 08:56:38.851806982 +0800
+@@ -13,6 +13,7 @@
+   <buildtool_depend>autoware_cmake</buildtool_depend>
+ 
+   <depend>autoware_interpolation</depend>
++  <depend>fixposition_driver_msgs</depend>
+   <depend>geometry_msgs</depend>
+   <depend>rclcpp</depend>
+   <depend>rclcpp_components</depend>
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json	2026-08-03 09:05:51.478212133 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json	2026-08-03 08:57:53.118533363 +0800
+@@ -70,6 +70,45 @@
+           "minimum": 1,
+           "description": "Reliable KEEP_LAST history depth for GNSS poses. The upstream-compatible default is 10; online deployments may use 1 to discard stale startup backlog and consume only the newest measurement"
+         },
++        "gnss_quality_status_required": {
++          "type": "boolean",
++          "default": false,
++          "description": "For ndt_primary_position, require a source-time-aligned Fixposition FpaOdomstatus and reject NO_FIX, unknown, stale or not-used GNSS1 measurements; official policy is unaffected"
++        },
++        "gnss_quality_status_max_stamp_delta_sec": {
++          "type": "number",
++          "default": 0.05,
++          "exclusiveMinimum": 0.0,
++          "description": "Maximum source timestamp difference between GNSS pose and receiver solution status"
++        },
++        "gnss_allow_rtk_float": {
++          "type": "boolean",
++          "default": true,
++          "description": "Allow RTK-float horizontal observations after all covariance and cross-source integrity checks"
++        },
++        "gnss_allow_spp": {
++          "type": "boolean",
++          "default": true,
++          "description": "Allow SPP/PSRDIFF horizontal observations after all covariance and cross-source integrity checks"
++        },
++        "gnss_rtk_fixed_stddev_floor_m": {
++          "type": "number",
++          "default": 0.1,
++          "exclusiveMinimum": 0.0,
++          "description": "Minimum reported horizontal standard deviation for RTK-fixed observations"
++        },
++        "gnss_rtk_float_stddev_floor_m": {
++          "type": "number",
++          "default": 0.45,
++          "exclusiveMinimum": 0.0,
++          "description": "Minimum reported horizontal standard deviation for RTK-float observations"
++        },
++        "gnss_spp_stddev_floor_m": {
++          "type": "number",
++          "default": 0.55,
++          "exclusiveMinimum": 0.0,
++          "description": "Minimum reported horizontal standard deviation for SPP/PSRDIFF observations"
++        },
+         "gnss_position_only_yaw_variance": {
+           "type": "number",
+           "default": 1.0,
+@@ -160,13 +199,13 @@
+           "type": "number",
+           "default": 0.0,
+           "minimum": 0.0,
+-          "description": "Soft covariance-aware GNSS/NDT XY NIS gate using S=R_gnss+R_ndt; above it the GNSS XY covariance is inflated by NIS/gate. Must be enabled with the hard gate"
++          "description": "Soft normalized GNSS/NDT XY consistency score using the S=R_gnss+R_ndt independence approximation; above it the GNSS XY covariance is inflated by score/gate. It is an engineering integrity monitor, not a strict chi-square probability when map, initialization or history create common-mode correlation"
+         },
+         "gnss_ndt_cross_source_nis_hard_gate": {
+           "type": "number",
+           "default": 0.0,
+           "minimum": 0.0,
+-          "description": "Hard covariance-aware GNSS/NDT XY NIS rejection gate using S=R_gnss+R_ndt. Must exceed the enabled soft gate"
++          "description": "Hard rejection threshold for the approximate normalized GNSS/NDT consistency score. Must exceed the enabled soft gate"
+         },
+         "gnss_ndt_motion_compensate_innovation": {
+           "type": "boolean",
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp	2026-08-03 09:05:51.476212113 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp	2026-08-03 08:55:11.098948674 +0800
+@@ -16,6 +16,7 @@
+ 
+ #include <rclcpp/rclcpp.hpp>
+ 
++#include <fixposition_driver_msgs/msg/fpa_odomstatus.hpp>
+ #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+ #include <std_msgs/msg/float64.hpp>
+ #include <std_msgs/msg/string.hpp>
+@@ -53,6 +54,14 @@
+     GNSS_SUSPECT = 3,
+   };
+ 
++  enum class GnssSolutionQuality {
++    UNKNOWN = 0,
++    NO_FIX = 1,
++    SPP = 2,
++    RTK_FLOAT = 3,
++    RTK_FIXED = 4,
++  };
++
+   struct CausalSourcePair
+   {
+     int64_t stamp_ns;
+@@ -75,6 +84,13 @@
+     double z;
+   };
+ 
++  struct TimedGnssQuality
++  {
++    int64_t stamp_ns;
++    GnssSolutionQuality quality;
++    bool measurement_used;
++  };
++
+   // covariance matrix indexes
+   const int X_POS_IDX_ = 0;
+   const int Y_POS_IDX_ = 7;
+@@ -104,6 +120,13 @@
+   double ndt_std_dev_bound_upper_;
+   double gnss_pose_timeout_sec_;
+   int64_t gnss_subscription_qos_depth_;
++  bool gnss_quality_status_required_;
++  double gnss_quality_status_max_stamp_delta_sec_;
++  bool gnss_allow_rtk_float_;
++  bool gnss_allow_spp_;
++  double gnss_rtk_fixed_stddev_floor_m_;
++  double gnss_rtk_float_stddev_floor_m_;
++  double gnss_spp_stddev_floor_m_;
+   double gnss_position_only_yaw_variance_;
+   double gnss_ndt_max_stamp_delta_sec_;
+   bool gnss_require_fresh_time_aligned_ndt_;
+@@ -156,11 +179,14 @@
+   std::optional<TimedHeight> trusted_height_previous_;
+   std::optional<TimedHeight> trusted_height_last_;
+   std::optional<int64_t> last_published_height_stamp_ns_;
++  std::deque<TimedGnssQuality> gnss_quality_history_;
+ 
+   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     sub_gnss_pose_with_cov_;
+   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     sub_ndt_pose_with_cov_;
++  rclcpp::Subscription<fixposition_driver_msgs::msg::FpaOdomstatus>::SharedPtr
++    sub_gnss_quality_status_;
+   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     pub_pose_with_covariance_stamped_;
+   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_str_pose_source_;
+@@ -174,6 +200,14 @@
+   void callback_ndt_pose_with_cov(
+     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg_pose_with_cov_in);
+ 
++  void callback_gnss_quality_status(
++    const fixposition_driver_msgs::msg::FpaOdomstatus::ConstSharedPtr & msg_status);
++
++  bool apply_gnss_quality_contract(
++    geometry_msgs::msg::PoseWithCovarianceStamped & msg);
++
++  std::optional<TimedGnssQuality> gnss_quality_for_stamp(int64_t stamp_ns) const;
++
+   bool gnss_pose_has_timed_out(const rclcpp::Time & gnss_pose_received_time_last);
+ 
+   bool pose_message_is_valid(
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp	2026-08-03 09:05:51.477212123 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp	2026-08-03 08:58:26.297857891 +0800
+@@ -17,12 +17,14 @@
+ #include <autoware/interpolation/linear_interpolation.hpp>
+ #include <rclcpp/rclcpp.hpp>
+ 
++#include <fixposition_driver_msgs/msg/fpa_odomstatus.hpp>
+ #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+ #include <std_msgs/msg/float64.hpp>
+ #include <std_msgs/msg/string.hpp>
+ 
+ #include <algorithm>
+ #include <cmath>
++#include <limits>
+ #include <stdexcept>
+ #include <string>
+ 
+@@ -90,6 +92,29 @@
+   if (gnss_subscription_qos_depth_ <= 0) {
+     throw std::invalid_argument("gnss_subscription_qos_depth must be positive");
+   }
++  gnss_quality_status_required_ =
++    this->declare_parameter<bool>("gnss_quality_status_required", false);
++  gnss_quality_status_max_stamp_delta_sec_ =
++    this->declare_parameter<double>("gnss_quality_status_max_stamp_delta_sec", 0.05);
++  gnss_allow_rtk_float_ = this->declare_parameter<bool>("gnss_allow_rtk_float", true);
++  gnss_allow_spp_ = this->declare_parameter<bool>("gnss_allow_spp", true);
++  gnss_rtk_fixed_stddev_floor_m_ =
++    this->declare_parameter<double>("gnss_rtk_fixed_stddev_floor_m", 0.1);
++  gnss_rtk_float_stddev_floor_m_ =
++    this->declare_parameter<double>("gnss_rtk_float_stddev_floor_m", 0.45);
++  gnss_spp_stddev_floor_m_ =
++    this->declare_parameter<double>("gnss_spp_stddev_floor_m", 0.55);
++  if (
++    !std::isfinite(gnss_quality_status_max_stamp_delta_sec_) ||
++    gnss_quality_status_max_stamp_delta_sec_ <= 0.0 ||
++    !std::isfinite(gnss_rtk_fixed_stddev_floor_m_) ||
++    gnss_rtk_fixed_stddev_floor_m_ <= 0.0 ||
++    !std::isfinite(gnss_rtk_float_stddev_floor_m_) ||
++    gnss_rtk_float_stddev_floor_m_ <= 0.0 ||
++    !std::isfinite(gnss_spp_stddev_floor_m_) ||
++    gnss_spp_stddev_floor_m_ <= 0.0) {
++    throw std::invalid_argument("GNSS quality status limits and covariance floors must be positive");
++  }
+   gnss_position_only_yaw_variance_ =
+     this->declare_parameter<double>("gnss_position_only_yaw_variance", 1.0);
+   gnss_ndt_max_stamp_delta_sec_ =
+@@ -300,6 +325,14 @@
+     std::bind(
+       &PoseCovarianceModifierNode::callback_ndt_pose_with_cov, this, std::placeholders::_1));
+ 
++  sub_gnss_quality_status_ =
++    this->create_subscription<fixposition_driver_msgs::msg::FpaOdomstatus>(
++      "input_gnss_quality_status_topic",
++      rclcpp::QoS(static_cast<std::size_t>(gnss_subscription_qos_depth_)).reliable(),
++      std::bind(
++        &PoseCovarianceModifierNode::callback_gnss_quality_status, this,
++        std::placeholders::_1));
++
+   // publishers
+   pub_pose_with_covariance_stamped_ =
+     this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(
+@@ -317,6 +350,113 @@
+   }
+ }
+ 
++void PoseCovarianceModifierNode::callback_gnss_quality_status(
++  const fixposition_driver_msgs::msg::FpaOdomstatus::ConstSharedPtr & msg_status)
++{
++  const rclcpp::Time stamp(msg_status->header.stamp, this->get_clock()->get_clock_type());
++  GnssSolutionQuality quality = GnssSolutionQuality::UNKNOWN;
++  if (msg_status->gnss1_status == msg_status->consts.GNSS_STATUS_RTK_FIXED) {
++    quality = GnssSolutionQuality::RTK_FIXED;
++  } else if (msg_status->gnss1_status == msg_status->consts.GNSS_STATUS_RTK_FLOAT) {
++    quality = GnssSolutionQuality::RTK_FLOAT;
++  } else if (msg_status->gnss1_status == msg_status->consts.GNSS_STATUS_SPP) {
++    quality = GnssSolutionQuality::SPP;
++  } else if (msg_status->gnss1_status == msg_status->consts.GNSS_STATUS_NO_FIX) {
++    quality = GnssSolutionQuality::NO_FIX;
++  }
++
++  gnss_quality_history_.push_back(
++    TimedGnssQuality{
++      stamp.nanoseconds(), quality,
++      msg_status->fusion_gnss1 == msg_status->consts.MEAS_STATUS_USED});
++  constexpr std::size_t max_quality_history_size = 128U;
++  while (gnss_quality_history_.size() > max_quality_history_size) {
++    gnss_quality_history_.pop_front();
++  }
++}
++
++std::optional<PoseCovarianceModifierNode::TimedGnssQuality>
++PoseCovarianceModifierNode::gnss_quality_for_stamp(const int64_t stamp_ns) const
++{
++  if (gnss_quality_history_.empty()) {
++    return std::nullopt;
++  }
++
++  const TimedGnssQuality * nearest = nullptr;
++  int64_t nearest_delta_ns = std::numeric_limits<int64_t>::max();
++  for (const auto & sample : gnss_quality_history_) {
++    const int64_t delta_ns = sample.stamp_ns >= stamp_ns
++      ? sample.stamp_ns - stamp_ns : stamp_ns - sample.stamp_ns;
++    if (delta_ns < nearest_delta_ns) {
++      nearest = &sample;
++      nearest_delta_ns = delta_ns;
++    }
++  }
++  const double nearest_delta_sec = static_cast<double>(nearest_delta_ns) * 1.0e-9;
++  if (
++    nearest == nullptr || !std::isfinite(nearest_delta_sec) ||
++    nearest_delta_sec > gnss_quality_status_max_stamp_delta_sec_) {
++    return std::nullopt;
++  }
++  return *nearest;
++}
++
++bool PoseCovarianceModifierNode::apply_gnss_quality_contract(
++  geometry_msgs::msg::PoseWithCovarianceStamped & msg)
++{
++  // Preserve all historical non-TM99 deployments unless they explicitly opt
++  // into the receiver-state contract.  The official policy never calls this
++  // function, so its upstream behavior remains byte-for-byte compatible.
++  if (!gnss_quality_status_required_) {
++    return true;
++  }
++
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  const auto quality = gnss_quality_for_stamp(stamp.nanoseconds());
++  if (!quality) {
++    RCLCPP_WARN(
++      this->get_logger(),
++      "GNSS position rejected because no source-time-aligned receiver solution status exists");
++    return false;
++  }
++  if (!quality->measurement_used) {
++    RCLCPP_WARN(this->get_logger(), "GNSS position rejected because receiver did not use GNSS1");
++    return false;
++  }
++
++  double state_floor_m = threshold_gnss_stddev_xy_bound_lower_;
++  switch (quality->quality) {
++    case GnssSolutionQuality::RTK_FIXED:
++      state_floor_m = std::max(state_floor_m, gnss_rtk_fixed_stddev_floor_m_);
++      break;
++    case GnssSolutionQuality::RTK_FLOAT:
++      if (!gnss_allow_rtk_float_) {
++        RCLCPP_WARN(this->get_logger(), "GNSS RTK-float position rejected by policy");
++        return false;
++      }
++      state_floor_m = std::max(state_floor_m, gnss_rtk_float_stddev_floor_m_);
++      break;
++    case GnssSolutionQuality::SPP:
++      if (!gnss_allow_spp_) {
++        RCLCPP_WARN(this->get_logger(), "GNSS SPP/PSRDIFF position rejected by policy");
++        return false;
++      }
++      state_floor_m = std::max(state_floor_m, gnss_spp_stddev_floor_m_);
++      break;
++    case GnssSolutionQuality::NO_FIX:
++    case GnssSolutionQuality::UNKNOWN:
++      RCLCPP_WARN(this->get_logger(), "GNSS position rejected because receiver has no usable fix");
++      return false;
++  }
++
++  const double variance_floor_m2 = state_floor_m * state_floor_m;
++  msg.pose.covariance[X_POS_IDX_] =
++    std::max(msg.pose.covariance[X_POS_IDX_], variance_floor_m2);
++  msg.pose.covariance[Y_POS_IDX_] =
++    std::max(msg.pose.covariance[Y_POS_IDX_], variance_floor_m2);
++  return true;
++}
++
+ void PoseCovarianceModifierNode::callback_gnss_pose_with_cov(
+   const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg_pose_with_cov_in)
+ {
+@@ -331,25 +471,35 @@
+       return;
+     }
+ 
++    auto msg_pose_with_cov = std::make_shared<geometry_msgs::msg::PoseWithCovarianceStamped>(
++      *msg_pose_with_cov_in);
++    if (
++      fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION &&
++      !apply_gnss_quality_contract(*msg_pose_with_cov)) {
++      pose_source_ = PoseSource::NDT;
++      publish_pose_type(pose_source_);
++      return;
++    }
++
+     const double gnss_pose_yaw_stddev_deg =
+-      std::sqrt(msg_pose_with_cov_in->pose.covariance[YAW_POS_IDX_]) * 180 / M_PI;
++      std::sqrt(msg_pose_with_cov->pose.covariance[YAW_POS_IDX_]) * 180 / M_PI;
+     const double gnss_pose_stddev_z =
+-      std::sqrt(msg_pose_with_cov_in->pose.covariance[Z_POS_IDX_]);
++      std::sqrt(msg_pose_with_cov->pose.covariance[Z_POS_IDX_]);
+     const double gnss_pose_stddev_xy =
+-      (std::sqrt(msg_pose_with_cov_in->pose.covariance[X_POS_IDX_]) +
+-       std::sqrt(msg_pose_with_cov_in->pose.covariance[Y_POS_IDX_])) /
++      (std::sqrt(msg_pose_with_cov->pose.covariance[X_POS_IDX_]) +
++       std::sqrt(msg_pose_with_cov->pose.covariance[Y_POS_IDX_])) /
+       2;
+ 
+     const bool xy_trusted =
+       fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION
+-        ? gnss_position_is_trusted(*msg_pose_with_cov_in, gnss_pose_stddev_xy)
++        ? gnss_position_is_trusted(*msg_pose_with_cov, gnss_pose_stddev_xy)
+         : gnss_is_trusted(
+-            *msg_pose_with_cov_in, gnss_pose_yaw_stddev_deg, gnss_pose_stddev_z,
++            *msg_pose_with_cov, gnss_pose_yaw_stddev_deg, gnss_pose_stddev_z,
+             gnss_pose_stddev_xy);
+     const bool height_trusted =
+       fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION &&
+       gnss_height_updates_enabled_ &&
+-      gnss_height_is_trusted(*msg_pose_with_cov_in, gnss_pose_stddev_z);
++      gnss_height_is_trusted(*msg_pose_with_cov, gnss_pose_stddev_z);
+     if (!xy_trusted && !height_trusted) {
+       pose_source_ = PoseSource::NDT;
+       publish_pose_type(pose_source_);
+@@ -366,26 +516,26 @@
+       // artificial "GNSS timed out" warnings and is no longer a fair runtime
+       // comparison, even though the measurement is correctly suppressed.
+       gnss_pose_received_time_last_ = this->now();
+-      gnss_pose_with_cov_last_ = msg_pose_with_cov_in;
++      gnss_pose_with_cov_last_ = msg_pose_with_cov;
+       pose_source_ = PoseSource::NDT;
+       publish_pose_type(pose_source_);
+       return;
+     }
+ 
+     gnss_pose_received_time_last_ = this->now();
+-    gnss_pose_with_cov_last_ = msg_pose_with_cov_in;
++    gnss_pose_with_cov_last_ = msg_pose_with_cov;
+     pose_source_ = PoseSource::GNSS_NDT;
+     publish_pose_type(pose_source_);
+     if (fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
+       if (xy_trusted) {
+-        publish_position_only_measurement(*msg_pose_with_cov_in);
++        publish_position_only_measurement(*msg_pose_with_cov);
+       }
+       if (height_trusted) {
+-        publish_height_only_measurement(*msg_pose_with_cov_in);
++        publish_height_only_measurement(*msg_pose_with_cov);
+       }
+     } else {
+       if (xy_trusted) {
+-        pub_pose_with_covariance_stamped_->publish(*msg_pose_with_cov_in);
++        pub_pose_with_covariance_stamped_->publish(*msg_pose_with_cov);
+       }
+     }
+ 
+@@ -610,12 +760,11 @@
+     return false;
+   }
+ 
+-  // NDT and GNSS are independent observations of the same EKF.  By default,
+-  // a current NDT sample is useful for cross-source integrity monitoring but
+-  // is not a prerequisite after initialization.  Safety-critical deployments
+-  // may explicitly require a fresh, source-time-aligned NDT measurement so a
+-  // GNSS fault cannot turn the EKF feedback used by the matcher into a long
+-  // de-facto GNSS-only interval.
++  // NDT and GNSS are physically different observations, but EKF feedback and
++  // georeferencing can make their errors correlated.  This comparison is an
++  // empirically qualified integrity monitor rather than an independence proof.
++  // Safety-critical deployments may require a fresh, source-time-aligned NDT
++  // measurement so a GNSS fault cannot create a de-facto GNSS-only interval.
+   const bool ndt_receive_time_is_fresh = ndt_is_fresh();
+   bool sources_are_time_comparable = ndt_receive_time_is_fresh;
+   if (sources_are_time_comparable && gnss_ndt_max_stamp_delta_sec_ > 0.0) {
+@@ -1097,9 +1246,10 @@
+     return std::nullopt;
+   }
+ 
+-  // For two independent position observations, the innovation covariance is
+-  // S = R_gnss + R_ndt.  Use the complete symmetric XY blocks so correlated
+-  // horizontal errors are handled without changing either source covariance.
++  // Under the independence approximation the cross-source innovation
++  // covariance is S = R_gnss + R_ndt.  Use the complete symmetric XY blocks,
++  // but treat the result as an engineering consistency score: feedback and a
++  // common georeference can correlate the source errors.
+   const auto & gnss_covariance = msg.pose.covariance;
+   const auto & ndt_covariance = ndt_pose_with_cov_last_->pose.covariance;
+   const double s_xx = gnss_covariance[0] + ndt_covariance[0];
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp	2026-08-03 09:05:51.478212133 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp	2026-08-03 09:00:00.478779064 +0800
+@@ -8,6 +8,7 @@
+ 
+ #include "include/pose_covariance_modifier.hpp"
+ 
++#include <fixposition_driver_msgs/msg/fpa_odomstatus.hpp>
+ #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+ #include <rclcpp/rclcpp.hpp>
+ 
+@@ -24,9 +25,24 @@
+ namespace
+ {
+ using Message = geometry_msgs::msg::PoseWithCovarianceStamped;
++using QualityMessage = fixposition_driver_msgs::msg::FpaOdomstatus;
+ using Node = autoware::pose_covariance_modifier::PoseCovarianceModifierNode;
+ using namespace std::chrono_literals;
+ 
++enum class TestGnssQuality {FIXED, FLOAT, SPP, NO_FIX, UNKNOWN};
++
++struct QualityContractOptions
++{
++  bool required{false};
++  double max_stamp_delta_sec{0.05};
++  bool allow_rtk_float{true};
++  bool allow_spp{true};
++  double fixed_floor_m{0.10};
++  double float_floor_m{0.45};
++  double spp_floor_m{0.55};
++  double xy_upper_m{0.25};
++};
++
+ class ModifierHarness
+ {
+ public:
+@@ -47,7 +63,8 @@
+     const double trusted_outage_agreement_nis = 0.0,
+     const bool gnss_height_updates_enabled = false,
+     const bool gnss_height_require_fresh_time_aligned_ndt = false,
+-    const int64_t gnss_subscription_qos_depth = 10)
++    const int64_t gnss_subscription_qos_depth = 10,
++    const QualityContractOptions & quality_options = {})
+   {
+     rclcpp::NodeOptions options;
+     options.arguments(
+@@ -71,11 +88,18 @@
+         {"threshold_gnss_stddev_yaw_deg_max", 0.3},
+         {"threshold_gnss_stddev_z_max", 0.1},
+         {"threshold_gnss_stddev_xy_bound_lower", 0.1},
+-        {"threshold_gnss_stddev_xy_bound_upper", 0.25},
++        {"threshold_gnss_stddev_xy_bound_upper", quality_options.xy_upper_m},
+         {"ndt_std_dev_bound_lower", 0.14},
+         {"ndt_std_dev_bound_upper", 0.30},
+         {"gnss_pose_timeout_sec", timeout_sec},
+         {"gnss_subscription_qos_depth", gnss_subscription_qos_depth},
++        {"gnss_quality_status_required", quality_options.required},
++        {"gnss_quality_status_max_stamp_delta_sec", quality_options.max_stamp_delta_sec},
++        {"gnss_allow_rtk_float", quality_options.allow_rtk_float},
++        {"gnss_allow_spp", quality_options.allow_spp},
++        {"gnss_rtk_fixed_stddev_floor_m", quality_options.fixed_floor_m},
++        {"gnss_rtk_float_stddev_floor_m", quality_options.float_floor_m},
++        {"gnss_spp_stddev_floor_m", quality_options.spp_floor_m},
+         {"gnss_position_only_yaw_variance", 1.0},
+         {"gnss_ndt_max_stamp_delta_sec", stamp_delta_sec},
+         {"gnss_require_fresh_time_aligned_ndt", require_fresh_time_aligned_ndt},
+@@ -112,6 +136,7 @@
+       "helper", subject_->get_namespace(), rclcpp::NodeOptions{});
+     ndt_pub_ = helper_->create_publisher<Message>("input_ndt_pose_with_cov_topic", 10);
+     gnss_pub_ = helper_->create_publisher<Message>("input_gnss_pose_with_cov_topic", 10);
++    quality_pub_ = helper_->create_publisher<QualityMessage>("input_gnss_quality_status_topic", 10);
+     output_sub_ = helper_->create_subscription<Message>(
+       "output_pose_with_covariance_topic", 10,
+       [this](const Message::ConstSharedPtr msg) { outputs_.push_back(*msg); });
+@@ -120,10 +145,20 @@
+     spin_until([this]() {
+       return ndt_pub_->get_subscription_count() == 1 &&
+              gnss_pub_->get_subscription_count() == 1 &&
++             quality_pub_->get_subscription_count() == 1 &&
+              subject_->count_publishers("output_pose_with_covariance_topic") == 1;
+     });
+   }
+ 
++  ModifierHarness(
++    const std::string & policy, const QualityContractOptions & quality_options)
++  : ModifierHarness(
++      policy, 1.0, 0.0, 0.0, false, 0.0, false, false, false,
++      0.5, 3, 0, true, 0.0, 0.0, 0.0, false, false, 10,
++      quality_options)
++  {
++  }
++
+   explicit ModifierHarness(const int64_t gnss_subscription_qos_depth)
+   : ModifierHarness(
+       "ndt_primary_position", 1.0, 0.0, 0.0, false, 0.0, false, false, false,
+@@ -170,6 +205,41 @@
+     spin_for(30ms);
+   }
+ 
++  QualityMessage make_quality_status(
++    const Message & pose, const TestGnssQuality quality,
++    const bool measurement_used = true) const
++  {
++    QualityMessage msg;
++    msg.header.stamp = pose.header.stamp;
++    msg.header.frame_id = "gnss_base_link";
++    msg.fusion_gnss1 = measurement_used
++      ? msg.consts.MEAS_STATUS_USED : msg.consts.MEAS_STATUS_NOT_USED;
++    switch (quality) {
++      case TestGnssQuality::FIXED:
++        msg.gnss1_status = msg.consts.GNSS_STATUS_RTK_FIXED;
++        break;
++      case TestGnssQuality::FLOAT:
++        msg.gnss1_status = msg.consts.GNSS_STATUS_RTK_FLOAT;
++        break;
++      case TestGnssQuality::SPP:
++        msg.gnss1_status = msg.consts.GNSS_STATUS_SPP;
++        break;
++      case TestGnssQuality::NO_FIX:
++        msg.gnss1_status = msg.consts.GNSS_STATUS_NO_FIX;
++        break;
++      case TestGnssQuality::UNKNOWN:
++        msg.gnss1_status = msg.consts.GNSS_STATUS_UNSPECIFIED;
++        break;
++    }
++    return msg;
++  }
++
++  void publish_quality(const QualityMessage & msg)
++  {
++    quality_pub_->publish(msg);
++    spin_for(30ms);
++  }
++
+   void publish_gnss_without_spinning(const Message & msg)
+   {
+     gnss_pub_->publish(msg);
+@@ -220,6 +290,7 @@
+   std::shared_ptr<rclcpp::Node> helper_;
+   rclcpp::Publisher<Message>::SharedPtr ndt_pub_;
+   rclcpp::Publisher<Message>::SharedPtr gnss_pub_;
++  rclcpp::Publisher<QualityMessage>::SharedPtr quality_pub_;
+   rclcpp::Subscription<Message>::SharedPtr output_sub_;
+   std::vector<Message> outputs_;
+   rclcpp::Time base_stamp_{0, 0, RCL_ROS_TIME};
+@@ -251,6 +322,135 @@
+   EXPECT_EQ(harness.outputs().front(), ndt);
+ }
+ 
++TEST(PoseCovarianceModifier, official_policy_ignores_optional_receiver_status_contract)
++{
++  QualityContractOptions options;
++  options.required = true;
++  ModifierHarness harness("official", options);
++
++  const auto gnss = harness.make_message(0.2);
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front(), gnss);
++}
++
++TEST(PoseCovarianceModifier, quality_contract_rejects_missing_status)
++{
++  QualityContractOptions options;
++  options.required = true;
++  options.xy_upper_m = 1.5;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.2));
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, quality_contract_accepts_fixed_and_applies_covariance_floor)
++{
++  QualityContractOptions options;
++  options.required = true;
++  options.xy_upper_m = 1.5;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  const auto gnss = harness.make_message(0.05);
++  harness.publish_quality(harness.make_quality_status(gnss, TestGnssQuality::FIXED));
++  harness.publish_gnss(gnss);
++
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_DOUBLE_EQ(harness.outputs().front().pose.covariance[0], 0.01);
++  EXPECT_DOUBLE_EQ(harness.outputs().front().pose.covariance[7], 0.01);
++}
++
++TEST(PoseCovarianceModifier, quality_contract_preserves_distinct_float_and_spp_weight)
++{
++  QualityContractOptions options;
++  options.required = true;
++  options.xy_upper_m = 1.5;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  auto gnss = harness.make_message(0.05);
++  harness.publish_quality(harness.make_quality_status(gnss, TestGnssQuality::FLOAT));
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_DOUBLE_EQ(harness.outputs().front().pose.covariance[0], 0.45 * 0.45);
++
++  harness.clear();
++  gnss.header.stamp = rclcpp::Time(gnss.header.stamp) + rclcpp::Duration::from_seconds(0.1);
++  harness.publish_quality(harness.make_quality_status(gnss, TestGnssQuality::SPP));
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_DOUBLE_EQ(harness.outputs().front().pose.covariance[0], 0.55 * 0.55);
++}
++
++TEST(PoseCovarianceModifier, quality_contract_rejects_nofix_unknown_and_not_used)
++{
++  QualityContractOptions options;
++  options.required = true;
++  options.xy_upper_m = 1.5;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  auto gnss = harness.make_message(0.2);
++  for (const auto quality : {TestGnssQuality::NO_FIX, TestGnssQuality::UNKNOWN}) {
++    harness.publish_quality(harness.make_quality_status(gnss, quality));
++    harness.publish_gnss(gnss);
++    EXPECT_TRUE(harness.outputs().empty());
++    gnss.header.stamp = rclcpp::Time(gnss.header.stamp) + rclcpp::Duration::from_seconds(0.1);
++  }
++
++  harness.publish_quality(harness.make_quality_status(gnss, TestGnssQuality::FIXED, false));
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, quality_contract_rejects_stale_status)
++{
++  QualityContractOptions options;
++  options.required = true;
++  options.max_stamp_delta_sec = 0.05;
++  options.xy_upper_m = 1.5;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  const auto gnss = harness.make_message(0.2);
++  auto status = harness.make_quality_status(gnss, TestGnssQuality::FIXED);
++  status.header.stamp =
++    rclcpp::Time(status.header.stamp) - rclcpp::Duration::from_seconds(0.051);
++  harness.publish_quality(status);
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, quality_contract_can_disable_weak_solution_classes)
++{
++  QualityContractOptions options;
++  options.required = true;
++  options.allow_rtk_float = false;
++  options.allow_spp = false;
++  options.xy_upper_m = 1.5;
++  ModifierHarness harness("ndt_primary_position", options);
++
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  auto gnss = harness.make_message(0.2);
++  harness.publish_quality(harness.make_quality_status(gnss, TestGnssQuality::FLOAT));
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++
++  gnss.header.stamp = rclcpp::Time(gnss.header.stamp) + rclcpp::Duration::from_seconds(0.1);
++  harness.publish_quality(harness.make_quality_status(gnss, TestGnssQuality::SPP));
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
+ TEST(PoseCovarianceModifier, gnss_subscription_depth_defaults_to_official_ten)
+ {
+   ModifierHarness harness("official");

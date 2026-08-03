@@ -1,0 +1,1614 @@
+--- a/src/autoware/core/common/autoware_kalman_filter/include/autoware/kalman_filter/kalman_filter.hpp	2026-04-08 14:44:46.000000000 +0800
++++ b/src/autoware/core/common/autoware_kalman_filter/include/autoware/kalman_filter/kalman_filter.hpp	2026-07-29 21:28:50.235068398 +0800
+@@ -198,6 +198,26 @@
+   bool update(const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R);
+ 
+   /**
++   * @brief update only selected state rows with a measurement.
++   *
++   * The mask constrains the Kalman gain rows. This is a Schmidt-style update:
++   * selected states receive the innovation while unselected states remain
++   * unchanged. The Joseph covariance update remains valid for the constrained
++   * gain. A non-zero variance floor is added only to selected state diagonals.
++   *
++   * @param y measured values
++   * @param C coefficient matrix of x for measurement model
++   * @param R covariance matrix for measurement model
++   * @param state_update_mask one for an updatable state, zero otherwise
++   * @param selected_state_variance_floor minimum selected-state variance
++   * @return bool to check matrix operations are being performed properly
++   */
++  bool updateWithStateMask(
++    const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R,
++    const Eigen::VectorXi & state_update_mask, double selected_state_variance_floor = 0.0,
++    bool decorrelate_selected_states = false);
++
++  /**
+    * @brief calculate kalman filter state by measurement model with C and R being class member
+    * variables.
+    * @param y measured values
+@@ -205,6 +225,12 @@
+    */
+   bool update(const Eigen::MatrixXd & y);
+ 
++private:
++  bool updateImpl(
++    const Eigen::MatrixXd & y, const Eigen::MatrixXd & y_pred, const Eigen::MatrixXd & C,
++    const Eigen::MatrixXd & R, const Eigen::VectorXi * state_update_mask,
++    double selected_state_variance_floor, bool decorrelate_selected_states);
++
+ protected:
+   Eigen::MatrixXd x_;  //!< @brief current estimated state
+   Eigen::MatrixXd
+--- a/src/autoware/core/common/autoware_kalman_filter/include/autoware/kalman_filter/time_delay_kalman_filter.hpp	2026-04-08 14:44:46.000000000 +0800
++++ b/src/autoware/core/common/autoware_kalman_filter/include/autoware/kalman_filter/time_delay_kalman_filter.hpp	2026-07-29 21:28:50.236068408 +0800
+@@ -89,6 +89,19 @@
+     const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R,
+     const int delay_step);
+ 
++  /**
++   * @brief delayed measurement update constrained to selected per-step states.
++   *
++   * The per-step mask is repeated over the extended delay state so a delayed
++   * position correction can propagate to current and historical positions
++   * without changing unrelated state variables.
++   */
++  bool updateWithDelayStateMask(
++    const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R,
++    int delay_step, const Eigen::VectorXi & state_update_mask,
++    double selected_state_variance_floor = 0.0,
++    bool decorrelate_selected_states = false);
++
+ private:
+   int max_delay_step_{0};  //!< @brief maximum number of delay steps
+   int dim_x_{0};           //!< @brief dimension of latest state
+--- a/src/autoware/core/common/autoware_kalman_filter/src/kalman_filter.cpp	2026-04-08 14:44:46.000000000 +0800
++++ b/src/autoware/core/common/autoware_kalman_filter/src/kalman_filter.cpp	2026-07-29 21:28:50.237068418 +0800
+@@ -14,6 +14,10 @@
+ 
+ #include "autoware/kalman_filter/kalman_filter.hpp"
+ 
++#include <Eigen/Cholesky>
++
++#include <cmath>
++
+ namespace autoware::kalman_filter
+ {
+ KalmanFilter::KalmanFilter(
+@@ -122,20 +126,101 @@
+   const Eigen::MatrixXd & y, const Eigen::MatrixXd & y_pred, const Eigen::MatrixXd & C,
+   const Eigen::MatrixXd & R)
+ {
++  return updateImpl(y, y_pred, C, R, nullptr, 0.0, false);
++}
++
++bool KalmanFilter::updateImpl(
++  const Eigen::MatrixXd & y, const Eigen::MatrixXd & y_pred, const Eigen::MatrixXd & C,
++  const Eigen::MatrixXd & R, const Eigen::VectorXi * state_update_mask,
++  const double selected_state_variance_floor, const bool decorrelate_selected_states)
++{
+   if (
+     P_.cols() != C.cols() || R.rows() != R.cols() || R.rows() != C.rows() ||
+     y.rows() != y_pred.rows() || y.rows() != C.rows()) {
+     return false;
+   }
+-  const Eigen::MatrixXd PCT = P_ * C.transpose();
+-  const Eigen::MatrixXd K = PCT * ((R + C * PCT).inverse());
+-
+-  if (K.array().isNaN().any() || K.array().isInf().any()) {
++  if (
++    !std::isfinite(selected_state_variance_floor) ||
++    selected_state_variance_floor < 0.0) {
+     return false;
+   }
+-
+-  x_ = x_ + K * (y - y_pred);
+-  P_ = P_ - K * (C * P_);
++  if (state_update_mask != nullptr) {
++    if (state_update_mask->rows() != x_.rows()) {
++      return false;
++    }
++    for (Eigen::Index i = 0; i < state_update_mask->rows(); ++i) {
++      if ((*state_update_mask)(i) != 0 && (*state_update_mask)(i) != 1) {
++        return false;
++      }
++    }
++  }
++  // P-KCP is algebraically valid, but loses symmetry and positive
++  // semidefiniteness quickly in the high-dimensional delayed-state filter
++  // when precise measurements are repeated.  Symmetrize the priors, solve the
++  // innovation system without an explicit inverse, and use the algebraically
++  // equivalent Joseph form.
++  const Eigen::MatrixXd P_prior = 0.5 * (P_ + P_.transpose());
++  const Eigen::MatrixXd R_symmetric = 0.5 * (R + R.transpose());
++  if (
++    !P_prior.array().isFinite().all() ||
++    !R_symmetric.array().isFinite().all()) {
++    return false;
++  }
++  const Eigen::MatrixXd PCT = P_prior * C.transpose();
++  const Eigen::MatrixXd innovation_covariance = R_symmetric + C * PCT;
++  const Eigen::LDLT<Eigen::MatrixXd> solver(innovation_covariance);
++  if (
++    solver.info() != Eigen::Success || !solver.isPositive() ||
++    !solver.vectorD().array().isFinite().all() ||
++    solver.vectorD().minCoeff() <= 0.0) {
++    return false;
++  }
++  Eigen::MatrixXd K = PCT * solver.solve(
++    Eigen::MatrixXd::Identity(
++      innovation_covariance.rows(), innovation_covariance.cols()));
++
++  if (!K.array().isFinite().all()) {
++    return false;
++  }
++  if (state_update_mask != nullptr) {
++    for (Eigen::Index i = 0; i < state_update_mask->rows(); ++i) {
++      if ((*state_update_mask)(i) == 0) {
++        K.row(i).setZero();
++      }
++    }
++  }
++
++  const Eigen::MatrixXd x_candidate = x_ + K * (y - y_pred);
++  Eigen::MatrixXd P_candidate =
++    P_prior - K * PCT.transpose() - PCT * K.transpose() +
++    K * innovation_covariance * K.transpose();
++  P_candidate = 0.5 * (P_candidate + P_candidate.transpose());
++  if (state_update_mask != nullptr && selected_state_variance_floor > 0.0) {
++    for (Eigen::Index i = 0; i < state_update_mask->rows(); ++i) {
++      if (
++        (*state_update_mask)(i) == 1 &&
++        P_candidate(i, i) < selected_state_variance_floor) {
++        P_candidate(i, i) += selected_state_variance_floor - P_candidate(i, i);
++      }
++    }
++  }
++  if (state_update_mask != nullptr && decorrelate_selected_states) {
++    for (Eigen::Index i = 0; i < state_update_mask->rows(); ++i) {
++      for (Eigen::Index j = i + 1; j < state_update_mask->rows(); ++j) {
++        if ((*state_update_mask)(i) != (*state_update_mask)(j)) {
++          P_candidate(i, j) = 0.0;
++          P_candidate(j, i) = 0.0;
++        }
++      }
++    }
++  }
++  if (
++    !x_candidate.array().isFinite().all() ||
++    !P_candidate.array().isFinite().all()) {
++    return false;
++  }
++  x_ = x_candidate;
++  P_ = P_candidate;
+   return true;
+ }
+ 
+@@ -148,6 +233,21 @@
+   const Eigen::MatrixXd y_pred = C * x_;
+   return update(y, y_pred, C, R);
+ }
++
++bool KalmanFilter::updateWithStateMask(
++  const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R,
++  const Eigen::VectorXi & state_update_mask, const double selected_state_variance_floor,
++  const bool decorrelate_selected_states)
++{
++  if (C.cols() != x_.rows()) {
++    return false;
++  }
++  const Eigen::MatrixXd y_pred = C * x_;
++  return updateImpl(
++    y, y_pred, C, R, &state_update_mask, selected_state_variance_floor,
++    decorrelate_selected_states);
++}
++
+ bool KalmanFilter::update(const Eigen::MatrixXd & y)
+ {
+   return update(y, C_, R_);
+--- a/src/autoware/core/common/autoware_kalman_filter/src/time_delay_kalman_filter.cpp	2026-04-08 14:44:46.000000000 +0800
++++ b/src/autoware/core/common/autoware_kalman_filter/src/time_delay_kalman_filter.cpp	2026-07-29 21:28:50.237068418 +0800
+@@ -98,4 +98,32 @@
+ 
+   return update(y, C_ex, R);
+ }
++
++bool TimeDelayKalmanFilter::updateWithDelayStateMask(
++  const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R,
++  const int delay_step, const Eigen::VectorXi & state_update_mask,
++  const double selected_state_variance_floor, const bool decorrelate_selected_states)
++{
++  if (delay_step >= max_delay_step_ || delay_step < 0) {
++    std::cerr << "delay step is outside the valid range. ignore update." << std::endl;
++    return false;
++  }
++  if (state_update_mask.rows() != dim_x_) {
++    std::cerr << "state update mask dimension differs from latest state. ignore update."
++              << std::endl;
++    return false;
++  }
++
++  const int dim_y = y.rows();
++  Eigen::MatrixXd C_ex = Eigen::MatrixXd::Zero(dim_y, dim_x_ex_);
++  C_ex.block(0, dim_x_ * delay_step, dim_y, dim_x_) = C;
++
++  Eigen::VectorXi state_update_mask_ex(dim_x_ex_);
++  for (int step = 0; step < max_delay_step_; ++step) {
++    state_update_mask_ex.segment(step * dim_x_, dim_x_) = state_update_mask;
++  }
++  return updateWithStateMask(
++    y, C_ex, R, state_update_mask_ex, selected_state_variance_floor,
++    decorrelate_selected_states);
++}
+ }  // namespace autoware::kalman_filter
+--- a/src/autoware/core/common/autoware_kalman_filter/test/test_kalman_filter.cpp	2026-04-08 14:44:46.000000000 +0800
++++ b/src/autoware/core/common/autoware_kalman_filter/test/test_kalman_filter.cpp	2026-07-29 21:28:50.238068428 +0800
+@@ -14,6 +14,8 @@
+ 
+ #include "autoware/kalman_filter/kalman_filter.hpp"
+ 
++#include <Eigen/Eigenvalues>
++
+ #include <gtest/gtest.h>
+ 
+ using autoware::kalman_filter::KalmanFilter;
+@@ -104,6 +106,184 @@
+   EXPECT_NEAR(P_predict(1, 1), P_predict_expected(1, 1), 1e-5);
+ }
+ 
++TEST(kalman_filter, repeated_precise_updates_preserve_covariance_invariants)
++{
++  constexpr int state_dimension = 60;
++  constexpr int measurement_dimension = 3;
++  Eigen::MatrixXd basis =
++    Eigen::MatrixXd::Random(state_dimension, state_dimension);
++  Eigen::MatrixXd covariance =
++    basis * basis.transpose() +
++    1.0e-6 * Eigen::MatrixXd::Identity(state_dimension, state_dimension);
++  Eigen::MatrixXd state = Eigen::MatrixXd::Zero(state_dimension, 1);
++  Eigen::MatrixXd measurement_matrix =
++    Eigen::MatrixXd::Zero(measurement_dimension, state_dimension);
++  measurement_matrix(0, 0) = 1.0;
++  measurement_matrix(1, 1) = 1.0;
++  measurement_matrix(2, 2) = 1.0;
++  Eigen::MatrixXd measurement_covariance =
++    1.0e-8 * Eigen::MatrixXd::Identity(
++      measurement_dimension, measurement_dimension);
++  Eigen::MatrixXd measurement(measurement_dimension, 1);
++  measurement << 1.0, -2.0, 0.5;
++
++  KalmanFilter filter;
++  ASSERT_TRUE(filter.init(state, covariance));
++  for (int iteration = 0; iteration < 2000; ++iteration) {
++    ASSERT_TRUE(
++      filter.update(
++        measurement, measurement_matrix, measurement_covariance));
++  }
++
++  Eigen::MatrixXd result_state;
++  Eigen::MatrixXd result_covariance;
++  filter.getX(result_state);
++  filter.getP(result_covariance);
++  EXPECT_TRUE(result_state.array().isFinite().all());
++  EXPECT_TRUE(result_covariance.array().isFinite().all());
++  EXPECT_LT(
++    (result_covariance - result_covariance.transpose()).cwiseAbs().maxCoeff(),
++    1.0e-12);
++  const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigen_solver(
++    result_covariance);
++  ASSERT_EQ(eigen_solver.info(), Eigen::Success);
++  EXPECT_GE(eigen_solver.eigenvalues().minCoeff(), -1.0e-10);
++}
++
++TEST(kalman_filter, invalid_innovation_covariance_does_not_modify_filter)
++{
++  Eigen::MatrixXd state(1, 1);
++  state << 2.0;
++  const Eigen::MatrixXd covariance = Eigen::MatrixXd::Zero(1, 1);
++  const Eigen::MatrixXd measurement_matrix = Eigen::MatrixXd::Identity(1, 1);
++  const Eigen::MatrixXd measurement_covariance = Eigen::MatrixXd::Zero(1, 1);
++  Eigen::MatrixXd measurement(1, 1);
++  measurement << 10.0;
++  KalmanFilter filter;
++  ASSERT_TRUE(filter.init(state, covariance));
++
++  EXPECT_FALSE(
++    filter.update(
++      measurement, measurement_matrix, measurement_covariance));
++  Eigen::MatrixXd result_state;
++  Eigen::MatrixXd result_covariance;
++  filter.getX(result_state);
++  filter.getP(result_covariance);
++  EXPECT_EQ(result_state, state);
++  EXPECT_EQ(result_covariance, covariance);
++}
++
++TEST(kalman_filter, state_mask_blocks_cross_gain_and_preserves_covariance_invariants)
++{
++  Eigen::MatrixXd state = Eigen::MatrixXd::Zero(3, 1);
++  Eigen::MatrixXd covariance(3, 3);
++  covariance << 1.0, 0.2, 0.8, 0.2, 1.0, 0.5, 0.8, 0.5, 1.5;
++  Eigen::MatrixXd measurement_matrix = Eigen::MatrixXd::Zero(2, 3);
++  measurement_matrix(0, 0) = 1.0;
++  measurement_matrix(1, 1) = 1.0;
++  const Eigen::MatrixXd measurement_covariance =
++    0.01 * Eigen::MatrixXd::Identity(2, 2);
++  Eigen::MatrixXd measurement(2, 1);
++  measurement << 2.0, -1.0;
++  Eigen::VectorXi mask(3);
++  mask << 1, 1, 0;
++
++  KalmanFilter filter;
++  ASSERT_TRUE(filter.init(state, covariance));
++  ASSERT_TRUE(
++    filter.updateWithStateMask(
++      measurement, measurement_matrix, measurement_covariance, mask, 0.25));
++
++  Eigen::MatrixXd result_state;
++  Eigen::MatrixXd result_covariance;
++  filter.getX(result_state);
++  filter.getP(result_covariance);
++  EXPECT_NE(result_state(0, 0), state(0, 0));
++  EXPECT_NE(result_state(1, 0), state(1, 0));
++  EXPECT_DOUBLE_EQ(result_state(2, 0), state(2, 0));
++  EXPECT_DOUBLE_EQ(result_covariance(2, 2), covariance(2, 2));
++  EXPECT_GE(result_covariance(0, 0), 0.25);
++  EXPECT_GE(result_covariance(1, 1), 0.25);
++  EXPECT_LT(
++    (result_covariance - result_covariance.transpose()).cwiseAbs().maxCoeff(),
++    1.0e-12);
++  const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(result_covariance);
++  ASSERT_EQ(solver.info(), Eigen::Success);
++  EXPECT_GE(solver.eigenvalues().minCoeff(), -1.0e-10);
++}
++
++TEST(kalman_filter, all_one_state_mask_matches_unmasked_update)
++{
++  Eigen::MatrixXd state(2, 1);
++  state << 1.0, -1.0;
++  Eigen::MatrixXd covariance(2, 2);
++  covariance << 1.0, 0.3, 0.3, 2.0;
++  Eigen::MatrixXd measurement(1, 1);
++  measurement << 0.25;
++  Eigen::MatrixXd measurement_matrix(1, 2);
++  measurement_matrix << 1.0, 0.0;
++  Eigen::MatrixXd measurement_covariance(1, 1);
++  measurement_covariance << 0.2;
++  const Eigen::VectorXi mask = Eigen::VectorXi::Ones(2);
++
++  KalmanFilter reference;
++  KalmanFilter masked;
++  ASSERT_TRUE(reference.init(state, covariance));
++  ASSERT_TRUE(masked.init(state, covariance));
++  ASSERT_TRUE(
++    reference.update(measurement, measurement_matrix, measurement_covariance));
++  ASSERT_TRUE(
++    masked.updateWithStateMask(
++      measurement, measurement_matrix, measurement_covariance, mask));
++
++  Eigen::MatrixXd reference_state;
++  Eigen::MatrixXd masked_state;
++  Eigen::MatrixXd reference_covariance;
++  Eigen::MatrixXd masked_covariance;
++  reference.getX(reference_state);
++  masked.getX(masked_state);
++  reference.getP(reference_covariance);
++  masked.getP(masked_covariance);
++  EXPECT_EQ(reference_state, masked_state);
++  EXPECT_EQ(reference_covariance, masked_covariance);
++}
++
++TEST(kalman_filter, state_mask_can_decorrelate_selected_and_unselected_states)
++{
++  Eigen::MatrixXd state = Eigen::MatrixXd::Zero(3, 1);
++  Eigen::MatrixXd covariance(3, 3);
++  covariance << 1.0, 0.2, 0.8, 0.2, 1.0, 0.5, 0.8, 0.5, 1.5;
++  Eigen::MatrixXd measurement_matrix = Eigen::MatrixXd::Zero(2, 3);
++  measurement_matrix(0, 0) = 1.0;
++  measurement_matrix(1, 1) = 1.0;
++  Eigen::MatrixXd measurement(2, 1);
++  measurement << 2.0, -1.0;
++  const Eigen::MatrixXd measurement_covariance =
++    0.01 * Eigen::MatrixXd::Identity(2, 2);
++  Eigen::VectorXi mask(3);
++  mask << 1, 1, 0;
++
++  KalmanFilter filter;
++  ASSERT_TRUE(filter.init(state, covariance));
++  ASSERT_TRUE(
++    filter.updateWithStateMask(
++      measurement, measurement_matrix, measurement_covariance, mask, 0.25, true));
++
++  Eigen::MatrixXd result_state;
++  Eigen::MatrixXd result_covariance;
++  filter.getX(result_state);
++  filter.getP(result_covariance);
++  EXPECT_DOUBLE_EQ(result_state(2, 0), state(2, 0));
++  EXPECT_DOUBLE_EQ(result_covariance(0, 2), 0.0);
++  EXPECT_DOUBLE_EQ(result_covariance(2, 0), 0.0);
++  EXPECT_DOUBLE_EQ(result_covariance(1, 2), 0.0);
++  EXPECT_DOUBLE_EQ(result_covariance(2, 1), 0.0);
++  EXPECT_DOUBLE_EQ(result_covariance(2, 2), covariance(2, 2));
++  const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(result_covariance);
++  ASSERT_EQ(solver.info(), Eigen::Success);
++  EXPECT_GE(solver.eigenvalues().minCoeff(), -1.0e-10);
++}
++
+ int main(int argc, char * argv[])
+ {
+   testing::InitGoogleTest(&argc, argv);
+--- a/src/autoware/core/common/autoware_kalman_filter/test/test_time_delay_kalman_filter.cpp	2026-04-08 14:44:46.000000000 +0800
++++ b/src/autoware/core/common/autoware_kalman_filter/test/test_time_delay_kalman_filter.cpp	2026-07-29 20:30:00.501943093 +0800
+@@ -16,6 +16,8 @@
+ 
+ #include <gtest/gtest.h>
+ 
++#include <cmath>
++
+ using autoware::kalman_filter::TimeDelayKalmanFilter;
+ 
+ TEST(time_delay_kalman_filter, td_kf)
+@@ -121,3 +123,49 @@
+   EXPECT_NEAR(P_update(1, 1), P_update_expected(1, 1), 1e-5);
+   EXPECT_NEAR(P_update(2, 2), P_update_expected(2, 2), 1e-5);
+ }
++
++TEST(time_delay_kalman_filter, delayed_state_mask_shields_unselected_state_across_history)
++{
++  Eigen::MatrixXd state(3, 1);
++  state << 0.0, 0.0, 0.25;
++  Eigen::MatrixXd covariance(3, 3);
++  covariance << 1.0, 0.1, 0.7, 0.1, 1.2, 0.5, 0.7, 0.5, 1.5;
++  TimeDelayKalmanFilter filter;
++  filter.init(state, covariance, 4);
++
++  Eigen::MatrixXd transition = Eigen::MatrixXd::Identity(3, 3);
++  transition(0, 2) = 0.2;
++  Eigen::MatrixXd process_noise =
++    1.0e-4 * Eigen::MatrixXd::Identity(3, 3);
++  Eigen::MatrixXd predicted = transition * state;
++  ASSERT_TRUE(filter.predictWithDelay(predicted, transition, process_noise));
++
++  Eigen::MatrixXd before_state;
++  filter.getX(before_state);
++  Eigen::MatrixXd measurement(2, 1);
++  measurement << 1.5, -0.5;
++  Eigen::MatrixXd measurement_matrix = Eigen::MatrixXd::Zero(2, 3);
++  measurement_matrix(0, 0) = 1.0;
++  measurement_matrix(1, 1) = 1.0;
++  const Eigen::MatrixXd measurement_covariance =
++    0.05 * Eigen::MatrixXd::Identity(2, 2);
++  Eigen::VectorXi mask(3);
++  mask << 1, 1, 0;
++  ASSERT_TRUE(
++    filter.updateWithDelayStateMask(
++      measurement, measurement_matrix, measurement_covariance, 1, mask));
++
++  Eigen::MatrixXd after_state;
++  filter.getX(after_state);
++  bool selected_state_changed = false;
++  for (int step = 0; step < 4; ++step) {
++    const int offset = step * 3;
++    selected_state_changed =
++      selected_state_changed ||
++      std::abs(after_state(offset, 0) - before_state(offset, 0)) > 1.0e-12 ||
++      std::abs(after_state(offset + 1, 0) - before_state(offset + 1, 0)) >
++        1.0e-12;
++    EXPECT_DOUBLE_EQ(after_state(offset + 2, 0), before_state(offset + 2, 0));
++  }
++  EXPECT_TRUE(selected_state_changed);
++}
+--- a/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml	2026-07-29 21:29:02.422190471 +0800
+@@ -14,6 +14,12 @@
+       pose_smoothing_steps: 5
+       max_pose_queue_size: 5 # if multiple measurements arrive within one ekf_dt, this limits must be adjusted.
+       pose_gate_dist: 49.5 # corresponds to significance level = 10^-10
++      # Research-only Schmidt update for explicitly marked position-only poses.
++      # Disabled by default, so the official EKF behavior is unchanged.
++      enable_position_only_state_mask: false
++      position_only_yaw_variance_threshold: 0.5
++      position_only_state_variance_floor_m2: 0.0
++      position_only_decorrelate_covariance: false
+ 
+     twist_measurement:
+       # for twist measurement
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp	2026-07-29 21:29:02.420190451 +0800
+@@ -39,6 +39,18 @@
+     pose_gate_dist(node->declare_parameter<double>("pose_measurement.pose_gate_dist")),
+     pose_smoothing_steps(node->declare_parameter<int>("pose_measurement.pose_smoothing_steps")),
+     max_pose_queue_size(node->declare_parameter<int>("pose_measurement.max_pose_queue_size")),
++    enable_position_only_state_mask(
++      node->declare_parameter<bool>(
++        "pose_measurement.enable_position_only_state_mask", false)),
++    position_only_yaw_variance_threshold(
++      node->declare_parameter<double>(
++        "pose_measurement.position_only_yaw_variance_threshold", 0.5)),
++    position_only_state_variance_floor_m2(
++      node->declare_parameter<double>(
++        "pose_measurement.position_only_state_variance_floor_m2", 0.0)),
++    position_only_decorrelate_covariance(
++      node->declare_parameter<bool>(
++        "pose_measurement.position_only_decorrelate_covariance", false)),
+     twist_additional_delay(
+       node->declare_parameter<double>("twist_measurement.twist_additional_delay")),
+     twist_gate_dist(node->declare_parameter<double>("twist_measurement.twist_gate_dist")),
+@@ -84,6 +96,10 @@
+   const double pose_gate_dist;
+   const size_t pose_smoothing_steps;
+   const size_t max_pose_queue_size;
++  const bool enable_position_only_state_mask;
++  const double position_only_yaw_variance_threshold;
++  const double position_only_state_variance_floor_m2;
++  const bool position_only_decorrelate_covariance;
+   const double twist_additional_delay;
+   const double twist_gate_dist;
+   const size_t twist_smoothing_steps;
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp	2026-07-29 20:49:33.248739824 +0800
+@@ -17,13 +17,21 @@
+ 
+ #include <Eigen/Core>
+ 
++#include <array>
++
+ namespace autoware::ekf_localizer
+ {
+ 
++bool is_position_only_pose_measurement(
++  const std::array<double, 36ul> & covariance, bool feature_enabled,
++  double yaw_variance_threshold);
+ Eigen::Matrix<double, 3, 6> pose_measurement_matrix();
++Eigen::Matrix<double, 2, 6> position_only_pose_measurement_matrix();
+ Eigen::Matrix<double, 2, 6> twist_measurement_matrix();
+ Eigen::Matrix3d pose_measurement_covariance(
+   const std::array<double, 36ul> & covariance, const size_t smoothing_step);
++Eigen::Matrix2d position_only_pose_measurement_covariance(
++  const std::array<double, 36ul> & covariance, const size_t smoothing_step);
+ Eigen::Matrix2d twist_measurement_covariance(
+   const std::array<double, 36ul> & covariance, const size_t smoothing_step);
+ 
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp	2026-07-29 21:29:02.421190461 +0800
+@@ -282,6 +282,10 @@
+     return false;
+   }
+ 
++  const bool is_position_only_measurement = is_position_only_pose_measurement(
++    pose.pose.covariance, params_.enable_position_only_state_mask,
++    params_.position_only_yaw_variance_threshold);
++
+   /* Gate */
+   const Eigen::Vector3d y_ekf(
+     kalman_filter_.getXelement(delay_step * dim_x_ + IDX::X),
+@@ -289,7 +293,15 @@
+   const Eigen::MatrixXd p_curr = kalman_filter_.getLatestP();
+   const Eigen::MatrixXd p_y = p_curr.block(0, 0, dim_y, dim_y);
+ 
+-  const double distance = mahalanobis(y_ekf, y, p_y);
++  double distance = 0.0;
++  if (is_position_only_measurement) {
++    const Eigen::Vector2d y_ekf_position = y_ekf.head<2>();
++    const Eigen::Vector2d y_position = y.block<2, 1>(0, 0);
++    const Eigen::Matrix2d p_position = p_y.topLeftCorner<2, 2>();
++    distance = mahalanobis(y_ekf_position, y_position, p_position);
++  } else {
++    distance = mahalanobis(y_ekf, y, p_y);
++  }
+   pose_diag_info.mahalanobis_distance = std::max(distance, pose_diag_info.mahalanobis_distance);
+   if (distance > params_.pose_gate_dist) {
+     pose_diag_info.is_passed_mahalanobis_gate = false;
+@@ -306,13 +318,36 @@
+   const Eigen::Matrix3d r =
+     pose_measurement_covariance(pose.pose.covariance, params_.pose_smoothing_steps);
+ 
+-  kalman_filter_.updateWithDelay(y, c, r, static_cast<int>(delay_step));
++  bool update_succeeded = false;
++  if (is_position_only_measurement) {
++    const Eigen::Vector2d y_position = y.block<2, 1>(0, 0);
++    const Eigen::Matrix<double, 2, 6> c_position =
++      position_only_pose_measurement_matrix();
++    const Eigen::Matrix2d r_position = position_only_pose_measurement_covariance(
++      pose.pose.covariance, params_.pose_smoothing_steps);
++    Eigen::VectorXi state_update_mask = Eigen::VectorXi::Zero(dim_x_);
++    state_update_mask(IDX::X) = 1;
++    state_update_mask(IDX::Y) = 1;
++    update_succeeded = kalman_filter_.updateWithDelayStateMask(
++      y_position, c_position, r_position, static_cast<int>(delay_step), state_update_mask,
++      params_.position_only_state_variance_floor_m2,
++      params_.position_only_decorrelate_covariance);
++  } else {
++    update_succeeded =
++      kalman_filter_.updateWithDelay(y, c, r, static_cast<int>(delay_step));
++  }
++  if (!update_succeeded) {
++    warning_->warn("[EKF] pose measurement update failed. ignore update.");
++    return false;
++  }
+ 
+   // Update Simple 1D filter with considering change of roll, pitch and height (position z)
+   // values due to measurement pose delay
+-  auto pose_with_rph_delay_compensation =
+-    compensate_rph_with_delay(pose, last_angular_velocity_, delay_time);
+-  update_simple_1d_filters(pose_with_rph_delay_compensation, params_.pose_smoothing_steps);
++  if (!is_position_only_measurement) {
++    auto pose_with_rph_delay_compensation =
++      compensate_rph_with_delay(pose, last_angular_velocity_, delay_time);
++    update_simple_1d_filters(pose_with_rph_delay_compensation, params_.pose_smoothing_steps);
++  }
+ 
+   // debug
+   const Eigen::MatrixXd x_result = kalman_filter_.getLatestX();
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp	2026-07-29 20:49:33.251739854 +0800
+@@ -18,9 +18,22 @@
+ 
+ #include <autoware_utils_geometry/msg/covariance.hpp>
+ 
++#include <cmath>
++
+ namespace autoware::ekf_localizer
+ {
+ 
++bool is_position_only_pose_measurement(
++  const std::array<double, 36ul> & covariance, const bool feature_enabled,
++  const double yaw_variance_threshold)
++{
++  using COV_IDX = autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
++  const double yaw_variance = covariance.at(COV_IDX::YAW_YAW);
++  return feature_enabled && std::isfinite(yaw_variance_threshold) &&
++         yaw_variance_threshold >= 0.0 && std::isfinite(yaw_variance) &&
++         yaw_variance >= yaw_variance_threshold;
++}
++
+ Eigen::Matrix<double, 3, 6> pose_measurement_matrix()
+ {
+   Eigen::Matrix<double, 3, 6> c = Eigen::Matrix<double, 3, 6>::Zero();
+@@ -30,6 +43,14 @@
+   return c;
+ }
+ 
++Eigen::Matrix<double, 2, 6> position_only_pose_measurement_matrix()
++{
++  Eigen::Matrix<double, 2, 6> c = Eigen::Matrix<double, 2, 6>::Zero();
++  c(0, IDX::X) = 1.0;
++  c(1, IDX::Y) = 1.0;
++  return c;
++}
++
+ Eigen::Matrix<double, 2, 6> twist_measurement_matrix()
+ {
+   Eigen::Matrix<double, 2, 6> c = Eigen::Matrix<double, 2, 6>::Zero();
+@@ -49,6 +70,16 @@
+   return r * static_cast<double>(smoothing_step);
+ }
+ 
++Eigen::Matrix2d position_only_pose_measurement_covariance(
++  const std::array<double, 36ul> & covariance, const size_t smoothing_step)
++{
++  Eigen::Matrix2d r;
++  using COV_IDX = autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
++  r << covariance.at(COV_IDX::X_X), covariance.at(COV_IDX::X_Y),
++    covariance.at(COV_IDX::Y_X), covariance.at(COV_IDX::Y_Y);
++  return r * static_cast<double>(smoothing_step);
++}
++
+ Eigen::Matrix2d twist_measurement_covariance(
+   const std::array<double, 36ul> & covariance, const size_t smoothing_step)
+ {
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp	2026-07-29 20:49:33.252739863 +0800
+@@ -16,6 +16,8 @@
+ 
+ #include <gtest/gtest.h>
+ 
++#include <limits>
++
+ namespace autoware::ekf_localizer
+ {
+ 
+@@ -27,6 +29,31 @@
+   EXPECT_EQ((m - expected).norm(), 0);
+ }
+ 
++TEST(Measurement, position_only_pose_measurement_requires_explicit_enable_and_marker)
++{
++  std::array<double, 36> covariance{};
++  covariance.fill(0.0);
++  covariance[35] = 1.0;
++  EXPECT_FALSE(is_position_only_pose_measurement(covariance, false, 0.5));
++  EXPECT_TRUE(is_position_only_pose_measurement(covariance, true, 0.5));
++  covariance[35] = 0.499999;
++  EXPECT_FALSE(is_position_only_pose_measurement(covariance, true, 0.5));
++  covariance[35] = std::numeric_limits<double>::quiet_NaN();
++  EXPECT_FALSE(is_position_only_pose_measurement(covariance, true, 0.5));
++  covariance[35] = 1.0;
++  EXPECT_FALSE(
++    is_position_only_pose_measurement(
++      covariance, true, std::numeric_limits<double>::infinity()));
++}
++
++TEST(Measurement, position_only_pose_measurement_matrix_excludes_yaw)
++{
++  const Eigen::Matrix<double, 2, 6> m = position_only_pose_measurement_matrix();
++  Eigen::Matrix<double, 2, 6> expected;
++  expected << 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0;
++  EXPECT_EQ((m - expected).norm(), 0);
++}
++
+ TEST(Measurement, twist_measurement_matrix)
+ {
+   const Eigen::Matrix<double, 2, 6> m = twist_measurement_matrix();
+@@ -59,6 +86,19 @@
+   }
+ }
+ 
++TEST(Measurement, position_only_pose_measurement_covariance_excludes_yaw)
++{
++  const std::array<double, 36> covariance = {
++    1, 2, 0, 0, 0, 99, 4, 5, 0, 0, 0, 98,
++    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
++    0, 0, 0, 0, 0, 0, 97, 96, 0, 0, 0, 95};
++
++  const Eigen::Matrix2d m = position_only_pose_measurement_covariance(covariance, 2);
++  Eigen::Matrix2d expected;
++  expected << 2, 4, 8, 10;
++  EXPECT_EQ((m - expected).norm(), 0);
++}
++
+ TEST(Measurement, twist_measurement_covariance)
+ {
+   {
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/CMakeLists.txt	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/CMakeLists.txt	2026-07-28 23:44:16.276847093 +0800
+@@ -13,6 +13,15 @@
+   EXECUTABLE ${PROJECT_NAME}_node
+ )
+ 
++if(BUILD_TESTING)
++  find_package(ament_cmake_gtest REQUIRED)
++  ament_auto_add_gtest(test_pose_covariance_modifier
++    test/test_pose_covariance_modifier.cpp
++  )
++  target_include_directories(test_pose_covariance_modifier PRIVATE src)
++  target_link_libraries(test_pose_covariance_modifier ${PROJECT_NAME})
++endif()
++
+ ament_auto_package(INSTALL_TO_SHARE
+   config
+   launch
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md	2026-07-29 16:01:38.284718345 +0800
+@@ -18,6 +18,28 @@
+ > - This package doesn't modify the pose information it receives.
+ > - It only modifies NDT covariance values under certain conditions.
+ 
++The backward-compatible `fusion_policy` parameter selects one of three behaviors:
++
++- `official` (default) preserves the upstream source-selection and NDT covariance
++  interpolation behavior described below.
++- `ndt_primary_covariance` always forwards every valid, fresh NDT observation
++  unchanged and additionally forwards a valid, fresh and threshold-qualified GNSS
++  observation. GNSS is never used without a fresh NDT observation and never changes
++  the NDT pose or covariance.
++- `ndt_primary_position` has the same NDT-primary topology, but treats GNSS as an
++  x/y position observation. It keeps the measured GNSS position and covariance,
++  carries the latest NDT orientation with a deliberately uninformative yaw variance,
++  and removes yaw cross-covariances. This avoids counting an INSPVAX/INS yaw as an
++  independent GNSS observation when the EKF already consumes the same inertial
++  source. The default remains `official`; this policy requires separate validation
++  before product use.
++
++`ndt_primary_position` also exposes two disabled-by-default consistency gates:
++`gnss_ndt_max_stamp_delta_sec` and `gnss_ndt_xy_innovation_max_m`. They are
++intended for separately controlled experiments; a non-zero value rejects a GNSS
++position that is not timestamp-close to, or is too far from, the latest NDT
++observation.
++
+ ## Assumptions
+ 
+ - The NDT matcher provides a pose with a fixed covariance.
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml	2026-07-28 23:44:16.277847103 +0800
+@@ -1,5 +1,9 @@
+ /**:
+   ros__parameters:
++    # official: preserve the upstream source-switching behavior.
++    # ndt_primary_covariance: always forward valid NDT unchanged and add only trusted GNSS.
++    fusion_policy: official
++
+     # If GNSS yaw standard deviation values are larger than this, trust only NDT
+     threshold_gnss_stddev_yaw_deg_max: 0.3
+ 
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/package.xml	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/package.xml	2026-07-28 23:44:16.277847103 +0800
+@@ -18,6 +18,8 @@
+   <depend>rclcpp_components</depend>
+   <depend>std_msgs</depend>
+ 
++  <test_depend>ament_cmake_gtest</test_depend>
++
+   <export>
+     <build_type>ament_cmake</build_type>
+   </export>
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json	2026-07-29 16:01:38.283718334 +0800
+@@ -6,6 +6,12 @@
+     "pose_covariance_modifier": {
+       "type": "object",
+       "properties": {
++        "fusion_policy": {
++          "type": "string",
++          "enum": ["official", "ndt_primary_covariance", "ndt_primary_position"],
++          "default": "official",
++          "description": "official preserves upstream source switching; ndt_primary_covariance forwards valid NDT plus trusted full GNSS/INS pose; ndt_primary_position keeps GNSS x/y informative but removes correlated INSPVAX yaw information"
++        },
+         "threshold_gnss_stddev_yaw_deg_max": {
+           "type": "number",
+           "default": 0.3,
+@@ -41,6 +47,24 @@
+           "default": 1.0,
+           "description": "If GNSS data is not received for this duration, trust only NDT"
+         },
++        "gnss_position_only_yaw_variance": {
++          "type": "number",
++          "default": 1.0,
++          "exclusiveMinimum": 0.0,
++          "description": "Yaw variance used by ndt_primary_position so the pose-only EKF interface carries GNSS position without treating correlated INS yaw as an independent observation"
++        },
++        "gnss_ndt_max_stamp_delta_sec": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Optional position-only consistency gate; zero disables it"
++        },
++        "gnss_ndt_xy_innovation_max_m": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Optional position-only GNSS-versus-latest-NDT XY gate; zero disables it"
++        },
+         "enable_debug_topics": {
+           "type": "boolean",
+           "default": true,
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp	2026-07-29 16:01:38.282718323 +0800
+@@ -20,6 +20,8 @@
+ #include <std_msgs/msg/float64.hpp>
+ #include <std_msgs/msg/string.hpp>
+ 
++#include <string>
++
+ namespace autoware::pose_covariance_modifier
+ {
+ class PoseCovarianceModifierNode : public rclcpp::Node
+@@ -34,6 +36,12 @@
+   };
+ 
+ private:
++  enum class FusionPolicy {
++    OFFICIAL = 0,
++    NDT_PRIMARY_COVARIANCE = 1,
++    NDT_PRIMARY_POSITION = 2,
++  };
++
+   // covariance matrix indexes
+   const int X_POS_IDX_ = 0;
+   const int Y_POS_IDX_ = 7;
+@@ -41,6 +49,7 @@
+   const int YAW_POS_IDX_ = 35;
+ 
+   // parameters
++  FusionPolicy fusion_policy_;
+   double threshold_gnss_stddev_yaw_deg_max_;
+   double threshold_gnss_stddev_z_max_;
+   double threshold_gnss_stddev_xy_bound_lower_;
+@@ -48,11 +57,18 @@
+   double ndt_std_dev_bound_lower_;
+   double ndt_std_dev_bound_upper_;
+   double gnss_pose_timeout_sec_;
++  double gnss_position_only_yaw_variance_;
++  double gnss_ndt_max_stamp_delta_sec_;
++  double gnss_ndt_xy_innovation_max_m_;
+   bool debug_mode_;
+ 
+   rclcpp::Time gnss_pose_received_time_last_;
++  rclcpp::Time ndt_pose_received_time_last_;
+   geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr gnss_pose_with_cov_last_;
++  geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr ndt_pose_with_cov_last_;
+   PoseSource pose_source_;
++  bool has_valid_ndt_pose_{false};
++  std::string last_valid_ndt_frame_id_;
+ 
+   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     sub_gnss_pose_with_cov_;
+@@ -72,6 +88,23 @@
+ 
+   bool gnss_pose_has_timed_out(const rclcpp::Time & gnss_pose_received_time_last);
+ 
++  bool pose_message_is_valid(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source) const;
++
++  bool message_stamp_is_fresh(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source) const;
++
++  bool ndt_is_fresh() const;
++
++  bool gnss_is_trusted(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++    double gnss_pose_yaw_stddev_deg, double gnss_pose_stddev_z,
++    double gnss_pose_stddev_xy) const;
++
++  bool gnss_position_is_trusted(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++    double gnss_pose_stddev_xy) const;
++
+   PoseSource pose_source_from_gnss_stddev(
+     double gnss_pose_yaw_stddev_deg, double gnss_pose_stddev_z, double gnss_pose_stddev_xy) const;
+ 
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp	2026-04-08 14:43:30.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp	2026-07-29 16:01:38.283718334 +0800
+@@ -22,6 +22,9 @@
+ #include <std_msgs/msg/string.hpp>
+ 
+ #include <algorithm>
++#include <cmath>
++#include <stdexcept>
++#include <string>
+ 
+ namespace autoware::pose_covariance_modifier
+ {
+@@ -30,9 +33,22 @@
+ PoseCovarianceModifierNode::PoseCovarianceModifierNode(const rclcpp::NodeOptions & node_options)
+ : Node("PoseCovarianceModifierNode", node_options),
+   gnss_pose_received_time_last_(this->now()),
++  ndt_pose_received_time_last_(this->now()),
+   pose_source_(PoseSource::NDT)
+ {
+   // parameters
++  const auto fusion_policy = this->declare_parameter<std::string>("fusion_policy", "official");
++  if (fusion_policy == "official") {
++    fusion_policy_ = FusionPolicy::OFFICIAL;
++  } else if (fusion_policy == "ndt_primary_covariance") {
++    fusion_policy_ = FusionPolicy::NDT_PRIMARY_COVARIANCE;
++  } else if (fusion_policy == "ndt_primary_position") {
++    fusion_policy_ = FusionPolicy::NDT_PRIMARY_POSITION;
++  } else {
++    throw std::invalid_argument(
++            "fusion_policy must be 'official', 'ndt_primary_covariance', or "
++            "'ndt_primary_position', got: " + fusion_policy);
++  }
+   threshold_gnss_stddev_yaw_deg_max_ =
+     this->declare_parameter<double>("threshold_gnss_stddev_yaw_deg_max");
+   threshold_gnss_stddev_z_max_ = this->declare_parameter<double>("threshold_gnss_stddev_z_max");
+@@ -43,6 +59,24 @@
+   ndt_std_dev_bound_lower_ = this->declare_parameter<double>("ndt_std_dev_bound_lower");
+   ndt_std_dev_bound_upper_ = this->declare_parameter<double>("ndt_std_dev_bound_upper");
+   gnss_pose_timeout_sec_ = this->declare_parameter<double>("gnss_pose_timeout_sec");
++  gnss_position_only_yaw_variance_ =
++    this->declare_parameter<double>("gnss_position_only_yaw_variance", 1.0);
++  gnss_ndt_max_stamp_delta_sec_ =
++    this->declare_parameter<double>("gnss_ndt_max_stamp_delta_sec", 0.0);
++  gnss_ndt_xy_innovation_max_m_ =
++    this->declare_parameter<double>("gnss_ndt_xy_innovation_max_m", 0.0);
++  if (
++    !std::isfinite(gnss_position_only_yaw_variance_) ||
++    gnss_position_only_yaw_variance_ <= 0.0) {
++    throw std::invalid_argument("gnss_position_only_yaw_variance must be finite and positive");
++  }
++  if (
++    !std::isfinite(gnss_ndt_max_stamp_delta_sec_) ||
++    gnss_ndt_max_stamp_delta_sec_ < 0.0 ||
++    !std::isfinite(gnss_ndt_xy_innovation_max_m_) ||
++    gnss_ndt_xy_innovation_max_m_ < 0.0) {
++    throw std::invalid_argument("GNSS/NDT consistency limits must be finite and non-negative");
++  }
+   debug_mode_ = this->declare_parameter<bool>("enable_debug_topics");
+ 
+   // subscribers
+@@ -75,6 +109,68 @@
+ void PoseCovarianceModifierNode::callback_gnss_pose_with_cov(
+   const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg_pose_with_cov_in)
+ {
++  if (
++    fusion_policy_ == FusionPolicy::NDT_PRIMARY_COVARIANCE ||
++    fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
++    if (
++      !pose_message_is_valid(*msg_pose_with_cov_in, "GNSS") ||
++      !message_stamp_is_fresh(*msg_pose_with_cov_in, "GNSS")) {
++      pose_source_ = PoseSource::NDT;
++      publish_pose_type(pose_source_);
++      return;
++    }
++
++    const double gnss_pose_yaw_stddev_deg =
++      std::sqrt(msg_pose_with_cov_in->pose.covariance[YAW_POS_IDX_]) * 180 / M_PI;
++    const double gnss_pose_stddev_z =
++      std::sqrt(msg_pose_with_cov_in->pose.covariance[Z_POS_IDX_]);
++    const double gnss_pose_stddev_xy =
++      (std::sqrt(msg_pose_with_cov_in->pose.covariance[X_POS_IDX_]) +
++       std::sqrt(msg_pose_with_cov_in->pose.covariance[Y_POS_IDX_])) /
++      2;
++
++    const bool trusted =
++      fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION
++        ? gnss_position_is_trusted(*msg_pose_with_cov_in, gnss_pose_stddev_xy)
++        : gnss_is_trusted(
++            *msg_pose_with_cov_in, gnss_pose_yaw_stddev_deg, gnss_pose_stddev_z,
++            gnss_pose_stddev_xy);
++    if (!trusted) {
++      pose_source_ = PoseSource::NDT;
++      publish_pose_type(pose_source_);
++      return;
++    }
++
++    gnss_pose_received_time_last_ = this->now();
++    gnss_pose_with_cov_last_ = msg_pose_with_cov_in;
++    pose_source_ = PoseSource::GNSS_NDT;
++    publish_pose_type(pose_source_);
++    if (fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
++      // The real TM99 GNSS position originates from BESTPOS, while the input
++      // orientation originates from INSPVAX and is correlated with the IMU
++      // already consumed by the EKF.  The EKF pose interface has no native
++      // position-only message, so retain x/y exactly, use the latest NDT
++      // orientation as a neutral yaw carrier, and make yaw uninformative.
++      auto position_only = *msg_pose_with_cov_in;
++      position_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
++      for (int axis = 0; axis < 5; ++axis) {
++        position_only.pose.covariance[axis * 6 + 5] = 0.0;
++        position_only.pose.covariance[5 * 6 + axis] = 0.0;
++      }
++      position_only.pose.covariance[YAW_POS_IDX_] = gnss_position_only_yaw_variance_;
++      pub_pose_with_covariance_stamped_->publish(position_only);
++    } else {
++      pub_pose_with_covariance_stamped_->publish(*msg_pose_with_cov_in);
++    }
++
++    if (debug_mode_) {
++      std_msgs::msg::Float64 msg_double;
++      msg_double.data = gnss_pose_stddev_xy;
++      pub_double_gnss_position_stddev_->publish(msg_double);
++    }
++    return;
++  }
++
+   // will be used to check if GNSS pose has timed out in the NDT pose callback
+   gnss_pose_received_time_last_ = this->now();
+ 
+@@ -113,6 +209,40 @@
+ void PoseCovarianceModifierNode::callback_ndt_pose_with_cov(
+   const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg_pose_with_cov_in)
+ {
++  if (
++    fusion_policy_ == FusionPolicy::NDT_PRIMARY_COVARIANCE ||
++    fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
++    if (
++      !pose_message_is_valid(*msg_pose_with_cov_in, "NDT") ||
++      !message_stamp_is_fresh(*msg_pose_with_cov_in, "NDT")) {
++      RCLCPP_WARN(this->get_logger(), "Rejected invalid or stale NDT pose");
++      return;
++    }
++
++    has_valid_ndt_pose_ = true;
++    ndt_pose_received_time_last_ = this->now();
++    ndt_pose_with_cov_last_ = msg_pose_with_cov_in;
++    last_valid_ndt_frame_id_ = msg_pose_with_cov_in->header.frame_id;
++    if (gnss_pose_has_timed_out(gnss_pose_received_time_last_)) {
++      pose_source_ = PoseSource::NDT;
++    }
++    publish_pose_type(pose_source_);
++
++    // The Tianmen mode guarantees that every valid NDT observation reaches the EKF
++    // byte-for-byte unchanged. GNSS quality must never rewrite NDT covariance.
++    pub_pose_with_covariance_stamped_->publish(*msg_pose_with_cov_in);
++
++    if (debug_mode_) {
++      std_msgs::msg::Float64 msg_double;
++      msg_double.data =
++        (std::sqrt(msg_pose_with_cov_in->pose.covariance[X_POS_IDX_]) +
++         std::sqrt(msg_pose_with_cov_in->pose.covariance[Y_POS_IDX_])) /
++        2.0;
++      pub_double_ndt_position_stddev_->publish(msg_double);
++    }
++    return;
++  }
++
+   if (pose_source_ == PoseSource::GNSS) {
+     // if the pose source is only gnss, GNSS pose will be used in the GNSS pose callback
+     return;
+@@ -140,6 +270,123 @@
+   }
+ }
+ 
++bool PoseCovarianceModifierNode::pose_message_is_valid(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source) const
++{
++  const auto & p = msg.pose.pose.position;
++  const auto & q = msg.pose.pose.orientation;
++  if (
++    msg.header.frame_id.empty() || !std::isfinite(p.x) || !std::isfinite(p.y) ||
++    !std::isfinite(p.z) || !std::isfinite(q.x) || !std::isfinite(q.y) ||
++    !std::isfinite(q.z) || !std::isfinite(q.w)) {
++    RCLCPP_WARN(this->get_logger(), "%s pose contains an invalid frame or non-finite pose", source);
++    return false;
++  }
++
++  const double quaternion_norm_squared = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
++  if (!std::isfinite(quaternion_norm_squared) || quaternion_norm_squared <= 1.0e-12) {
++    RCLCPP_WARN(this->get_logger(), "%s pose contains an invalid quaternion", source);
++    return false;
++  }
++
++  for (const double value : msg.pose.covariance) {
++    if (!std::isfinite(value)) {
++      RCLCPP_WARN(this->get_logger(), "%s covariance contains a non-finite value", source);
++      return false;
++    }
++  }
++  for (const int index : {X_POS_IDX_, Y_POS_IDX_, Z_POS_IDX_, YAW_POS_IDX_}) {
++    if (msg.pose.covariance[index] <= 0.0) {
++      RCLCPP_WARN(this->get_logger(), "%s covariance has a non-positive diagonal", source);
++      return false;
++    }
++  }
++  return true;
++}
++
++bool PoseCovarianceModifierNode::message_stamp_is_fresh(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const char * source) const
++{
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  if (stamp.nanoseconds() <= 0) {
++    RCLCPP_WARN(this->get_logger(), "%s pose has an invalid zero timestamp", source);
++    return false;
++  }
++  const double age_sec = (this->now() - stamp).seconds();
++  if (!std::isfinite(age_sec) || age_sec > gnss_pose_timeout_sec_ || age_sec < -gnss_pose_timeout_sec_) {
++    RCLCPP_WARN(this->get_logger(), "%s pose timestamp is outside the freshness window", source);
++    return false;
++  }
++  return true;
++}
++
++bool PoseCovarianceModifierNode::ndt_is_fresh() const
++{
++  if (!has_valid_ndt_pose_) {
++    return false;
++  }
++  const double age_sec = (this->now() - ndt_pose_received_time_last_).seconds();
++  return std::isfinite(age_sec) && age_sec >= 0.0 && age_sec <= gnss_pose_timeout_sec_;
++}
++
++bool PoseCovarianceModifierNode::gnss_is_trusted(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++  const double gnss_pose_yaw_stddev_deg, const double gnss_pose_stddev_z,
++  const double gnss_pose_stddev_xy) const
++{
++  if (!ndt_is_fresh()) {
++    RCLCPP_WARN(this->get_logger(), "GNSS pose rejected because no fresh valid NDT pose exists");
++    return false;
++  }
++  if (msg.header.frame_id != last_valid_ndt_frame_id_) {
++    RCLCPP_WARN(this->get_logger(), "GNSS pose rejected because its frame differs from NDT");
++    return false;
++  }
++  return gnss_pose_yaw_stddev_deg <= threshold_gnss_stddev_yaw_deg_max_ &&
++         gnss_pose_stddev_z <= threshold_gnss_stddev_z_max_ &&
++         gnss_pose_stddev_xy <= threshold_gnss_stddev_xy_bound_upper_;
++}
++
++bool PoseCovarianceModifierNode::gnss_position_is_trusted(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++  const double gnss_pose_stddev_xy) const
++{
++  if (!ndt_is_fresh() || !ndt_pose_with_cov_last_) {
++    RCLCPP_WARN(this->get_logger(), "GNSS position rejected because no fresh valid NDT pose exists");
++    return false;
++  }
++  if (msg.header.frame_id != last_valid_ndt_frame_id_) {
++    RCLCPP_WARN(this->get_logger(), "GNSS position rejected because its frame differs from NDT");
++    return false;
++  }
++  if (gnss_ndt_max_stamp_delta_sec_ > 0.0) {
++    const rclcpp::Time gnss_stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++    const rclcpp::Time ndt_stamp(
++      ndt_pose_with_cov_last_->header.stamp, this->get_clock()->get_clock_type());
++    const double stamp_delta_sec = std::abs((gnss_stamp - ndt_stamp).seconds());
++    if (
++      !std::isfinite(stamp_delta_sec) ||
++      stamp_delta_sec > gnss_ndt_max_stamp_delta_sec_) {
++      RCLCPP_WARN(this->get_logger(), "GNSS position rejected because NDT is not timestamp-close");
++      return false;
++    }
++  }
++  if (gnss_ndt_xy_innovation_max_m_ > 0.0) {
++    const double dx =
++      msg.pose.pose.position.x - ndt_pose_with_cov_last_->pose.pose.position.x;
++    const double dy =
++      msg.pose.pose.position.y - ndt_pose_with_cov_last_->pose.pose.position.y;
++    const double innovation_m = std::hypot(dx, dy);
++    if (
++      !std::isfinite(innovation_m) ||
++      innovation_m > gnss_ndt_xy_innovation_max_m_) {
++      RCLCPP_WARN(this->get_logger(), "GNSS position rejected by the NDT innovation gate");
++      return false;
++    }
++  }
++  return gnss_pose_stddev_xy <= threshold_gnss_stddev_xy_bound_upper_;
++}
++
+ bool PoseCovarianceModifierNode::gnss_pose_has_timed_out(
+   const rclcpp::Time & gnss_pose_received_time_last)
+ {
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp	1970-01-01 08:00:00.000000000 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp	2026-07-29 16:01:51.077855303 +0800
+@@ -0,0 +1,314 @@
++// Copyright 2026 The Autoware Foundation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++
++#include "include/pose_covariance_modifier.hpp"
++
++#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
++#include <rclcpp/rclcpp.hpp>
++
++#include <gtest/gtest.h>
++
++#include <chrono>
++#include <cmath>
++#include <limits>
++#include <memory>
++#include <string>
++#include <thread>
++#include <vector>
++
++namespace
++{
++using Message = geometry_msgs::msg::PoseWithCovarianceStamped;
++using Node = autoware::pose_covariance_modifier::PoseCovarianceModifierNode;
++using namespace std::chrono_literals;
++
++class ModifierHarness
++{
++public:
++  ModifierHarness(
++    const std::string & policy, const double timeout_sec = 1.0,
++    const double stamp_delta_sec = 0.0, const double innovation_m = 0.0)
++  {
++    rclcpp::NodeOptions options;
++    options.arguments(
++      {"--ros-args", "-r", "__ns:=/pose_covariance_modifier_test_" + std::to_string(next_id_++)});
++    options.parameter_overrides(
++      {
++        {"fusion_policy", policy},
++        {"threshold_gnss_stddev_yaw_deg_max", 0.3},
++        {"threshold_gnss_stddev_z_max", 0.1},
++        {"threshold_gnss_stddev_xy_bound_lower", 0.1},
++        {"threshold_gnss_stddev_xy_bound_upper", 0.25},
++        {"ndt_std_dev_bound_lower", 0.14},
++        {"ndt_std_dev_bound_upper", 0.30},
++        {"gnss_pose_timeout_sec", timeout_sec},
++        {"gnss_position_only_yaw_variance", 1.0},
++        {"gnss_ndt_max_stamp_delta_sec", stamp_delta_sec},
++        {"gnss_ndt_xy_innovation_max_m", innovation_m},
++        {"enable_debug_topics", false},
++      });
++    subject_ = std::make_shared<Node>(options);
++    helper_ = std::make_shared<rclcpp::Node>(
++      "helper", subject_->get_namespace(), rclcpp::NodeOptions{});
++    ndt_pub_ = helper_->create_publisher<Message>("input_ndt_pose_with_cov_topic", 10);
++    gnss_pub_ = helper_->create_publisher<Message>("input_gnss_pose_with_cov_topic", 10);
++    output_sub_ = helper_->create_subscription<Message>(
++      "output_pose_with_covariance_topic", 10,
++      [this](const Message::ConstSharedPtr msg) { outputs_.push_back(*msg); });
++    executor_.add_node(subject_);
++    executor_.add_node(helper_);
++    spin_until([this]() {
++      return ndt_pub_->get_subscription_count() == 1 &&
++             gnss_pub_->get_subscription_count() == 1 &&
++             subject_->count_publishers("output_pose_with_covariance_topic") == 1;
++    });
++  }
++
++  ~ModifierHarness()
++  {
++    executor_.remove_node(subject_);
++    executor_.remove_node(helper_);
++  }
++
++  Message make_message(
++    const double xy_stddev, const double z_stddev = 0.05,
++    const double yaw_stddev_deg = 0.1) const
++  {
++    Message msg;
++    msg.header.frame_id = "map";
++    msg.header.stamp = subject_->now();
++    msg.pose.pose.position.x = 10.0;
++    msg.pose.pose.position.y = -4.0;
++    msg.pose.pose.position.z = 2.0;
++    msg.pose.pose.orientation.w = 1.0;
++    msg.pose.covariance.fill(0.0);
++    msg.pose.covariance[0] = xy_stddev * xy_stddev;
++    msg.pose.covariance[7] = xy_stddev * xy_stddev;
++    msg.pose.covariance[14] = z_stddev * z_stddev;
++    msg.pose.covariance[21] = 0.01;
++    msg.pose.covariance[28] = 0.01;
++    msg.pose.covariance[35] = std::pow(yaw_stddev_deg * M_PI / 180.0, 2);
++    return msg;
++  }
++
++  void publish_ndt(const Message & msg)
++  {
++    ndt_pub_->publish(msg);
++    spin_for(30ms);
++  }
++
++  void publish_gnss(const Message & msg)
++  {
++    gnss_pub_->publish(msg);
++    spin_for(30ms);
++  }
++
++  void clear() {outputs_.clear();}
++  const std::vector<Message> & outputs() const {return outputs_;}
++
++private:
++  template<class Predicate>
++  void spin_until(Predicate predicate)
++  {
++    const auto deadline = std::chrono::steady_clock::now() + 2s;
++    while (!predicate() && std::chrono::steady_clock::now() < deadline) {
++      executor_.spin_some();
++      std::this_thread::sleep_for(5ms);
++    }
++    ASSERT_TRUE(predicate());
++  }
++
++  void spin_for(const std::chrono::milliseconds duration)
++  {
++    const auto deadline = std::chrono::steady_clock::now() + duration;
++    while (std::chrono::steady_clock::now() < deadline) {
++      executor_.spin_some();
++      std::this_thread::sleep_for(2ms);
++    }
++  }
++
++  inline static int next_id_{0};
++  rclcpp::executors::SingleThreadedExecutor executor_;
++  std::shared_ptr<Node> subject_;
++  std::shared_ptr<rclcpp::Node> helper_;
++  rclcpp::Publisher<Message>::SharedPtr ndt_pub_;
++  rclcpp::Publisher<Message>::SharedPtr gnss_pub_;
++  rclcpp::Subscription<Message>::SharedPtr output_sub_;
++  std::vector<Message> outputs_;
++};
++
++TEST(PoseCovarianceModifier, official_policy_preserves_xy_boundaries)
++{
++  ModifierHarness harness("official");
++
++  harness.publish_gnss(harness.make_message(0.1));
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  harness.clear();
++  harness.publish_ndt(harness.make_message(0.15));
++  EXPECT_TRUE(harness.outputs().empty());
++
++  harness.publish_gnss(harness.make_message(0.25));
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  harness.clear();
++  const auto ndt = harness.make_message(0.15);
++  harness.publish_ndt(ndt);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_NE(harness.outputs().front().pose.covariance, ndt.pose.covariance);
++
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.250001));
++  EXPECT_TRUE(harness.outputs().empty());
++  harness.publish_ndt(ndt);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front(), ndt);
++}
++
++TEST(PoseCovarianceModifier, official_policy_preserves_yaw_and_z_boundaries)
++{
++  ModifierHarness harness("official");
++  harness.publish_gnss(harness.make_message(0.2, 0.1, 0.3));
++  ASSERT_EQ(harness.outputs().size(), 1U);
++
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.2, 0.100001, 0.3));
++  EXPECT_TRUE(harness.outputs().empty());
++  harness.publish_ndt(harness.make_message(0.15));
++  ASSERT_EQ(harness.outputs().size(), 1U);
++
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.2, 0.1, 0.300001));
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_publishes_trusted_gnss_and_unmodified_ndt)
++{
++  ModifierHarness harness("ndt_primary_covariance");
++  const auto ndt = harness.make_message(0.15);
++  const auto gnss = harness.make_message(0.2);
++  harness.publish_ndt(ndt);
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 2U);
++  EXPECT_EQ(harness.outputs()[0], ndt);
++  EXPECT_EQ(harness.outputs()[1], gnss);
++  EXPECT_EQ(harness.outputs()[0].pose.covariance, ndt.pose.covariance);
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_never_publishes_gnss_only)
++{
++  ModifierHarness harness("ndt_primary_covariance");
++  harness.publish_gnss(harness.make_message(0.05));
++  EXPECT_TRUE(harness.outputs().empty());
++  const auto ndt = harness.make_message(0.15);
++  harness.publish_ndt(ndt);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front(), ndt);
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_rejects_untrusted_and_stale_gnss)
++{
++  ModifierHarness harness("ndt_primary_covariance", 0.05);
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.250001));
++  EXPECT_TRUE(harness.outputs().empty());
++
++  std::this_thread::sleep_for(70ms);
++  harness.publish_gnss(harness.make_message(0.2));
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_rejects_invalid_covariance)
++{
++  for (const double invalid : {
++      -1.0, 0.0, std::numeric_limits<double>::infinity(),
++      std::numeric_limits<double>::quiet_NaN()})
++  {
++    ModifierHarness harness("ndt_primary_covariance");
++    harness.publish_ndt(harness.make_message(0.15));
++    harness.clear();
++    auto gnss = harness.make_message(0.2);
++    gnss.pose.covariance[0] = invalid;
++    harness.publish_gnss(gnss);
++    EXPECT_TRUE(harness.outputs().empty());
++  }
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_keeps_xy_and_removes_inertial_yaw)
++{
++  ModifierHarness harness("ndt_primary_position");
++  auto ndt = harness.make_message(0.15);
++  ndt.pose.pose.orientation.z = std::sin(M_PI / 8.0);
++  ndt.pose.pose.orientation.w = std::cos(M_PI / 8.0);
++  auto gnss = harness.make_message(0.2, 12.0, 15.0);
++  gnss.pose.pose.position.x = 10.25;
++  gnss.pose.pose.position.y = -3.75;
++  gnss.pose.pose.orientation.z = std::sin(M_PI / 3.0);
++  gnss.pose.pose.orientation.w = std::cos(M_PI / 3.0);
++  gnss.pose.covariance[5] = 0.02;
++  gnss.pose.covariance[30] = 0.02;
++
++  harness.publish_ndt(ndt);
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 2U);
++  EXPECT_EQ(harness.outputs()[0], ndt);
++
++  const auto & output = harness.outputs()[1];
++  EXPECT_EQ(output.header, gnss.header);
++  EXPECT_EQ(output.pose.pose.position, gnss.pose.pose.position);
++  EXPECT_EQ(output.pose.pose.orientation, ndt.pose.pose.orientation);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[0], gnss.pose.covariance[0]);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[7], gnss.pose.covariance[7]);
++  EXPECT_DOUBLE_EQ(output.pose.covariance[35], 1.0);
++  for (int axis = 0; axis < 5; ++axis) {
++    EXPECT_DOUBLE_EQ(output.pose.covariance[axis * 6 + 5], 0.0);
++    EXPECT_DOUBLE_EQ(output.pose.covariance[5 * 6 + axis], 0.0);
++  }
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_never_publishes_gnss_only_or_bad_xy)
++{
++  ModifierHarness harness("ndt_primary_position");
++  harness.publish_gnss(harness.make_message(0.2));
++  EXPECT_TRUE(harness.outputs().empty());
++
++  const auto ndt = harness.make_message(0.15);
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.250001));
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_rejects_large_ndt_innovation)
++{
++  ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0);
++  const auto ndt = harness.make_message(0.15);
++  harness.publish_ndt(ndt);
++  harness.clear();
++
++  auto false_fix = harness.make_message(0.1);
++  false_fix.pose.pose.position.x += 5.0;
++  harness.publish_gnss(false_fix);
++  EXPECT_TRUE(harness.outputs().empty());
++
++  auto normal_fix = harness.make_message(0.1);
++  normal_fix.pose.pose.position.x += 0.5;
++  harness.publish_gnss(normal_fix);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front().pose.pose.position, normal_fix.pose.pose.position);
++}
++
++}  // namespace
++
++int main(int argc, char ** argv)
++{
++  rclcpp::init(argc, argv);
++  ::testing::InitGoogleTest(&argc, argv);
++  const int result = RUN_ALL_TESTS();
++  rclcpp::shutdown();
++  return result;
++}
+--- a/src/autoware/launcher/tier4_universe_launch/tier4_localization_launch/launch/localization.launch.xml	2026-04-08 14:44:13.000000000 +0800
++++ b/src/autoware/launcher/tier4_universe_launch/tier4_localization_launch/launch/localization.launch.xml	2026-07-28 23:44:16.280847133 +0800
+@@ -4,6 +4,7 @@
+   <arg name="twist_source"/>
+   <arg name="initial_pose"/>
+   <arg name="system_run_mode"/>
++  <arg name="use_autoware_pose_covariance_modifier" default="false"/>
+ 
+   <!-- parameter paths for ndt -->
+   <arg name="ndt_scan_matcher/pointcloud_preprocessor/crop_box_filter_measurement_range_param_path"/>
+@@ -17,6 +18,10 @@
+   <arg name="stop_filter_param_path"/>
+   <arg name="pose_instability_detector_param_path"/>
+   <arg name="pose_initializer_param_path"/>
++  <arg
++    name="pose_covariance_modifier_param_path"
++    default="$(find-pkg-share autoware_pose_covariance_modifier)/config/pose_covariance_modifier.param.yaml"
++  />
+   <arg name="eagleye_param_path"/>
+   <arg name="ar_tag_based_localizer_param_path"/>
+ 
+@@ -34,6 +39,8 @@
+     <!-- pose_twist_estimator module -->
+     <include file="$(find-pkg-share tier4_localization_launch)/launch/pose_twist_estimator/pose_twist_estimator.launch.xml">
+       <arg name="localization_pointcloud_container_name" value="$(var localization_pointcloud_container_name)"/>
++      <arg name="use_autoware_pose_covariance_modifier" value="$(var use_autoware_pose_covariance_modifier)"/>
++      <arg name="pose_covariance_modifier_param_path" value="$(var pose_covariance_modifier_param_path)"/>
+     </include>
+ 
+     <!-- pose_twist_fusion_filter module -->
+--- a/src/autoware/launcher/tier4_universe_launch/tier4_localization_launch/launch/pose_twist_estimator/pose_twist_estimator.launch.xml	2026-04-08 14:44:13.000000000 +0800
++++ b/src/autoware/launcher/tier4_universe_launch/tier4_localization_launch/launch/pose_twist_estimator/pose_twist_estimator.launch.xml	2026-07-28 23:44:16.281847143 +0800
+@@ -1,6 +1,10 @@
+ <?xml version="1.0"?>
+ <launch>
+   <arg name="use_autoware_pose_covariance_modifier" default="false"/>
++  <arg
++    name="pose_covariance_modifier_param_path"
++    default="$(find-pkg-share autoware_pose_covariance_modifier)/config/pose_covariance_modifier.param.yaml"
++  />
+   <!-- only when running with a real vehicle, the pose_initializer judges the stop -->
+   <let name="stop_check_enabled" if="$(eval &quot;'$(var system_run_mode)'=='online'&quot;)" value="true"/>
+   <let name="stop_check_enabled" if="$(eval &quot;'$(var system_run_mode)'=='logging_simulation'&quot;)" value="false"/>
+@@ -43,7 +47,9 @@
+ 
+     <!-- Autoware Pose Covariance Modifier Node Launch -->
+     <group if="$(var use_autoware_pose_covariance_modifier)">
+-      <include file="$(find-pkg-share autoware_pose_covariance_modifier)/launch/pose_covariance_modifier.launch.xml"/>
++      <include file="$(find-pkg-share autoware_pose_covariance_modifier)/launch/pose_covariance_modifier.launch.xml">
++        <arg name="param_file" value="$(var pose_covariance_modifier_param_path)"/>
++      </include>
+     </group>
+   </group>
+ 

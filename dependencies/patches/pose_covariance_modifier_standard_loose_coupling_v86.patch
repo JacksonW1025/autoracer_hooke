@@ -1,0 +1,113 @@
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
+@@ -31,14 +31,18 @@
+   carries the latest NDT orientation with a deliberately uninformative yaw variance,
+   and removes yaw cross-covariances. This avoids counting an INSPVAX/INS yaw as an
+   independent GNSS observation when the EKF already consumes the same inertial
+-  source. The default remains `official`; this policy requires separate validation
+-  before product use.
++  source. GNSS is blocked before the first valid NDT initializes localization.
++  Afterwards, a current NDT sample is not required for each GNSS update: NDT and
++  GNSS remain independent observations of the same EKF, so an NDT outage does not
++  silently become a dual-sensor outage. The default remains `official`; this policy
++  requires separate validation before product use.
+ 
+-`ndt_primary_position` also exposes two disabled-by-default consistency gates:
+-`gnss_ndt_max_stamp_delta_sec` and `gnss_ndt_xy_innovation_max_m`. They are
+-intended for separately controlled experiments; a non-zero value rejects a GNSS
+-position that is not timestamp-close to, or is too far from, the latest NDT
+-observation. The separately disabled
++`ndt_primary_position` also exposes disabled-by-default consistency gates:
++`gnss_ndt_max_stamp_delta_sec` and `gnss_ndt_xy_innovation_max_m`.
++Cross-source gates are evaluated only while the latest NDT and GNSS are fresh
++and timestamp-close. A stale or asynchronous NDT skips cross-source comparison;
++the GNSS message still has to pass its own freshness/covariance checks and the
++EKF's covariance-aware state innovation gate. The separately disabled
+ `gnss_ndt_motion_compensate_innovation` option linearly propagates the last two
+ NDT positions to the GNSS timestamp before evaluating only this gate. This avoids
+ mistaking normal vehicle motion between asynchronous measurements for spatial
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -429,27 +429,35 @@
+   const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
+   const double gnss_pose_stddev_xy)
+ {
+-  if (!ndt_is_fresh() || !ndt_pose_with_cov_last_) {
+-    RCLCPP_WARN(this->get_logger(), "GNSS position rejected because no fresh valid NDT pose exists");
++  if (!has_valid_ndt_pose_ || !ndt_pose_with_cov_last_) {
++    RCLCPP_WARN(this->get_logger(), "GNSS position rejected before the first valid NDT pose");
+     return false;
+   }
+   if (msg.header.frame_id != last_valid_ndt_frame_id_) {
+     RCLCPP_WARN(this->get_logger(), "GNSS position rejected because its frame differs from NDT");
+     return false;
+   }
+-  if (gnss_ndt_max_stamp_delta_sec_ > 0.0) {
++  if (gnss_pose_stddev_xy > threshold_gnss_stddev_xy_bound_upper_) {
++    return false;
++  }
++
++  // NDT and GNSS are independent observations of the same EKF.  A current
++  // NDT sample is useful for cross-source integrity monitoring, but it must
++  // not be a prerequisite for a healthy GNSS position update after the EKF
++  // has been initialized.  Otherwise an NDT outage also discards GNSS and
++  // turns a single-sensor fault into a dual-sensor outage.
++  bool sources_are_time_comparable = ndt_is_fresh();
++  if (sources_are_time_comparable && gnss_ndt_max_stamp_delta_sec_ > 0.0) {
+     const rclcpp::Time gnss_stamp(msg.header.stamp, this->get_clock()->get_clock_type());
+     const rclcpp::Time ndt_stamp(
+       ndt_pose_with_cov_last_->header.stamp, this->get_clock()->get_clock_type());
+     const double stamp_delta_sec = std::abs((gnss_stamp - ndt_stamp).seconds());
+-    if (
+-      !std::isfinite(stamp_delta_sec) ||
+-      stamp_delta_sec > gnss_ndt_max_stamp_delta_sec_) {
+-      RCLCPP_WARN(this->get_logger(), "GNSS position rejected because NDT is not timestamp-close");
+-      return false;
+-    }
++    sources_are_time_comparable =
++      std::isfinite(stamp_delta_sec) &&
++      stamp_delta_sec <= gnss_ndt_max_stamp_delta_sec_;
+   }
+-  if (gnss_ndt_xy_innovation_max_m_ > 0.0) {
++
++  if (sources_are_time_comparable && gnss_ndt_xy_innovation_max_m_ > 0.0) {
+     const auto innovation_m = gnss_ndt_xy_innovation(msg);
+     const auto reference = gnss_ndt_xy_reference(msg);
+     if (!innovation_m || !reference) {
+@@ -469,7 +477,7 @@
+       return false;
+     }
+   }
+-  return gnss_pose_stddev_xy <= threshold_gnss_stddev_xy_bound_upper_;
++  return true;
+ }
+ 
+ std::optional<double> PoseCovarianceModifierNode::gnss_ndt_xy_innovation(
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -322,6 +322,25 @@
+   EXPECT_TRUE(harness.outputs().empty());
+ }
+ 
++TEST(PoseCovarianceModifier, ndt_primary_position_accepts_gnss_after_initialized_ndt_times_out)
++{
++  ModifierHarness harness("ndt_primary_position", 0.05, 0.25, 3.0);
++  auto ndt = harness.make_message(0.15);
++  ndt.pose.pose.orientation.z = std::sin(M_PI / 8.0);
++  ndt.pose.pose.orientation.w = std::cos(M_PI / 8.0);
++  harness.publish_ndt(ndt);
++  harness.clear();
++
++  std::this_thread::sleep_for(70ms);
++  auto gnss = harness.make_message(0.2);
++  gnss.pose.pose.position.x += 0.25;
++  harness.publish_gnss(gnss);
++
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front().pose.pose.position, gnss.pose.pose.position);
++  EXPECT_EQ(harness.outputs().front().pose.pose.orientation, ndt.pose.pose.orientation);
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_position_rejects_large_ndt_innovation)
+ {
+   ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0);

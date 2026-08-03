@@ -14,6 +14,10 @@
       - "FP_A-RAWIMU"
       - "FP_A-CORRIMU"
       - "FP_A-LLH"
+      # Independent primary/secondary receiver solution used by gnss_poser.
+      # FP_A-ODOMETRY remains available for diagnostics but must not be fed
+      # back as a second position observation into the vehicle EKF.
+      - "NOV_B-BESTGNSSPOS"
       - "NOV_B-INSPVAX"
 
     fusion_epoch: true

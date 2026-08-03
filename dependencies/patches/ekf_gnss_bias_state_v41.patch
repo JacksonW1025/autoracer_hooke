@@ -1,0 +1,652 @@
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml b/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml
+--- a/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml	2026-07-30 12:35:04.476965649 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml	2026-07-30 12:30:26.973234818 +0800
+@@ -20,6 +20,10 @@
+       position_only_yaw_variance_threshold: 0.5
+       position_only_state_variance_floor_m2: 0.0
+       position_only_decorrelate_covariance: false
++      # Optional two-dimensional Gauss-Markov GNSS bias state.  This is
++      # disabled by default and only applies to explicitly marked
++      # position-only measurements.
++      enable_gnss_bias_estimation: false
+ 
+     twist_measurement:
+       # for twist measurement
+@@ -33,6 +37,8 @@
+       proc_stddev_yaw_c: 0.005
+       proc_stddev_vx_c: 10.0
+       proc_stddev_wz_c: 5.0
++      gnss_bias_stationary_stddev_m: 0.18407490243154828
++      gnss_bias_correlation_time_sec: 5.0
+ 
+     simple_1d_filter_parameters:
+       #Simple1DFilter parameters
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp	2026-07-30 12:29:49.444863846 +0800
+@@ -111,6 +111,7 @@
+   [[nodiscard]] geometry_msgs::msg::TwistStamped get_current_twist(
+     const rclcpp::Time & current_time) const;
+   [[nodiscard]] double get_yaw_bias() const;
++  [[nodiscard]] Eigen::Vector2d get_gnss_position_bias() const;
+   [[nodiscard]] std::array<double, 36> get_current_pose_covariance() const;
+   [[nodiscard]] std::array<double, 36> get_current_twist_covariance() const;
+ 
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp	2026-07-30 12:35:04.477965659 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp	2026-07-30 12:29:49.443863836 +0800
+@@ -51,6 +51,9 @@
+     position_only_decorrelate_covariance(
+       node->declare_parameter<bool>(
+         "pose_measurement.position_only_decorrelate_covariance", false)),
++    enable_gnss_bias_estimation(
++      node->declare_parameter<bool>(
++        "pose_measurement.enable_gnss_bias_estimation", false)),
+     twist_additional_delay(
+       node->declare_parameter<double>("twist_measurement.twist_additional_delay")),
+     twist_gate_dist(node->declare_parameter<double>("twist_measurement.twist_gate_dist")),
+@@ -59,6 +62,12 @@
+     proc_stddev_vx_c(node->declare_parameter<double>("process_noise.proc_stddev_vx_c")),
+     proc_stddev_wz_c(node->declare_parameter<double>("process_noise.proc_stddev_wz_c")),
+     proc_stddev_yaw_c(node->declare_parameter<double>("process_noise.proc_stddev_yaw_c")),
++    gnss_bias_stationary_stddev_m(
++      node->declare_parameter<double>(
++        "process_noise.gnss_bias_stationary_stddev_m", 0.18407490243154828)),
++    gnss_bias_correlation_time_sec(
++      node->declare_parameter<double>(
++        "process_noise.gnss_bias_correlation_time_sec", 5.0)),
+     z_filter_proc_dev(
+       node->declare_parameter<double>("simple_1d_filter_parameters.z_filter_proc_dev")),
+     roll_filter_proc_dev(
+@@ -100,6 +109,7 @@
+   const double position_only_yaw_variance_threshold;
+   const double position_only_state_variance_floor_m2;
+   const bool position_only_decorrelate_covariance;
++  const bool enable_gnss_bias_estimation;
+   const double twist_additional_delay;
+   const double twist_gate_dist;
+   const size_t twist_smoothing_steps;
+@@ -107,6 +117,8 @@
+   const double proc_stddev_vx_c;   //!< @brief  vx process noise
+   const double proc_stddev_wz_c;   //!< @brief  wz process noise
+   const double proc_stddev_yaw_c;  //!< @brief  yaw process noise
++  const double gnss_bias_stationary_stddev_m;
++  const double gnss_bias_correlation_time_sec;
+   const double z_filter_proc_dev;
+   const double roll_filter_proc_dev;
+   const double pitch_filter_proc_dev;
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp	2026-07-30 12:35:04.477965659 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp	2026-07-30 12:29:49.442863826 +0800
+@@ -28,6 +28,10 @@
+ Eigen::Matrix<double, 3, 6> pose_measurement_matrix();
+ Eigen::Matrix<double, 2, 6> position_only_pose_measurement_matrix();
+ Eigen::Matrix<double, 2, 6> twist_measurement_matrix();
++Eigen::MatrixXd pose_measurement_matrix(Eigen::Index state_dimension);
++Eigen::MatrixXd position_only_pose_measurement_matrix(
++  Eigen::Index state_dimension, bool include_gnss_bias);
++Eigen::MatrixXd twist_measurement_matrix(Eigen::Index state_dimension);
+ Eigen::Matrix3d pose_measurement_covariance(
+   const std::array<double, 36ul> & covariance, const size_t smoothing_step);
+ Eigen::Matrix2d position_only_pose_measurement_covariance(
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_index.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_index.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_index.hpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_index.hpp	2026-07-30 12:29:49.439863797 +0800
+@@ -25,6 +25,8 @@
+   YAWB = 3,
+   VX = 4,
+   WZ = 5,
++  GNSS_BX = 6,
++  GNSS_BY = 7,
+ };
+ 
+ }  // namespace autoware::ekf_localizer
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_transition.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_transition.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_transition.hpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/state_transition.hpp	2026-07-30 12:29:49.440863807 +0800
+@@ -25,6 +25,13 @@
+ Matrix6d create_state_transition_matrix(const Vector6d & X_curr, const double dt);
+ Matrix6d process_noise_covariance(
+   const double proc_cov_yaw_d, const double proc_cov_vx_d, const double proc_cov_wz_d);
++Eigen::VectorXd predict_next_state_with_gnss_bias(
++  const Eigen::VectorXd & x_curr, double dt, double bias_decay);
++Eigen::MatrixXd create_state_transition_matrix_with_gnss_bias(
++  const Eigen::VectorXd & x_curr, double dt, double bias_decay);
++Eigen::MatrixXd process_noise_covariance_with_gnss_bias(
++  double proc_cov_yaw_d, double proc_cov_vx_d, double proc_cov_wz_d,
++  double bias_process_covariance);
+ 
+ }  // namespace autoware::ekf_localizer
+ 
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/pose_measurement.sub_schema.json b/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/pose_measurement.sub_schema.json
+--- a/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/pose_measurement.sub_schema.json	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/pose_measurement.sub_schema.json	2026-07-30 12:30:26.974234828 +0800
+@@ -29,6 +29,33 @@
+           "type": "number",
+           "description": "Limit of Mahalanobis distance used for outliers detection",
+           "default": 49.5
++        },
++        "enable_position_only_state_mask": {
++          "type": "boolean",
++          "description": "Enable the explicitly marked position-only pose update path.",
++          "default": false
++        },
++        "position_only_yaw_variance_threshold": {
++          "type": "number",
++          "minimum": 0.0,
++          "description": "Yaw variance at or above which an enabled pose is treated as position-only.",
++          "default": 0.5
++        },
++        "position_only_state_variance_floor_m2": {
++          "type": "number",
++          "minimum": 0.0,
++          "description": "Optional posterior variance floor for states selected by a position-only update.",
++          "default": 0.0
++        },
++        "position_only_decorrelate_covariance": {
++          "type": "boolean",
++          "description": "Remove posterior covariance between selected and unselected states after a position-only update.",
++          "default": false
++        },
++        "enable_gnss_bias_estimation": {
++          "type": "boolean",
++          "description": "Add two internal Gauss-Markov GNSS position-bias states for explicitly marked position-only measurements.",
++          "default": false
+         }
+       },
+       "required": [
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/process_noise.sub_schema.json b/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/process_noise.sub_schema.json
+--- a/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/process_noise.sub_schema.json	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/process_noise.sub_schema.json	2026-07-30 12:30:26.975234838 +0800
+@@ -19,6 +19,18 @@
+           "type": "number",
+           "description": "Standard deviation of process noise in time differentiation expression of yaw, noise for d_yaw = omega",
+           "default": 0.005
++        },
++        "gnss_bias_stationary_stddev_m": {
++          "type": "number",
++          "minimum": 0.0,
++          "description": "Stationary standard deviation of each optional horizontal GNSS bias state [m].",
++          "default": 0.18407490243154828
++        },
++        "gnss_bias_correlation_time_sec": {
++          "type": "number",
++          "exclusiveMinimum": 0.0,
++          "description": "First-order Gauss-Markov correlation time of the optional horizontal GNSS bias states [s].",
++          "default": 5.0
+         }
+       },
+       "required": ["proc_stddev_yaw_c", "proc_stddev_vx_c", "proc_stddev_wz_c"],
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp	2026-07-30 12:35:04.478965669 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp	2026-07-30 12:29:49.445863856 +0800
+@@ -41,7 +41,7 @@
+ 
+ EKFModule::EKFModule(std::shared_ptr<Warning> warning, const HyperParameters & params)
+ : warning_(std::move(warning)),
+-  dim_x_(6),  // x, y, yaw, yaw_bias, vx, wz
++  dim_x_(params.enable_gnss_bias_estimation ? 8 : 6),
+   accumulated_delay_times_(params.extend_state_step, 1.0E15),
+   params_(params),
+   last_angular_velocity_(0.0, 0.0, 0.0)
+@@ -54,6 +54,12 @@
+   }
+   p(IDX::VX, IDX::VX) = 1000.0;  // for vx
+   p(IDX::WZ, IDX::WZ) = 50.0;    // for wz
++  if (params_.enable_gnss_bias_estimation) {
++    const double bias_variance =
++      std::pow(std::max(params_.gnss_bias_stationary_stddev_m, 0.0), 2.0);
++    p(IDX::GNSS_BX, IDX::GNSS_BX) = bias_variance;
++    p(IDX::GNSS_BY, IDX::GNSS_BY) = bias_variance;
++  }
+ 
+   kalman_filter_.init(x, p, static_cast<int>(params_.extend_state_step));
+   z_filter_.set_proc_var(params_.z_filter_proc_dev * params_.z_filter_proc_dev);
+@@ -64,7 +70,7 @@
+ void EKFModule::initialize(
+   const PoseWithCovariance & initial_pose, const geometry_msgs::msg::TransformStamped & transform)
+ {
+-  Eigen::MatrixXd x(dim_x_, 1);
++  Eigen::MatrixXd x = Eigen::MatrixXd::Zero(dim_x_, 1);
+   Eigen::MatrixXd p = Eigen::MatrixXd::Zero(dim_x_, dim_x_);
+ 
+   x(IDX::X) = initial_pose.pose.pose.position.x + transform.transform.translation.x;
+@@ -85,6 +91,12 @@
+   }
+   p(IDX::VX, IDX::VX) = 0.01;
+   p(IDX::WZ, IDX::WZ) = 0.01;
++  if (params_.enable_gnss_bias_estimation) {
++    const double bias_variance =
++      std::pow(std::max(params_.gnss_bias_stationary_stddev_m, 0.0), 2.0);
++    p(IDX::GNSS_BX, IDX::GNSS_BX) = bias_variance;
++    p(IDX::GNSS_BY, IDX::GNSS_BY) = bias_variance;
++  }
+ 
+   kalman_filter_.init(x, p, static_cast<int>(params_.extend_state_step));
+ 
+@@ -150,7 +162,8 @@
+ std::array<double, 36> EKFModule::get_current_pose_covariance() const
+ {
+   std::array<double, 36> cov =
+-    ekf_covariance_to_pose_message_covariance(kalman_filter_.getLatestP());
++    ekf_covariance_to_pose_message_covariance(
++      kalman_filter_.getLatestP().topLeftCorner<6, 6>());
+ 
+   using COV_IDX = autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
+   cov[COV_IDX::Z_Z] = z_filter_.get_var();
+@@ -162,7 +175,8 @@
+ 
+ std::array<double, 36> EKFModule::get_current_twist_covariance() const
+ {
+-  return ekf_covariance_to_twist_message_covariance(kalman_filter_.getLatestP());
++  return ekf_covariance_to_twist_message_covariance(
++    kalman_filter_.getLatestP().topLeftCorner<6, 6>());
+ }
+ 
+ double EKFModule::get_yaw_bias() const
+@@ -170,6 +184,16 @@
+   return kalman_filter_.getLatestX()(IDX::YAWB);
+ }
+ 
++Eigen::Vector2d EKFModule::get_gnss_position_bias() const
++{
++  if (!params_.enable_gnss_bias_estimation) {
++    return Eigen::Vector2d::Zero();
++  }
++  return Eigen::Vector2d(
++    kalman_filter_.getLatestX()(IDX::GNSS_BX),
++    kalman_filter_.getLatestX()(IDX::GNSS_BY));
++}
++
+ size_t EKFModule::find_closest_delay_time_index(double target_value) const
+ {
+   // If target_value is too large, return last index + 1
+@@ -221,10 +245,27 @@
+   const double proc_cov_wz_d = std::pow(params_.proc_stddev_wz_c * dt, 2.0);
+   const double proc_cov_yaw_d = std::pow(params_.proc_stddev_yaw_c * dt, 2.0);
+ 
+-  const Vector6d x_next = predict_next_state(x_curr, dt);
+-  const Matrix6d a = create_state_transition_matrix(x_curr, dt);
+-  const Matrix6d q = process_noise_covariance(proc_cov_yaw_d, proc_cov_vx_d, proc_cov_wz_d);
+-  kalman_filter_.predictWithDelay(x_next, a, q);
++  if (params_.enable_gnss_bias_estimation) {
++    const double correlation_time =
++      std::max(params_.gnss_bias_correlation_time_sec, 1.0e-6);
++    const double bias_decay = std::exp(-dt / correlation_time);
++    const double stationary_variance =
++      std::pow(std::max(params_.gnss_bias_stationary_stddev_m, 0.0), 2.0);
++    const double bias_process_covariance =
++      stationary_variance * std::max(0.0, 1.0 - bias_decay * bias_decay);
++    const Eigen::VectorXd x_next =
++      predict_next_state_with_gnss_bias(x_curr, dt, bias_decay);
++    const Eigen::MatrixXd a =
++      create_state_transition_matrix_with_gnss_bias(x_curr, dt, bias_decay);
++    const Eigen::MatrixXd q = process_noise_covariance_with_gnss_bias(
++      proc_cov_yaw_d, proc_cov_vx_d, proc_cov_wz_d, bias_process_covariance);
++    kalman_filter_.predictWithDelay(x_next, a, q);
++  } else {
++    const Vector6d x_next = predict_next_state(x_curr, dt);
++    const Matrix6d a = create_state_transition_matrix(x_curr, dt);
++    const Matrix6d q = process_noise_covariance(proc_cov_yaw_d, proc_cov_vx_d, proc_cov_wz_d);
++    kalman_filter_.predictWithDelay(x_next, a, q);
++  }
+   ekf_dt_ = dt;
+ }
+ 
+@@ -287,19 +328,28 @@
+     params_.position_only_yaw_variance_threshold);
+ 
+   /* Gate */
+-  const Eigen::Vector3d y_ekf(
++  Eigen::Vector3d y_ekf(
+     kalman_filter_.getXelement(delay_step * dim_x_ + IDX::X),
+     kalman_filter_.getXelement(delay_step * dim_x_ + IDX::Y), ekf_yaw);
++  if (is_position_only_measurement && params_.enable_gnss_bias_estimation) {
++    y_ekf.x() += kalman_filter_.getXelement(delay_step * dim_x_ + IDX::GNSS_BX);
++    y_ekf.y() += kalman_filter_.getXelement(delay_step * dim_x_ + IDX::GNSS_BY);
++  }
+   const Eigen::MatrixXd p_curr = kalman_filter_.getLatestP();
+-  const Eigen::MatrixXd p_y = p_curr.block(0, 0, dim_y, dim_y);
++  const Eigen::MatrixXd c_gate =
++    is_position_only_measurement
++      ? position_only_pose_measurement_matrix(
++          dim_x_, params_.enable_gnss_bias_estimation)
++      : pose_measurement_matrix(dim_x_);
+ 
+   double distance = 0.0;
+   if (is_position_only_measurement) {
+     const Eigen::Vector2d y_ekf_position = y_ekf.head<2>();
+     const Eigen::Vector2d y_position = y.block<2, 1>(0, 0);
+-    const Eigen::Matrix2d p_position = p_y.topLeftCorner<2, 2>();
++    const Eigen::Matrix2d p_position = c_gate * p_curr * c_gate.transpose();
+     distance = mahalanobis(y_ekf_position, y_position, p_position);
+   } else {
++    const Eigen::Matrix3d p_y = c_gate * p_curr * c_gate.transpose();
+     distance = mahalanobis(y_ekf, y, p_y);
+   }
+   pose_diag_info.mahalanobis_distance = std::max(distance, pose_diag_info.mahalanobis_distance);
+@@ -314,20 +364,24 @@
+   DEBUG_PRINT_MAT(y_ekf.transpose());
+   DEBUG_PRINT_MAT((y - y_ekf).transpose());
+ 
+-  const Eigen::Matrix<double, 3, 6> c = pose_measurement_matrix();
++  const Eigen::MatrixXd c = pose_measurement_matrix(dim_x_);
+   const Eigen::Matrix3d r =
+     pose_measurement_covariance(pose.pose.covariance, params_.pose_smoothing_steps);
+ 
+   bool update_succeeded = false;
+   if (is_position_only_measurement) {
+     const Eigen::Vector2d y_position = y.block<2, 1>(0, 0);
+-    const Eigen::Matrix<double, 2, 6> c_position =
+-      position_only_pose_measurement_matrix();
++    const Eigen::MatrixXd c_position = position_only_pose_measurement_matrix(
++      dim_x_, params_.enable_gnss_bias_estimation);
+     const Eigen::Matrix2d r_position = position_only_pose_measurement_covariance(
+       pose.pose.covariance, params_.pose_smoothing_steps);
+     Eigen::VectorXi state_update_mask = Eigen::VectorXi::Zero(dim_x_);
+     state_update_mask(IDX::X) = 1;
+     state_update_mask(IDX::Y) = 1;
++    if (params_.enable_gnss_bias_estimation) {
++      state_update_mask(IDX::GNSS_BX) = 1;
++      state_update_mask(IDX::GNSS_BY) = 1;
++    }
+     update_succeeded = kalman_filter_.updateWithDelayStateMask(
+       y_position, c_position, r_position, static_cast<int>(delay_step), state_update_mask,
+       params_.position_only_state_variance_floor_m2,
+@@ -456,7 +510,7 @@
+   DEBUG_PRINT_MAT(y_ekf.transpose());
+   DEBUG_PRINT_MAT((y - y_ekf).transpose());
+ 
+-  const Eigen::Matrix<double, 2, 6> c = twist_measurement_matrix();
++  const Eigen::MatrixXd c = twist_measurement_matrix(dim_x_);
+   const Eigen::Matrix2d r =
+     twist_measurement_covariance(twist.twist.covariance, params_.twist_smoothing_steps);
+ 
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp b/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp	2026-07-30 12:35:04.478965669 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp	2026-07-30 12:29:49.442863826 +0800
+@@ -59,6 +59,32 @@
+   return c;
+ }
+ 
++Eigen::MatrixXd pose_measurement_matrix(const Eigen::Index state_dimension)
++{
++  Eigen::MatrixXd c = Eigen::MatrixXd::Zero(3, state_dimension);
++  c.leftCols<6>() = pose_measurement_matrix();
++  return c;
++}
++
++Eigen::MatrixXd position_only_pose_measurement_matrix(
++  const Eigen::Index state_dimension, const bool include_gnss_bias)
++{
++  Eigen::MatrixXd c = Eigen::MatrixXd::Zero(2, state_dimension);
++  c.leftCols<6>() = position_only_pose_measurement_matrix();
++  if (include_gnss_bias) {
++    c(0, IDX::GNSS_BX) = 1.0;
++    c(1, IDX::GNSS_BY) = 1.0;
++  }
++  return c;
++}
++
++Eigen::MatrixXd twist_measurement_matrix(const Eigen::Index state_dimension)
++{
++  Eigen::MatrixXd c = Eigen::MatrixXd::Zero(2, state_dimension);
++  c.leftCols<6>() = twist_measurement_matrix();
++  return c;
++}
++
+ Eigen::Matrix3d pose_measurement_covariance(
+   const std::array<double, 36ul> & covariance, const size_t smoothing_step)
+ {
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/src/state_transition.cpp b/src/autoware/core/localization/autoware_ekf_localizer/src/state_transition.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/state_transition.cpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/state_transition.cpp	2026-07-30 12:29:56.904937590 +0800
+@@ -99,4 +99,38 @@
+   return q;
+ }
+ 
++Eigen::VectorXd predict_next_state_with_gnss_bias(
++  const Eigen::VectorXd & x_curr, const double dt, const double bias_decay)
++{
++  Eigen::VectorXd x_next = Eigen::VectorXd::Zero(8);
++  // Keep the well-tested six-state motion model as the single source of
++  // vehicle-state truth; only the two bias states are added here.
++  x_next.head<6>() = predict_next_state(x_curr.head<6>(), dt);
++  x_next(IDX::GNSS_BX) = bias_decay * x_curr(IDX::GNSS_BX);
++  x_next(IDX::GNSS_BY) = bias_decay * x_curr(IDX::GNSS_BY);
++  return x_next;
++}
++
++Eigen::MatrixXd create_state_transition_matrix_with_gnss_bias(
++  const Eigen::VectorXd & x_curr, const double dt, const double bias_decay)
++{
++  Eigen::MatrixXd a = Eigen::MatrixXd::Identity(8, 8);
++  a.topLeftCorner<6, 6>() = create_state_transition_matrix(x_curr.head<6>(), dt);
++  a(IDX::GNSS_BX, IDX::GNSS_BX) = bias_decay;
++  a(IDX::GNSS_BY, IDX::GNSS_BY) = bias_decay;
++  return a;
++}
++
++Eigen::MatrixXd process_noise_covariance_with_gnss_bias(
++  const double proc_cov_yaw_d, const double proc_cov_vx_d, const double proc_cov_wz_d,
++  const double bias_process_covariance)
++{
++  Eigen::MatrixXd q = Eigen::MatrixXd::Zero(8, 8);
++  q.topLeftCorner<6, 6>() =
++    process_noise_covariance(proc_cov_yaw_d, proc_cov_vx_d, proc_cov_wz_d);
++  q(IDX::GNSS_BX, IDX::GNSS_BX) = bias_process_covariance;
++  q(IDX::GNSS_BY, IDX::GNSS_BY) = bias_process_covariance;
++  return q;
++}
++
+ }  // namespace autoware::ekf_localizer
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/test/test_gnss_bias_state.cpp b/src/autoware/core/localization/autoware_ekf_localizer/test/test_gnss_bias_state.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_gnss_bias_state.cpp	1970-01-01 08:00:00.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_gnss_bias_state.cpp	2026-07-30 12:33:05.537799313 +0800
+@@ -0,0 +1,111 @@
++// Copyright 2026 Autoware Foundation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "autoware/ekf_localizer/measurement.hpp"
++#include "autoware/ekf_localizer/state_index.hpp"
++#include "autoware/ekf_localizer/state_transition.hpp"
++
++#include <autoware/kalman_filter/kalman_filter.hpp>
++#include <gtest/gtest.h>
++
++#include <cmath>
++
++namespace autoware::ekf_localizer
++{
++
++TEST(GnssBiasState, repeated_correlated_fix_is_separated_from_vehicle_position)
++{
++  autoware::kalman_filter::KalmanFilter filter;
++  Eigen::VectorXd state = Eigen::VectorXd::Zero(8);
++  Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(8, 8);
++  covariance(IDX::X, IDX::X) = 0.04;
++  covariance(IDX::Y, IDX::Y) = 0.04;
++  covariance(IDX::GNSS_BX, IDX::GNSS_BX) = 0.18407490243154828 * 0.18407490243154828;
++  covariance(IDX::GNSS_BY, IDX::GNSS_BY) = 0.18407490243154828 * 0.18407490243154828;
++  ASSERT_TRUE(filter.init(state, covariance));
++
++  constexpr double dt = 0.02;
++  constexpr double tau = 5.0;
++  constexpr double sigma = 0.18407490243154828;
++  const double decay = std::exp(-dt / tau);
++  const double bias_q = sigma * sigma * (1.0 - decay * decay);
++  const Eigen::MatrixXd ndt_h = pose_measurement_matrix(8);
++  const Eigen::MatrixXd gnss_h = position_only_pose_measurement_matrix(8, true);
++  const Eigen::Vector3d ndt = Eigen::Vector3d::Zero();
++  const Eigen::Vector2d gnss(0.20, -0.15);
++  const Eigen::Matrix3d ndt_r = Eigen::Matrix3d::Identity() * 0.01;
++  const Eigen::Matrix2d gnss_r = Eigen::Matrix2d::Identity() * 0.01;
++
++  for (int i = 0; i < 500; ++i) {
++    Eigen::MatrixXd current;
++    filter.getX(current);
++    const Eigen::VectorXd next =
++      predict_next_state_with_gnss_bias(current, dt, decay);
++    const Eigen::MatrixXd a =
++      create_state_transition_matrix_with_gnss_bias(current, dt, decay);
++    const Eigen::MatrixXd q =
++      process_noise_covariance_with_gnss_bias(0.0, 0.0, 0.0, bias_q);
++    ASSERT_TRUE(filter.predict(next, a, q));
++    ASSERT_TRUE(filter.update(ndt, ndt_h, ndt_r));
++    ASSERT_TRUE(filter.update(gnss, gnss_h, gnss_r));
++  }
++
++  Eigen::MatrixXd state_matrix;
++  filter.getX(state_matrix);
++  state = state_matrix;
++  EXPECT_LT(std::abs(state(IDX::X)), 0.08);
++  EXPECT_LT(std::abs(state(IDX::Y)), 0.08);
++  EXPECT_GT(state(IDX::GNSS_BX), 0.08);
++  EXPECT_LT(state(IDX::GNSS_BY), -0.05);
++  EXPECT_NEAR(
++    state(IDX::X) + state(IDX::GNSS_BX), gnss.x(), 0.08);
++  EXPECT_NEAR(
++    state(IDX::Y) + state(IDX::GNSS_BY), gnss.y(), 0.08);
++}
++
++TEST(GnssBiasState, gnss_dropout_does_not_leave_bias_in_vehicle_output)
++{
++  autoware::kalman_filter::KalmanFilter filter;
++  Eigen::VectorXd state = Eigen::VectorXd::Zero(8);
++  state(IDX::GNSS_BX) = 0.3;
++  state(IDX::GNSS_BY) = -0.2;
++  Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(8, 8) * 0.01;
++  ASSERT_TRUE(filter.init(state, covariance));
++
++  constexpr double dt = 0.02;
++  constexpr double tau = 5.0;
++  const double decay = std::exp(-dt / tau);
++  const Eigen::MatrixXd ndt_h = pose_measurement_matrix(8);
++  const Eigen::Vector3d ndt = Eigen::Vector3d::Zero();
++  const Eigen::Matrix3d ndt_r = Eigen::Matrix3d::Identity() * 0.01;
++  for (int i = 0; i < 500; ++i) {
++    Eigen::MatrixXd current;
++    filter.getX(current);
++    ASSERT_TRUE(filter.predict(
++      predict_next_state_with_gnss_bias(current, dt, decay),
++      create_state_transition_matrix_with_gnss_bias(current, dt, decay),
++      process_noise_covariance_with_gnss_bias(0.0, 0.0, 0.0, 0.0)));
++    ASSERT_TRUE(filter.update(ndt, ndt_h, ndt_r));
++  }
++
++  Eigen::MatrixXd state_matrix;
++  filter.getX(state_matrix);
++  state = state_matrix;
++  EXPECT_NEAR(state(IDX::X), 0.0, 1.0e-9);
++  EXPECT_NEAR(state(IDX::Y), 0.0, 1.0e-9);
++  EXPECT_LT(std::abs(state(IDX::GNSS_BX)), 0.3);
++  EXPECT_LT(std::abs(state(IDX::GNSS_BY)), 0.2);
++}
++
++}  // namespace autoware::ekf_localizer
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp b/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp	2026-07-30 12:35:04.479965678 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp	2026-07-30 12:32:00.784162149 +0800
+@@ -13,6 +13,7 @@
+ // limitations under the License.
+ 
+ #include "autoware/ekf_localizer/measurement.hpp"
++#include "autoware/ekf_localizer/state_index.hpp"
+ 
+ #include <gtest/gtest.h>
+ 
+@@ -62,6 +63,37 @@
+   EXPECT_EQ((m - expected).norm(), 0);
+ }
+ 
++TEST(Measurement, dynamic_measurement_matrices_preserve_six_state_contract)
++{
++  EXPECT_EQ((pose_measurement_matrix(6) - pose_measurement_matrix()).norm(), 0.0);
++  EXPECT_EQ(
++    (position_only_pose_measurement_matrix(6, false) -
++     position_only_pose_measurement_matrix())
++      .norm(),
++    0.0);
++  EXPECT_EQ((twist_measurement_matrix(6) - twist_measurement_matrix()).norm(), 0.0);
++}
++
++TEST(Measurement, gnss_bias_is_only_present_in_position_only_measurement)
++{
++  const Eigen::MatrixXd ndt = pose_measurement_matrix(8);
++  const Eigen::MatrixXd gnss = position_only_pose_measurement_matrix(8, true);
++  const Eigen::MatrixXd twist = twist_measurement_matrix(8);
++
++  ASSERT_EQ(ndt.rows(), 3);
++  ASSERT_EQ(ndt.cols(), 8);
++  ASSERT_EQ(gnss.rows(), 2);
++  ASSERT_EQ(gnss.cols(), 8);
++  EXPECT_EQ(ndt.col(IDX::GNSS_BX).norm(), 0.0);
++  EXPECT_EQ(ndt.col(IDX::GNSS_BY).norm(), 0.0);
++  EXPECT_EQ(twist.col(IDX::GNSS_BX).norm(), 0.0);
++  EXPECT_EQ(twist.col(IDX::GNSS_BY).norm(), 0.0);
++  EXPECT_EQ(gnss(0, IDX::X), 1.0);
++  EXPECT_EQ(gnss(0, IDX::GNSS_BX), 1.0);
++  EXPECT_EQ(gnss(1, IDX::Y), 1.0);
++  EXPECT_EQ(gnss(1, IDX::GNSS_BY), 1.0);
++}
++
+ TEST(Measurement, pose_measurement_covariance)
+ {
+   {
+diff -ruN -x __pycache__ -x '*.pyc' a/src/autoware/core/localization/autoware_ekf_localizer/test/test_state_transition.cpp b/src/autoware/core/localization/autoware_ekf_localizer/test/test_state_transition.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_state_transition.cpp	2026-04-08 14:44:48.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_state_transition.cpp	2026-07-30 12:31:20.855767453 +0800
+@@ -98,4 +98,41 @@
+   EXPECT_EQ(process_noise_covariance(0, 0, 0).norm(), 0.);
+ }
+ 
++TEST(StateTransition, gnss_bias_extension_preserves_vehicle_model)
++{
++  Eigen::VectorXd x = Eigen::VectorXd::Zero(8);
++  x.head<6>() = (Vector6d() << 2.0, 3.0, 0.3, 0.1, 5.0, 0.2).finished();
++  x(IDX::GNSS_BX) = 0.4;
++  x(IDX::GNSS_BY) = -0.2;
++  constexpr double dt = 0.02;
++  constexpr double decay = 0.996;
++
++  const Eigen::VectorXd next = predict_next_state_with_gnss_bias(x, dt, decay);
++  EXPECT_EQ((next.head<6>() - predict_next_state(x.head<6>(), dt)).norm(), 0.0);
++  EXPECT_DOUBLE_EQ(next(IDX::GNSS_BX), decay * x(IDX::GNSS_BX));
++  EXPECT_DOUBLE_EQ(next(IDX::GNSS_BY), decay * x(IDX::GNSS_BY));
++
++  const Eigen::MatrixXd a =
++    create_state_transition_matrix_with_gnss_bias(x, dt, decay);
++  EXPECT_EQ(
++    (a.topLeftCorner<6, 6>() - create_state_transition_matrix(x.head<6>(), dt)).norm(),
++    0.0);
++  EXPECT_DOUBLE_EQ(a(IDX::GNSS_BX, IDX::GNSS_BX), decay);
++  EXPECT_DOUBLE_EQ(a(IDX::GNSS_BY, IDX::GNSS_BY), decay);
++}
++
++TEST(StateTransition, gnss_bias_process_keeps_requested_stationary_variance)
++{
++  constexpr double stationary_variance = 0.04;
++  constexpr double decay = 0.9;
++  constexpr double process_variance = stationary_variance * (1.0 - decay * decay);
++  const Eigen::MatrixXd q =
++    process_noise_covariance_with_gnss_bias(1.0, 2.0, 3.0, process_variance);
++  EXPECT_DOUBLE_EQ(q(IDX::GNSS_BX, IDX::GNSS_BX), process_variance);
++  EXPECT_DOUBLE_EQ(q(IDX::GNSS_BY, IDX::GNSS_BY), process_variance);
++  EXPECT_DOUBLE_EQ(
++    decay * decay * stationary_variance + q(IDX::GNSS_BX, IDX::GNSS_BX),
++    stationary_variance);
++}
++
+ }  // namespace autoware::ekf_localizer
+

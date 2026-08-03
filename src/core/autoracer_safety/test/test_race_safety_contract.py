@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -34,6 +35,43 @@ def test_timed_input_rejects_future_and_out_of_order_commands():
     delayed = TimedInput()
     assert delayed.update("delayed", 10.19, _stamp(10.0))
     assert not delayed.fresh(10.21, 0.20)
+    assert delayed.fresh(10.21, 0.20, 0.25)
+    # A distinct source-age budget must not weaken delivery-loss detection.
+    assert not delayed.fresh(10.40, 0.20, 0.50)
+
+
+def test_timed_input_update_and_fresh_are_safe_for_concurrent_executor_callbacks():
+    tracker = TimedInput()
+    writer_done = threading.Event()
+    reader_failures = []
+
+    def writer():
+        for index in range(1, 2001):
+            stamp = 10.0 + index * 0.001
+            assert tracker.update(index, stamp, _stamp(stamp))
+        writer_done.set()
+
+    def reader():
+        while not writer_done.is_set():
+            try:
+                tracker.fresh(12.1, 3.0)
+            except Exception as error:  # pragma: no cover - assertion witness
+                reader_failures.append(error)
+                return
+
+    writer_thread = threading.Thread(target=writer)
+    reader_thread = threading.Thread(target=reader)
+    writer_thread.start()
+    reader_thread.start()
+    writer_thread.join(timeout=2.0)
+    reader_thread.join(timeout=2.0)
+
+    assert not writer_thread.is_alive()
+    assert not reader_thread.is_alive()
+    assert reader_failures == []
+    assert tracker.sequence == 2000
+    assert tracker.message == 2000
+    assert tracker.source_stamp_sec == pytest.approx(12.0)
 
 
 def test_gate_safe_profile_has_complete_equal_length_filter_arrays():
@@ -88,6 +126,62 @@ def test_runtime_manager_is_single_state_and_mrm_owner():
     assert "guard_timeout_sec" not in source
     assert "/system/race_guard/state" not in source
     assert "/system/race_supervisor/state" not in source
+
+
+def test_runtime_manager_can_require_fresh_raw_ndt_without_adding_an_estimator():
+    source = (
+        PACKAGE / "autoracer_safety/race_runtime_manager.py"
+    ).read_text(encoding="utf-8")
+    default_params = yaml.safe_load(
+        (PACKAGE / "config/race/race_runtime.safe.param.yaml").read_text(
+            encoding="utf-8"
+        )
+    )["race_runtime_manager"]["ros__parameters"]
+
+    assert '"require_ndt_pose_health": False' in source
+    assert '"ndt_pose_timeout_sec": 0.50' in source
+    assert '"ndt_pose_source_timeout_sec": 0.50' in source
+    assert '"/localization/pose_estimator/ndt_scan_matcher/pose_with_covariance"' in source
+    assert 'return "NDT_POSE_STALE"' in source
+    assert '"ndt_pose_fresh"' in source
+    assert default_params["require_ndt_pose_health"] is False
+    assert default_params["ndt_pose_timeout_sec"] == pytest.approx(0.50)
+    assert default_params["ndt_pose_source_timeout_sec"] == pytest.approx(0.50)
+
+
+def test_runtime_manager_logs_machine_readable_stale_input_evidence_without_debounce():
+    source = (
+        PACKAGE / "autoracer_safety/race_runtime_manager.py"
+    ).read_text(encoding="utf-8")
+
+    assert "def _stale_input_witness" in source
+    assert '"receipt_timeout_sec": receipt_timeout' in source
+    assert '"source_timeout_sec": source_timeout' in source
+    assert '"ndt_pose_source_timeout_sec"' in source
+    assert '"source_age_sec": now - tracker.source_stamp_sec' in source
+    assert '"receipt_age_sec": now - tracker.receipt_sec' in source
+    assert "race runtime stale-input witness" in source
+    assert "race runtime stale-input witness instrumentation=V1" in source
+    assert "debounce" not in source.split("def _stale_input_witness", 1)[1]
+
+
+def test_runtime_manager_drains_inputs_separately_from_serialized_watchdog_state():
+    source = (
+        PACKAGE / "autoracer_safety/race_runtime_manager.py"
+    ).read_text(encoding="utf-8")
+
+    assert "MutuallyExclusiveCallbackGroup" in source
+    assert "self._input_callback_group = ReentrantCallbackGroup()" in source
+    assert "self._state_callback_group = MutuallyExclusiveCallbackGroup()" in source
+    assert source.count("self.create_subscription(") == source.count(
+        "callback_group=self._input_callback_group"
+    )
+    assert "callback_group=self._state_callback_group" in source
+    assert "executor = MultiThreadedExecutor(num_threads=4)" in source
+    assert "executor.add_node(node)" in source
+    assert "executor.spin()" in source
+    assert "rclpy.spin(node)" not in source
+    assert "executor.shutdown()" in source
 
 
 def test_planner_has_no_dead_runtime_guard_channel():

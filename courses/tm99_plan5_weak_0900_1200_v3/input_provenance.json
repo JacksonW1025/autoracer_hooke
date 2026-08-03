@@ -1,0 +1,17 @@
+{
+  "contract": "TM99_PLAN5_WEAK_COURSE_SLICE_V1",
+  "format_version": 1,
+  "route_role": "pre-registered weak/transition A/B",
+  "source_course": {
+    "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/course.csv",
+    "sha256": "93a8a6df536c65e3cdd15cf2e29e9e40bef231fa6e24c1f98f150f677a0acb2e",
+    "size_bytes": 2826553
+  },
+  "source_progress_end_m": 1204.856717738,
+  "source_progress_start_m": 900.113457451,
+  "source_road_extents": {
+    "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/road_extents.csv",
+    "sha256": "3a0689fc0e2b8d28ca1ab1fc0dc8590106008964a38821e4e5145cf5741018e2",
+    "size_bytes": 1919986
+  }
+}

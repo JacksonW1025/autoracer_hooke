@@ -94,12 +94,15 @@
 
     covariance:
       # The covariance of output pose
-      # Note that this covariance matrix is empirically derived
+      # Plan5 P4: the historical NDT-only full-route residuals require a
+      # conservative fixed 0.40 m XYZ standard deviation. The NDT pose itself
+      # is unchanged; only its independently calibrated measurement claim is
+      # corrected. Roll/pitch/yaw retain the existing conservative values.
       output_pose_covariance:
         [
-          0.0225, 0.0,   0.0,   0.0,      0.0,      0.0,
-          0.0,   0.0225, 0.0,   0.0,      0.0,      0.0,
-          0.0,   0.0,   0.0225, 0.0,      0.0,      0.0,
+          0.16,   0.0,   0.0,   0.0,      0.0,      0.0,
+          0.0,   0.16,   0.0,   0.0,      0.0,      0.0,
+          0.0,   0.0,   0.16,   0.0,      0.0,      0.0,
           0.0,   0.0,   0.0,   0.000625, 0.0,      0.0,
           0.0,   0.0,   0.0,   0.0,      0.000625, 0.0,
           0.0,   0.0,   0.0,   0.0,      0.0,      0.000625,

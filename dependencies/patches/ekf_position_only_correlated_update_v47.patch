@@ -1,0 +1,141 @@
+--- a/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml
++++ b/src/autoware/core/localization/autoware_ekf_localizer/config/ekf_localizer.param.yaml
+@@ -25,6 +25,9 @@
+       position_only_yaw_variance_threshold: 0.5
+       position_only_state_variance_floor_m2: 0.0
+       position_only_decorrelate_covariance: false
++      # Preserve the legacy masked update unless an experiment explicitly
++      # requests standard covariance-mediated conditioning.
++      position_only_update_correlated_states: false
+       # Optional two-dimensional Gauss-Markov GNSS bias state.  This is
+       # disabled by default and only applies to explicitly marked
+       # position-only measurements.
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp
+@@ -49,6 +49,9 @@
+     position_only_decorrelate_covariance(
+       node->declare_parameter<bool>(
+         "pose_measurement.position_only_decorrelate_covariance", false)),
++    position_only_update_correlated_states(
++      node->declare_parameter<bool>(
++        "pose_measurement.position_only_update_correlated_states", false)),
+     enable_gnss_bias_estimation(
+       node->declare_parameter<bool>(
+         "pose_measurement.enable_gnss_bias_estimation", false)),
+@@ -105,6 +108,7 @@
+   const double position_only_yaw_variance_threshold;
+   const double position_only_state_variance_floor_m2;
+   const bool position_only_decorrelate_covariance;
++  const bool position_only_update_correlated_states;
+   const bool enable_gnss_bias_estimation;
+   const double twist_additional_delay;
+   const double twist_gate_dist;
+--- a/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/pose_measurement.sub_schema.json
++++ b/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/pose_measurement.sub_schema.json
+@@ -51,6 +51,11 @@
+           "description": "Remove posterior covariance between selected and unselected states after a position-only update.",
+           "default": false
+         },
++        "position_only_update_correlated_states": {
++          "type": "boolean",
++          "description": "Use standard Kalman conditioning so a position-only measurement can update motion states only through existing covariance; the measurement matrix still excludes yaw.",
++          "default": false
++        },
+         "enable_gnss_bias_estimation": {
+           "type": "boolean",
+           "description": "Add two internal Gauss-Markov GNSS position-bias states for explicitly marked position-only measurements.",
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
+@@ -385,17 +385,26 @@
+       dim_x_, params_.enable_gnss_bias_estimation);
+     const Eigen::Matrix2d r_position = position_only_pose_measurement_covariance(
+       pose.pose.covariance, params_.pose_smoothing_steps);
+-    Eigen::VectorXi state_update_mask = Eigen::VectorXi::Zero(dim_x_);
+-    state_update_mask(IDX::X) = 1;
+-    state_update_mask(IDX::Y) = 1;
+-    if (params_.enable_gnss_bias_estimation) {
+-      state_update_mask(IDX::GNSS_BX) = 1;
+-      state_update_mask(IDX::GNSS_BY) = 1;
++    if (params_.position_only_update_correlated_states) {
++      // The measurement matrix still observes position only.  A standard
++      // Kalman conditioning step is nevertheless allowed to update motion
++      // states through covariance learned from the process model.  This is
++      // not a direct GNSS yaw measurement.
++      update_succeeded = kalman_filter_.updateWithDelay(
++        y_position, c_position, r_position, static_cast<int>(delay_step));
++    } else {
++      Eigen::VectorXi state_update_mask = Eigen::VectorXi::Zero(dim_x_);
++      state_update_mask(IDX::X) = 1;
++      state_update_mask(IDX::Y) = 1;
++      if (params_.enable_gnss_bias_estimation) {
++        state_update_mask(IDX::GNSS_BX) = 1;
++        state_update_mask(IDX::GNSS_BY) = 1;
++      }
++      update_succeeded = kalman_filter_.updateWithDelayStateMask(
++        y_position, c_position, r_position, static_cast<int>(delay_step), state_update_mask,
++        params_.position_only_state_variance_floor_m2,
++        params_.position_only_decorrelate_covariance);
+     }
+-    update_succeeded = kalman_filter_.updateWithDelayStateMask(
+-      y_position, c_position, r_position, static_cast<int>(delay_step), state_update_mask,
+-      params_.position_only_state_variance_floor_m2,
+-      params_.position_only_decorrelate_covariance);
+   } else {
+     update_succeeded =
+       kalman_filter_.updateWithDelay(y, c, r, static_cast<int>(delay_step));
+--- a/src/autoware/core/common/autoware_kalman_filter/test/test_time_delay_kalman_filter.cpp
++++ b/src/autoware/core/common/autoware_kalman_filter/test/test_time_delay_kalman_filter.cpp
+@@ -175,6 +175,53 @@
+   EXPECT_TRUE(selected_state_changed);
+ }
+ 
++TEST(time_delay_kalman_filter, position_only_standard_update_conditions_correlated_motion_state)
++{
++  Eigen::MatrixXd state = Eigen::MatrixXd::Zero(8, 1);
++  Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(8, 8);
++  // x and yaw are correlated by the vehicle process model.  The measurement
++  // matrix below has no yaw coefficient, so any yaw correction is indirect.
++  covariance(0, 2) = 0.4;
++  covariance(2, 0) = 0.4;
++  TimeDelayKalmanFilter correlated_filter;
++  TimeDelayKalmanFilter masked_filter;
++  correlated_filter.init(state, covariance, 3, 2);
++  masked_filter.init(state, covariance, 3, 2);
++  ASSERT_EQ(correlated_filter.getExtendedStateDimension(), 20);
++  ASSERT_EQ(masked_filter.getExtendedStateDimension(), 20);
++
++  Eigen::MatrixXd measurement(2, 1);
++  measurement << 1.0, 0.0;
++  Eigen::MatrixXd measurement_matrix = Eigen::MatrixXd::Zero(2, 8);
++  measurement_matrix(0, 0) = 1.0;
++  measurement_matrix(1, 1) = 1.0;
++  measurement_matrix(0, 6) = 1.0;
++  measurement_matrix(1, 7) = 1.0;
++  ASSERT_DOUBLE_EQ(measurement_matrix(0, 2), 0.0);
++  ASSERT_DOUBLE_EQ(measurement_matrix(1, 2), 0.0);
++  const Eigen::MatrixXd measurement_covariance =
++    0.05 * Eigen::MatrixXd::Identity(2, 2);
++
++  ASSERT_TRUE(
++    correlated_filter.updateWithDelay(
++      measurement, measurement_matrix, measurement_covariance, 0));
++  Eigen::VectorXi mask = Eigen::VectorXi::Zero(8);
++  mask(0) = 1;
++  mask(1) = 1;
++  mask(6) = 1;
++  mask(7) = 1;
++  ASSERT_TRUE(
++    masked_filter.updateWithDelayStateMask(
++      measurement, measurement_matrix, measurement_covariance, 0, mask));
++
++  Eigen::MatrixXd correlated_state;
++  Eigen::MatrixXd masked_state;
++  correlated_filter.getX(correlated_state);
++  masked_filter.getX(masked_state);
++  EXPECT_GT(std::abs(correlated_state(2, 0)), 1.0e-3);
++  EXPECT_DOUBLE_EQ(masked_state(2, 0), 0.0);
++}
++
+ TEST(time_delay_kalman_filter, non_delayed_tail_reduces_dimension_and_tracks_current_value)
+ {
+   Eigen::MatrixXd state(8, 1);

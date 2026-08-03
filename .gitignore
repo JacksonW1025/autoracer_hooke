@@ -19,6 +19,20 @@ scripts/.spec-workflow/
 docs/superpowers/
 .worktrees/
 
+# Versioned source and dependency patches are kept below.  Experimental
+# colcon overlays are reproducible build products and must not pollute Git.
+/research_*/
+/industry_*_build*/
+/industry_*_install*/
+/industry_*_log*/
+/industry_*_test_log*/
+/official_ekf_overlay/
+/build_system_*/
+/log_system_*/
+/system_v11_ws/
+/install_system_v11/
+/symlink_install_manifest.txt
+
 maps/*
 !maps/.gitkeep
 !maps/tm99_uphill_official_axes_corrected_propagated_20260716/

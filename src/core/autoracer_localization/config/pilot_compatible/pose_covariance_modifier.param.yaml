@@ -1,0 +1,48 @@
+/**:
+  ros__parameters:
+    # Tianmen standard loose coupling: every valid NDT pose is forwarded
+    # byte-for-byte, and trusted GNSS contributes x/y only to the same EKF.
+    fusion_policy: ndt_primary_position
+
+    # Plan5 P4 frozen capability bounds. They admit every route-profile bin
+    # that still represents a real FIX/FLOAT/PSRDIFF position observation,
+    # while PROPOGATED/NO_FIX remains suppressed in the Bridge/driver.
+    threshold_gnss_stddev_yaw_deg_max: 0.35
+    threshold_gnss_stddev_z_max: 1.8
+    threshold_gnss_stddev_xy_bound_lower: 0.1
+    threshold_gnss_stddev_xy_bound_upper: 1.5
+
+    # Unused by ndt_primary_covariance, retained so official mode remains schema-compatible.
+    ndt_std_dev_bound_lower: 0.14
+    ndt_std_dev_bound_upper: 0.30
+
+    # Bounds each incoming measurement's age. NDT and GNSS update the same EKF
+    # independently after the first valid NDT initializes the localization chain.
+    gnss_pose_timeout_sec: 1.0
+
+    # Online localization must recover monotonically after the initial NDT
+    # alignment temporarily consumes CPU. Retain only the newest reliable GNSS
+    # pose instead of replaying up to two seconds of stale 5 Hz startup data.
+    # The node's omitted/default value remains 10 for official compatibility.
+    gnss_subscription_qos_depth: 1
+
+    # Explicit position-only marker consumed by ekf_localizer.
+    gnss_position_only_yaw_variance: 1.0
+    # Standard loose coupling does not let NDT veto an otherwise valid GNSS
+    # observation before it reaches the EKF. The EKF applies the frozen
+    # covariance-aware 2-DoF innovation gate using S=H*P*H^T+R.
+    gnss_ndt_max_stamp_delta_sec: 0.0
+    gnss_require_fresh_time_aligned_ndt: false
+    gnss_ndt_trusted_outage_bridge_enabled: false
+    gnss_ndt_trusted_outage_max_sec: 0.0
+    gnss_ndt_trusted_outage_warmup_count: 0
+    gnss_ndt_trusted_outage_agreement_m: 0.0
+    gnss_ndt_trusted_outage_prediction_error_max_m: 0.0
+    gnss_ndt_trusted_outage_reset_gap_sec: 0.0
+    gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec: 0.0
+    gnss_ndt_xy_innovation_max_m: 0.0
+    gnss_ndt_robust_soft_gate_scale_m: 0.0
+    gnss_ndt_motion_compensate_innovation: false
+    gnss_ndt_causal_conflict_filter_enabled: false
+
+    enable_debug_topics: true

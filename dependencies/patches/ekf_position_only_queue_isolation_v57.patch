@@ -1,0 +1,201 @@
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_localizer.hpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_localizer.hpp
+@@ -139,6 +139,11 @@
+   EKFDiagnosticInfo twist_diag_info_;
+ 
+   AgedObjectQueue<geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr> pose_queue_;
++  // Dual-projection GNSS observes only GNSS_BX/GNSS_BY. Keep it out of the
++  // NDT queue so enabling GNSS cannot change NDT smoothing order or the local
++  // pose subsequently used as the scan-matcher seed.
++  AgedObjectQueue<geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr>
++    position_only_pose_queue_;
+   AgedObjectQueue<geometry_msgs::msg::TwistWithCovarianceStamped::SharedPtr> twist_queue_;
+ 
+   /**
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_localizer.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_localizer.cpp
+@@ -15,6 +15,7 @@
+ #include "autoware/ekf_localizer/ekf_localizer.hpp"
+ 
+ #include "autoware/ekf_localizer/diagnostics.hpp"
++#include "autoware/ekf_localizer/measurement.hpp"
+ #include "autoware/ekf_localizer/string.hpp"
+ #include "autoware/ekf_localizer/warning_message.hpp"
+ #include "autoware/localization_util/covariance_ellipse.hpp"
+@@ -48,6 +49,8 @@
+       warning_(std::make_shared<Warning>(this)), tf2_buffer_(this->get_clock()),
+       tf2_listener_(tf2_buffer_), params_(this), ekf_dt_(params_.ekf_dt),
+       pose_queue_(params_.pose_smoothing_steps, params_.max_pose_queue_size),
++      position_only_pose_queue_(
++        params_.pose_smoothing_steps, params_.max_pose_queue_size),
+       twist_queue_(params_.twist_smoothing_steps,
+                    params_.max_twist_queue_size) {
+   is_activated_ = false;
+@@ -187,7 +190,8 @@
+       "------------------------- end prediction -------------------------\n");
+ 
+   /* pose measurement update */
+-  pose_diag_info_.queue_size = pose_queue_.size();
++  pose_diag_info_.queue_size =
++    pose_queue_.size() + position_only_pose_queue_.size();
+   pose_diag_info_.is_passed_delay_gate = true;
+   pose_diag_info_.delay_time = 0.0;
+   pose_diag_info_.delay_time_threshold = 0.0;
+@@ -196,20 +200,25 @@
+ 
+   bool pose_is_updated = false;
+ 
+-  if (!pose_queue_.empty()) {
++  if (!pose_queue_.empty() || !position_only_pose_queue_.empty()) {
+     DEBUG_INFO(
+         get_logger(),
+         "------------------------- start Pose -------------------------");
+     stop_watch_.tic();
+ 
+-    // Sequential state update for all Pose observations in the queue
+-    const size_t n = pose_queue_.size();
+-    for (size_t i = 0; i < n; ++i) {
+-      const auto pose = pose_queue_.pop_increment_age();
+-      bool is_updated = ekf_module_->measurement_update_pose(
+-          *pose, current_time, pose_diag_info_);
+-      pose_is_updated = pose_is_updated || is_updated;
+-    }
++    const auto update_queue = [this, &current_time, &pose_is_updated](auto & queue) {
++        const size_t n = queue.size();
++        for (size_t i = 0; i < n; ++i) {
++          const auto pose = queue.pop_increment_age();
++          const bool is_updated = ekf_module_->measurement_update_pose(
++            *pose, current_time, pose_diag_info_);
++          pose_is_updated = pose_is_updated || is_updated;
++        }
++      };
++    // The local NDT state is authoritative for scan-matcher feedback. Apply
++    // every NDT update first, then estimate the independent GNSS correction.
++    update_queue(pose_queue_);
++    update_queue(position_only_pose_queue_);
+     DEBUG_INFO(get_logger(),
+                "[EKF] measurement_update_pose calc time = %f [ms]",
+                stop_watch_.toc());
+@@ -322,17 +331,25 @@
+     return;
+   }
+ 
+-  pose_queue_.push(msg);
++  const bool use_separate_position_only_queue =
++    params_.enable_position_only_dual_projection &&
++    is_position_only_pose_measurement(
++      msg->pose.covariance, params_.enable_position_only_state_mask,
++      params_.position_only_yaw_variance_threshold);
++  auto & queue =
++    use_separate_position_only_queue ? position_only_pose_queue_ : pose_queue_;
++  queue.push(msg);
+ 
+   // Warn if queue is exceeded
+-  if (pose_queue_.exceeded()) {
++  if (queue.exceeded()) {
+     warning_->warn_throttle(
+-        fmt::format("[EKF] Pose queue size ({}) is exceeding max_queue_size "
+-                    "({}). Consider increasing "
+-                    "max_queue_size or reducing input frequency.",
+-                    pose_queue_.size(), pose_queue_.max_queue_size()),
++        fmt::format(
++          "[EKF] {} pose queue size ({}) is exceeding max_queue_size "
++          "({}). Consider increasing max_queue_size or reducing input frequency.",
++          use_separate_position_only_queue ? "position-only" : "primary",
++          queue.size(), queue.max_queue_size()),
+         2000);
+-    pose_queue_.pop();
++    queue.pop();
+   }
+ 
+   publish_callback_return_diagnostics("pose", msg->header.stamp);
+@@ -527,6 +544,7 @@
+     std_srvs::srv::SetBool::Response::SharedPtr res) {
+   if (req->data) {
+     pose_queue_.clear();
++    position_only_pose_queue_.clear();
+     twist_queue_.clear();
+     is_activated_ = true;
+   } else {
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_gnss_correction.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_gnss_correction.cpp
+@@ -13,7 +13,9 @@
+ // limitations under the License.
+ 
+ #include "autoware/ekf_localizer/gnss_correction.hpp"
++#include "autoware/ekf_localizer/measurement.hpp"
+ #include "autoware/ekf_localizer/state_index.hpp"
++#include "autoware/ekf_localizer/state_transition.hpp"
+ 
+ #include <autoware/kalman_filter/kalman_filter.hpp>
+ #include <gtest/gtest.h>
+@@ -82,6 +84,69 @@
+   EXPECT_LT(updated(IDX::GNSS_BY), 0.0);
+ }
+ 
++TEST(GnssCorrection, repeated_bias_only_updates_preserve_local_filter_numerically) {
++  autoware::kalman_filter::KalmanFilter reference;
++  autoware::kalman_filter::KalmanFilter candidate;
++  Eigen::VectorXd state = Eigen::VectorXd::Zero(8);
++  state(IDX::VX) = 2.0;
++  Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(8, 8) * 0.1;
++  ASSERT_TRUE(reference.init(state, covariance));
++  ASSERT_TRUE(candidate.init(state, covariance));
++
++  constexpr double dt = 0.02;
++  constexpr double decay = 0.996;
++  const Eigen::MatrixXd ndt_h = pose_measurement_matrix(8);
++  const Eigen::Matrix3d ndt_r = Eigen::Matrix3d::Identity() * 0.16;
++  const Eigen::MatrixXd bias_h = position_only_bias_measurement_matrix(8);
++  const Eigen::Matrix2d bias_r = Eigen::Matrix2d::Identity() * 10.0;
++  Eigen::VectorXi bias_mask = Eigen::VectorXi::Zero(8);
++  bias_mask(IDX::GNSS_BX) = 1;
++  bias_mask(IDX::GNSS_BY) = 1;
++
++  for (int step = 0; step < 100; ++step) {
++    for (auto * filter : {&reference, &candidate}) {
++      Eigen::MatrixXd current;
++      filter->getX(current);
++      ASSERT_TRUE(filter->predict(
++        predict_next_state_with_gnss_bias(current, dt, decay),
++        create_state_transition_matrix_with_gnss_bias(current, dt, decay),
++        process_noise_covariance_with_gnss_bias(1.0e-6, 1.0e-4, 1.0e-4, 1.0e-5)));
++      const Eigen::Vector3d ndt(0.04 * static_cast<double>(step), 0.01, 0.001);
++      ASSERT_TRUE(filter->update(ndt, ndt_h, ndt_r));
++    }
++    const Eigen::Vector2d bias_observation(0.3, -0.2);
++    ASSERT_TRUE(candidate.updateWithStateMask(bias_observation, bias_h, bias_r, bias_mask));
++
++    Eigen::MatrixXd reference_state;
++    Eigen::MatrixXd candidate_state;
++    Eigen::MatrixXd reference_covariance;
++    Eigen::MatrixXd candidate_covariance;
++    reference.getX(reference_state);
++    candidate.getX(candidate_state);
++    reference.getP(reference_covariance);
++    candidate.getP(candidate_covariance);
++    // The eight-state matrix operations can change the final rounding bit of
++    // the decoupled six-state block even though the masked Kalman gain is
++    // mathematically zero there. This bound is far below physical resolution.
++    constexpr double local_invariance_tolerance = 1.0e-12;
++    for (int index = IDX::X; index <= IDX::WZ; ++index) {
++      EXPECT_NEAR(candidate_state(index), reference_state(index), local_invariance_tolerance);
++    }
++    const Eigen::MatrixXd candidate_local_covariance =
++      candidate_covariance.topLeftCorner<6, 6>();
++    const Eigen::MatrixXd reference_local_covariance =
++      reference_covariance.topLeftCorner<6, 6>();
++    EXPECT_LE(
++      (candidate_local_covariance - reference_local_covariance).cwiseAbs().maxCoeff(),
++      local_invariance_tolerance);
++  }
++
++  Eigen::MatrixXd candidate_state;
++  candidate.getX(candidate_state);
++  EXPECT_GT(candidate_state(IDX::GNSS_BX), 0.0);
++  EXPECT_LT(candidate_state(IDX::GNSS_BY), 0.0);
++}
++
+ TEST(GnssCorrection, public_projection_changes_only_xy) {
+   Eigen::VectorXd state = Eigen::VectorXd::Zero(8);
+   state << 10.0, 20.0, 0.4, 0.01, 3.0, 0.2, 0.4, -0.2;

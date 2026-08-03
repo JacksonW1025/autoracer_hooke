@@ -1,0 +1,164 @@
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp
+@@ -31,6 +31,7 @@
+ #include <geometry_msgs/msg/twist_stamped.hpp>
+ #include <geometry_msgs/msg/twist_with_covariance_stamped.hpp>
+ 
++#include <cmath>
+ #include <cstdint>
+ #include <memory>
+ #include <vector>
+@@ -61,21 +62,26 @@
+     var_ = obs_var;
+     initialized_ = true;
+   };
+-  void update(const double obs, const double obs_var, const double dt) {
++  void predict(const double dt) {
++    if (!initialized_ || !std::isfinite(dt) || dt <= 0.0) {
++      return;
++    }
++    const double proc_var_x_d = proc_var_x_c_ * dt * dt;
++    var_ = var_ + proc_var_x_d;
++  };
++  void correct(const double obs, const double obs_var) {
+     if (!initialized_) {
+       init(obs, obs_var);
+       return;
+     }
+-
+-    // Prediction step (current variance)
+-    double proc_var_x_d = proc_var_x_c_ * dt * dt;
+-    var_ = var_ + proc_var_x_d;
+-
+-    // Update step
+     double kalman_gain = var_ / (var_ + obs_var);
+     x_ = x_ + kalman_gain * (obs - x_);
+     var_ = (1 - kalman_gain) * var_;
+   };
++  void update(const double obs, const double obs_var, const double dt) {
++    predict(dt);
++    correct(obs, obs_var);
++  };
+   void set_proc_var(const double proc_var) { proc_var_x_c_ = proc_var; }
+   [[nodiscard]] double get_x() const { return x_; }
+   [[nodiscard]] double get_var() const { return var_; }
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
+@@ -342,6 +342,14 @@
+   const Eigen::MatrixXd x_curr = kalman_filter_.getLatestX();
+   const Eigen::MatrixXd p_curr = kalman_filter_.getLatestP();
+ 
++  // Predict the auxiliary filters on the same clock as the main EKF.  Their
++  // historical measurement-driven prediction left covariance frozen during
++  // a sensor outage, causing a valid recovery observation to be rejected as
++  // overconfidently inconsistent.
++  z_filter_.predict(dt);
++  roll_filter_.predict(dt);
++  pitch_filter_.predict(dt);
++
+   const double proc_cov_vx_d = std::pow(params_.proc_stddev_vx_c * dt, 2.0);
+   const double proc_cov_wz_d = std::pow(params_.proc_stddev_wz_c * dt, 2.0);
+   const double proc_cov_yaw_d = std::pow(params_.proc_stddev_yaw_c * dt, 2.0);
+@@ -891,9 +899,9 @@
+   double pitch_var = pose.pose.covariance[COV_IDX::PITCH_PITCH] *
+                      static_cast<double>(smoothing_step);
+ 
+-  z_filter_.update(z, z_var, ekf_dt_);
+-  roll_filter_.update(rpy.x, roll_var, ekf_dt_);
+-  pitch_filter_.update(rpy.y, pitch_var, ekf_dt_);
++  z_filter_.correct(z, z_var);
++  roll_filter_.correct(rpy.x, roll_var);
++  pitch_filter_.correct(rpy.y, pitch_var);
+ }
+ 
+ void EKFModule::update_height_filter(
+@@ -903,7 +911,7 @@
+       autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
+   const double z_var =
+       pose.pose.covariance[COV_IDX::Z_Z] * static_cast<double>(smoothing_step);
+-  z_filter_.update(pose.pose.pose.position.z, z_var, ekf_dt_);
++  z_filter_.correct(pose.pose.pose.position.z, z_var);
+ }
+ 
+ } // namespace autoware::ekf_localizer
+--- /dev/null
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_simple_1d_filter.cpp
+@@ -0,0 +1,78 @@
++// Copyright 2026 Autoware Foundation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "autoware/ekf_localizer/ekf_module.hpp"
++
++#include <gtest/gtest.h>
++
++namespace autoware::ekf_localizer
++{
++
++TEST(Simple1DFilter, split_predict_and_correct_is_equivalent_to_legacy_update)
++{
++  Simple1DFilter legacy;
++  Simple1DFilter split;
++  legacy.set_proc_var(25.0);
++  split.set_proc_var(25.0);
++  legacy.init(1.0, 0.2);
++  split.init(1.0, 0.2);
++
++  legacy.update(1.3, 0.4, 0.02);
++  split.predict(0.02);
++  split.correct(1.3, 0.4);
++
++  EXPECT_DOUBLE_EQ(split.get_x(), legacy.get_x());
++  EXPECT_DOUBLE_EQ(split.get_var(), legacy.get_var());
++}
++
++TEST(Simple1DFilter, covariance_grows_on_every_predict_tick_without_measurement)
++{
++  Simple1DFilter filter;
++  filter.set_proc_var(25.0);
++  filter.init(0.0, 0.1089);
++  for (int i = 0; i < 2300; ++i) {
++    filter.predict(0.02);
++  }
++
++  EXPECT_NEAR(filter.get_var(), 23.1089, 1.0e-9);
++  const double recovery_nis = 10.0 * 10.0 / (filter.get_var() + 0.1089);
++  EXPECT_LT(recovery_nis, 10.827566170662733);
++}
++
++TEST(Simple1DFilter, multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise)
++{
++  Simple1DFilter filter;
++  filter.set_proc_var(25.0);
++  filter.init(0.0, 0.25);
++
++  filter.predict(0.02);
++  filter.correct(0.1, 0.5);
++  const double variance_after_first_correction = filter.get_var();
++  filter.correct(0.2, 0.5);
++
++  EXPECT_LT(filter.get_var(), variance_after_first_correction);
++  EXPECT_GT(filter.get_x(), 0.0);
++  EXPECT_LT(filter.get_x(), 0.2);
++}
++
++TEST(Simple1DFilter, prediction_before_initialization_is_a_noop)
++{
++  Simple1DFilter filter;
++  filter.set_proc_var(25.0);
++  filter.predict(10.0);
++  EXPECT_FALSE(filter.is_initialized());
++  EXPECT_DOUBLE_EQ(filter.get_var(), 1.0e9);
++}
++
++}  // namespace autoware::ekf_localizer

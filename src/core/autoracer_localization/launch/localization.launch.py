@@ -37,8 +37,27 @@ def generate_launch_description():
     system_run_mode = LaunchConfiguration("system_run_mode")
     input_pointcloud = LaunchConfiguration("input_pointcloud")
     initial_pose = LaunchConfiguration("initial_pose")
+    gnss_initializer_enabled = LaunchConfiguration("gnss_initializer_enabled")
+    use_pose_covariance_modifier = LaunchConfiguration(
+        "use_autoware_pose_covariance_modifier"
+    )
+    pose_covariance_modifier_param_path = LaunchConfiguration(
+        "pose_covariance_modifier_param_path"
+    )
+    ekf_localizer_param_path = LaunchConfiguration(
+        "ekf_localizer_param_path"
+    )
+    ndt_scan_matcher_param_path = LaunchConfiguration(
+        "ndt_scan_matcher_param_path"
+    )
     localization_pointcloud_container_name = LaunchConfiguration(
         "localization_pointcloud_container_name"
+    )
+    localization_pointcloud_container_executable = LaunchConfiguration(
+        "localization_pointcloud_container_executable"
+    )
+    ndt_scan_matcher_executable = LaunchConfiguration(
+        "ndt_scan_matcher_executable"
     )
     map_projector_info = PathJoinSubstitution([map_path, "map_projector_info.yaml"])
     pointcloud_metadata = PathJoinSubstitution([map_path, "pointcloud_map_metadata.yaml"])
@@ -97,7 +116,7 @@ def generate_launch_description():
         ),
         Node(
             package="rclcpp_components",
-            executable="component_container_mt",
+            executable=localization_pointcloud_container_executable,
             name="pointcloud_container",
             output="screen",
         ),
@@ -177,14 +196,22 @@ def generate_launch_description():
             launch_arguments={
                 "pose_source": "ndt",
                 "twist_source": "gyro_odom",
+                "gnss_enabled": gnss_initializer_enabled,
+                "use_autoware_pose_covariance_modifier": use_pose_covariance_modifier,
+                "pose_covariance_modifier_param_path": (
+                    pose_covariance_modifier_param_path
+                ),
                 "initial_pose": initial_pose,
                 "system_run_mode": system_run_mode,
                 "input_pointcloud": input_pointcloud,
                 "localization_pointcloud_container_name": (
                     localization_pointcloud_container_name
                 ),
-                "ndt_scan_matcher/ndt_scan_matcher_param_path": _localization_param(
-                    "ndt_scan_matcher", "ndt_scan_matcher.param.yaml"
+                "ndt_scan_matcher/ndt_scan_matcher_param_path": (
+                    ndt_scan_matcher_param_path
+                ),
+                "ndt_scan_matcher/ndt_scan_matcher_executable": (
+                    ndt_scan_matcher_executable
                 ),
                 "ndt_scan_matcher/pointcloud_preprocessor/crop_box_filter_measurement_range_param_path": _localization_param(
                     "ndt_scan_matcher",
@@ -204,9 +231,7 @@ def generate_launch_description():
                 "localization_error_monitor_param_path": _localization_param(
                     "localization_error_monitor.param.yaml"
                 ),
-                "ekf_localizer_param_path": _localization_param(
-                    "ekf_localizer.param.yaml"
-                ),
+                "ekf_localizer_param_path": ekf_localizer_param_path,
                 "stop_filter_param_path": _localization_param("stop_filter.param.yaml"),
                 "pose_instability_detector_param_path": _localization_param(
                     "pose_instability_detector.param.yaml"
@@ -259,8 +284,62 @@ def generate_launch_description():
                 default_value="/sensing/lidar/concatenated/pointcloud",
             ),
             DeclareLaunchArgument(
+                "use_autoware_pose_covariance_modifier",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_USE_GNSS_FUSION",
+                    default_value="false",
+                ),
+                choices=["true", "false"],
+            ),
+            DeclareLaunchArgument(
+                "gnss_initializer_enabled",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_GNSS_INITIALIZER_ENABLED",
+                    default_value="true",
+                ),
+                choices=["true", "false"],
+            ),
+            DeclareLaunchArgument(
+                "pose_covariance_modifier_param_path",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_MODIFIER_PARAM_PATH",
+                    default_value=_localization_param(
+                        "pose_covariance_modifier.param.yaml"
+                    ),
+                ),
+            ),
+            DeclareLaunchArgument(
+                "ekf_localizer_param_path",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_EKF_PARAM_PATH",
+                    default_value=_localization_param(
+                        "ekf_localizer.param.yaml"
+                    ),
+                ),
+            ),
+            DeclareLaunchArgument(
+                "ndt_scan_matcher_param_path",
+                default_value=_localization_param(
+                    "ndt_scan_matcher", "ndt_scan_matcher.param.yaml"
+                ),
+            ),
+            DeclareLaunchArgument(
                 "localization_pointcloud_container_name",
                 default_value="/pointcloud_container",
+            ),
+            DeclareLaunchArgument(
+                "localization_pointcloud_container_executable",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_POINTCLOUD_CONTAINER_EXECUTABLE",
+                    default_value="component_container_mt",
+                ),
+            ),
+            DeclareLaunchArgument(
+                "ndt_scan_matcher_executable",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_NDT_EXECUTABLE",
+                    default_value="autoware_ndt_scan_matcher_node",
+                ),
             ),
             DeclareLaunchArgument("initial_pose", default_value="[]"),
             GroupAction(runtime_actions),

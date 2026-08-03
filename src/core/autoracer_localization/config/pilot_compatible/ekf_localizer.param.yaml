@@ -14,6 +14,37 @@
       pose_smoothing_steps: 5
       max_pose_queue_size: 5 # if multiple measurements arrive within one ekf_dt, this limits must be bigger than smoothing_steps
       pose_gate_dist: 49.5 # corresponds to significance level = 10^-10
+      # Standard loose coupling: NDT observes [x, y, yaw], while a GNSS pose
+      # carrying the explicit yaw-variance sentinel observes [x, y] only.
+      enable_position_only_state_mask: true
+      position_only_yaw_variance_threshold: 0.5
+      position_only_state_variance_floor_m2: 0.0
+      position_only_decorrelate_covariance: false
+      # The ordinary Kalman gain may update correlated motion states through
+      # P. GNSS has no yaw coefficient in H and therefore is not a yaw sensor.
+      position_only_update_correlated_states: true
+      position_only_update_velocity_state: false
+      # Keep the production state minimal: no research-only bias state or
+      # split public/local projection.
+      enable_gnss_bias_estimation: false
+      enable_position_only_dual_projection: false
+      position_only_information_variance_multiplier: 1.0
+      # 2-DoF chi-square 99.9% gate. The implementation evaluates
+      # innovation covariance S = HPH^T + R.
+      position_only_nis_gate: 13.815510557964274
+      # Optional sequential integrity monitor for slowly accumulating GNSS
+      # faults that can pass a one-sample NIS gate.  It is deliberately off in
+      # the frozen product baseline; research candidates enable it through a
+      # complete parameter-file override and must pass paired validation.
+      position_only_sequential_integrity_enabled: false
+      position_only_sequential_warmup_samples: 50
+      position_only_sequential_reference_sigma: 0.5
+      position_only_sequential_decision_threshold: 15.0
+      position_only_sequential_recovery_samples: 20
+      position_only_sequential_recovery_nis_threshold: 5.991464547107979
+      position_only_sequential_reset_gap_sec: 1.0
+      position_only_gnss_minimum_xy_std_m: 0.0
+      position_only_ndt_fixed_xy_std_m: 0.0
 
     twist_measurement:
       # for twist measurement

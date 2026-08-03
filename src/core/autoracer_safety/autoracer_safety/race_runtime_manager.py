@@ -21,9 +21,11 @@ from autoware_vehicle_msgs.msg import (
     VelocityReport,
 )
 from autoware_vehicle_msgs.srv import ControlModeCommand
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 import rclpy
-from rclpy.executors import ExternalShutdownException
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
@@ -60,6 +62,9 @@ class RaceRuntimeManager(Node):
             "auto_start": True,
             "startup_timeout_sec": 90.0,
             "localization_timeout_sec": 0.20,
+            "require_ndt_pose_health": False,
+            "ndt_pose_timeout_sec": 0.50,
+            "ndt_pose_source_timeout_sec": 0.50,
             "trajectory_timeout_sec": 0.35,
             "control_timeout_sec": 0.20,
             "vehicle_status_timeout_sec": 0.25,
@@ -84,6 +89,7 @@ class RaceRuntimeManager(Node):
 
         self._localization_state = TimedInput()
         self._odometry = TimedInput()
+        self._ndt_pose = TimedInput()
         self._trajectory = TimedInput()
         self._route_state = TimedInput()
         self._raw_control = TimedInput()
@@ -96,6 +102,7 @@ class RaceRuntimeManager(Node):
         self._timed_inputs = (
             self._localization_state,
             self._odometry,
+            self._ndt_pose,
             self._trajectory,
             self._route_state,
             self._raw_control,
@@ -106,6 +113,12 @@ class RaceRuntimeManager(Node):
             self._steering,
             self._engage,
         )
+        # Input callbacks must be able to drain while the health timer evaluates
+        # the previous snapshot.  Keeping the state machine in a separate
+        # mutually-exclusive group preserves serialized transitions and service
+        # handling while eliminating timer-before-input false stale decisions.
+        self._input_callback_group = ReentrantCallbackGroup()
+        self._state_callback_group = MutuallyExclusiveCallbackGroup()
 
         self.create_subscription(
             LocalizationInitializationState,
@@ -114,6 +127,7 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.stamp
             ),
             STATE_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             Odometry,
@@ -122,6 +136,20 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.header.stamp
             ),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
+        )
+        # The EKF can continue publishing a numerically fresh prediction from
+        # IMU/wheel speed after absolute NDT updates disappear.  Track the raw
+        # NDT observation separately so the existing MRM path can fail safe;
+        # this is health supervision, not a second estimator or pose output.
+        self.create_subscription(
+            PoseWithCovarianceStamped,
+            "/localization/pose_estimator/ndt_scan_matcher/pose_with_covariance",
+            lambda message: self._ndt_pose.update(
+                message, self._now(), message.header.stamp
+            ),
+            COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             Trajectory,
@@ -130,18 +158,21 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.header.stamp
             ),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             RouteState,
             "/planning/route_state",
             lambda message: self._route_state.update(message, self._now(), message.stamp),
             STATE_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             Control,
             "/control/trajectory_follower/control_cmd",
             lambda message: self._raw_control.update(message, self._now(), message.stamp),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             Control,
@@ -150,6 +181,7 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.stamp
             ),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             ControlModeReport,
@@ -158,12 +190,14 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.stamp
             ),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             GearReport,
             "/vehicle/status/gear_status",
             lambda message: self._gear.update(message, self._now(), message.stamp),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             VelocityReport,
@@ -172,6 +206,7 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.header.stamp
             ),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             SteeringReport,
@@ -180,12 +215,14 @@ class RaceRuntimeManager(Node):
                 message, self._now(), message.stamp
             ),
             COMMAND_QOS,
+            callback_group=self._input_callback_group,
         )
         self.create_subscription(
             Engage,
             "/api/autoware/get/engage",
             lambda message: self._engage.update(message, self._now(), message.stamp),
             STATE_QOS,
+            callback_group=self._input_callback_group,
         )
 
         self._operation_mode_pub = self.create_publisher(
@@ -231,23 +268,68 @@ class RaceRuntimeManager(Node):
         )
 
         self._control_mode_client = self.create_client(
-            ControlModeCommand, "/control/control_mode_request"
+            ControlModeCommand,
+            "/control/control_mode_request",
+            callback_group=self._state_callback_group,
         )
         self._engage_client = self.create_client(
-            EngageService, "/api/autoware/set/engage"
+            EngageService,
+            "/api/autoware/set/engage",
+            callback_group=self._state_callback_group,
         )
-        self.create_service(Trigger, "/autoracer/race/start", self._on_start)
-        self.create_service(Trigger, "/autoracer/race/stop", self._on_stop)
-        self.create_service(Trigger, "/autoracer/race/reset", self._on_reset)
+        self.create_service(
+            Trigger,
+            "/autoracer/race/start",
+            self._on_start,
+            callback_group=self._state_callback_group,
+        )
+        self.create_service(
+            Trigger,
+            "/autoracer/race/stop",
+            self._on_stop,
+            callback_group=self._state_callback_group,
+        )
+        self.create_service(
+            Trigger,
+            "/autoracer/race/reset",
+            self._on_reset,
+            callback_group=self._state_callback_group,
+        )
         self.create_timer(
-            1.0 / float(self.get_parameter("update_rate_hz").value), self._on_timer
+            1.0 / float(self.get_parameter("update_rate_hz").value),
+            self._on_timer,
+            callback_group=self._state_callback_group,
+        )
+        self.get_logger().info(
+            "race runtime stale-input witness instrumentation=V1 "
+            "executor=multi_threaded_4 callbacks=state_serial_input_reentrant"
         )
 
     def _now(self) -> float:
         return self.get_clock().now().nanoseconds * 1.0e-9
 
-    def _fresh(self, tracker: TimedInput, parameter: str) -> bool:
-        return tracker.fresh(self._now(), float(self.get_parameter(parameter).value))
+    def _fresh(
+        self,
+        tracker: TimedInput,
+        receipt_timeout_parameter: str,
+        source_timeout_parameter: str | None = None,
+    ) -> bool:
+        receipt_timeout = float(
+            self.get_parameter(receipt_timeout_parameter).value
+        )
+        source_timeout = (
+            None
+            if source_timeout_parameter is None
+            else float(self.get_parameter(source_timeout_parameter).value)
+        )
+        return tracker.fresh(self._now(), receipt_timeout, source_timeout)
+
+    def _ndt_fresh(self) -> bool:
+        return self._fresh(
+            self._ndt_pose,
+            "ndt_pose_timeout_sec",
+            "ndt_pose_source_timeout_sec",
+        )
 
     def _on_start(self, request, response):
         del request
@@ -312,9 +394,80 @@ class RaceRuntimeManager(Node):
             self._phase_since = self._now()
         self._reason = reason
 
+    def _stale_input_witness(
+        self,
+        tracker: TimedInput,
+        receipt_timeout_parameter: str,
+        source_timeout_parameter: str | None = None,
+    ) -> str:
+        """Serialize the exact evidence used by a stale-input fault decision."""
+        now = self._now()
+        receipt_timeout = float(
+            self.get_parameter(receipt_timeout_parameter).value
+        )
+        source_timeout = (
+            receipt_timeout
+            if source_timeout_parameter is None
+            else float(self.get_parameter(source_timeout_parameter).value)
+        )
+        return json.dumps(
+            {
+                "now_sec": now,
+                # Keep the legacy field for existing evidence readers.
+                "timeout_sec": receipt_timeout,
+                "receipt_timeout_sec": receipt_timeout,
+                "source_timeout_sec": source_timeout,
+                "receipt_sec": tracker.receipt_sec,
+                "source_stamp_sec": tracker.source_stamp_sec,
+                "receipt_age_sec": now - tracker.receipt_sec,
+                "source_age_sec": now - tracker.source_stamp_sec,
+                "sequence": tracker.sequence,
+                "rejected_future": tracker.rejected_future,
+                "rejected_out_of_order": tracker.rejected_out_of_order,
+            },
+            sort_keys=True,
+        )
+
     def _fault(self, reason: str) -> None:
         if self._phase == RuntimePhase.FAULT:
             return
+        stale_inputs = {
+            "LOCALIZATION_STALE": (
+                self._odometry,
+                "localization_timeout_sec",
+                None,
+            ),
+            "NDT_POSE_STALE": (
+                self._ndt_pose,
+                "ndt_pose_timeout_sec",
+                "ndt_pose_source_timeout_sec",
+            ),
+            "TRAJECTORY_STALE": (self._trajectory, "trajectory_timeout_sec", None),
+            "RAW_CONTROL_STALE": (self._raw_control, "control_timeout_sec", None),
+            "FINAL_CONTROL_STALE": (self._final_control, "control_timeout_sec", None),
+            "VELOCITY_STALE": (
+                self._velocity,
+                "vehicle_status_timeout_sec",
+                None,
+            ),
+            "STEERING_STALE": (
+                self._steering,
+                "vehicle_status_timeout_sec",
+                None,
+            ),
+            "GEAR_STALE": (self._gear, "vehicle_status_timeout_sec", None),
+            "CONTROL_MODE_STALE": (
+                self._control_mode,
+                "vehicle_status_timeout_sec",
+                None,
+            ),
+        }
+        if reason in stale_inputs:
+            tracker, receipt_parameter, source_parameter = stale_inputs[reason]
+            self.get_logger().error(
+                f"race runtime stale-input witness: reason={reason} "
+                f"{self._stale_input_witness(tracker, receipt_parameter, source_parameter)}"
+            )
         self.get_logger().error(f"race runtime fault latched: {reason}")
         self._transition(RuntimePhase.FAULT, reason)
 
@@ -331,6 +484,8 @@ class RaceRuntimeManager(Node):
             return "LOCALIZATION_NOT_INITIALIZED"
         if not self._fresh(self._odometry, "localization_timeout_sec"):
             return "LOCALIZATION_STALE"
+        if bool(self.get_parameter("require_ndt_pose_health").value) and not self._ndt_fresh():
+            return "NDT_POSE_STALE"
         if not self._fresh(self._trajectory, "trajectory_timeout_sec"):
             return "TRAJECTORY_STALE"
         if self._trajectory.message is None or len(self._trajectory.message.points) < 2:
@@ -612,6 +767,10 @@ class RaceRuntimeManager(Node):
                 "final_control_fresh": self._fresh(
                     self._final_control, "control_timeout_sec"
                 ),
+                "ndt_pose_health_required": bool(
+                    self.get_parameter("require_ndt_pose_health").value
+                ),
+                "ndt_pose_fresh": self._ndt_fresh(),
                 "stamp": self._now(),
             },
             sort_keys=True,
@@ -622,11 +781,14 @@ class RaceRuntimeManager(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = RaceRuntimeManager()
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

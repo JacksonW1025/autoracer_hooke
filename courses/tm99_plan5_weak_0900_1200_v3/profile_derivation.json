@@ -1,0 +1,29 @@
+{
+  "derived": {
+    "course": {
+      "path": "autoracer_hooke/courses/tm99_plan5_weak_0900_1200_v3/course.csv",
+      "sha256": "aaaba20ccdc712772808d4f450234e5e86177f24b5803dd340d2125ad5f696e7",
+      "size_bytes": 80499
+    },
+    "course_length_m": 304.743260287,
+    "row_count": 615
+  },
+  "geometry_contract": "x/y/z/yaw/curvature/offsets are byte-identical to selected source rows; local progress s is rebased and only the final 5.34 m speed tail is conservatively reduced to a physical terminal stop",
+  "mode": "authoritative_route_slice_with_progress_rebase",
+  "schema_version": 1,
+  "source": {
+    "course": {
+      "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/course.csv",
+      "sha256": "93a8a6df536c65e3cdd15cf2e29e9e40bef231fa6e24c1f98f150f677a0acb2e",
+      "size_bytes": 2826553
+    },
+    "profile_derivation": {
+      "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/profile_derivation.json",
+      "sha256": "058f5860290636465b8f3c50a571df08af26c1f30c1ca79f395727c9f17e51c9",
+      "size_bytes": 4039
+    }
+  },
+  "source_progress_end_m": 1204.856717738,
+  "source_progress_start_m": 900.113457451,
+  "status": "PASS"
+}

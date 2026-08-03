@@ -1,0 +1,1048 @@
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/README.md
+@@ -32,10 +32,18 @@
+   and removes yaw cross-covariances. This avoids counting an INSPVAX/INS yaw as an
+   independent GNSS observation when the EKF already consumes the same inertial
+   source. GNSS is blocked before the first valid NDT initializes localization.
+-  Afterwards, a current NDT sample is not required for each GNSS update: NDT and
+-  GNSS remain independent observations of the same EKF, so an NDT outage does not
+-  silently become a dual-sensor outage. The default remains `official`; this policy
+-  requires separate validation before product use.
++Afterwards, a current NDT sample is not required for each GNSS update: NDT and
++GNSS remain independent observations of the same EKF, so an NDT outage does not
++silently become a dual-sensor outage. The default remains `official`; this policy
++requires separate validation before product use.
++
++For deployments where that EKF output is also fed back as the next scan-matcher
++initial guess, `gnss_require_fresh_time_aligned_ndt` can be enabled. In that
++explicit mode, a GNSS position is accepted only while a valid NDT observation is
++fresh in receive time and close in source time. This prevents a bad GNSS stream
++from continuing as a de-facto GNSS-only localization source after it has already
++caused the matcher to stop producing valid measurements. The option is disabled
++by default, so upstream-compatible behavior is unchanged.
+ 
+ `ndt_primary_position` also exposes disabled-by-default consistency gates:
+ `gnss_ndt_max_stamp_delta_sec` and `gnss_ndt_xy_innovation_max_m`.
+@@ -48,6 +56,39 @@
+ mistaking normal vehicle motion between asynchronous measurements for spatial
+ disagreement; it does not alter either measurement published to the EKF.
+ 
++For covariance-aware integrity monitoring,
++`gnss_ndt_cross_source_nis_soft_gate` and
++`gnss_ndt_cross_source_nis_hard_gate` evaluate the horizontal normalized
++innovation squared (NIS) with `S = R_gnss + R_ndt`. The hard gate rejects a
++statistically inconsistent GNSS update. Between the soft and hard gates, only
++the GNSS horizontal covariance is inflated by `NIS / soft_gate`; the GNSS
++position and every NDT field remain unchanged. Both gates are disabled by
++default and must be enabled together with `0 < soft < hard`.
++
++`gnss_position_updates_enabled=false` is an experiment/control switch for
++`ndt_primary_position`: GNSS messages still traverse validation and integrity
++monitoring, but are not published into the EKF. This permits a paired NDT-only
++comparison with the same modifier, subscriptions, executor and single EKF. It
++does not change the upstream-compatible `official` default.
++
++For a bounded LiDAR outage,
++`gnss_ndt_trusted_outage_bridge_enabled` provides a disabled-by-default
++integrity holdover. It is not GNSS-only initialization and does not create
++another estimator: GNSS must first agree with fresh, source-time-aligned NDT
++for a configured number of observations in a bounded recent window. By default
++every sample in the window must agree, preserving the historical consecutive
++rule; `gnss_ndt_trusted_outage_minimum_agreement_count` can explicitly permit a
++small, fixed number of soft outliers without permitting a hard conflict. Only then may that same
++continuous GNSS stream keep updating the one EKF while NDT is absent for a
++bounded duration. A source-time gap, a GNSS trajectory jump, an expired
++holdover, a delayed/reordered GNSS sample, or loss of prior cross-source
++agreement revokes the permission. GNSS covariance is inflated as the time
++since the last NDT corroboration grows. This cannot prove that one receiver can
++detect an arbitrarily slow common-mode bias, so combined LiDAR-loss/GNSS-bias
++cases remain mandatory safety tests.
++When `gnss_ndt_trusted_outage_agreement_nis` is positive, qualification uses
++the covariance-aware NIS instead of a fixed metre threshold.
++
+ ## Assumptions
+ 
+ - The NDT matcher provides a pose with a fixed covariance.
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+@@ -12,6 +12,11 @@
+           "default": "official",
+           "description": "official preserves upstream source switching; ndt_primary_covariance forwards valid NDT plus trusted full GNSS/INS pose; ndt_primary_position keeps GNSS x/y informative but removes correlated INSPVAX yaw information"
+         },
++        "gnss_position_updates_enabled": {
++          "type": "boolean",
++          "default": true,
++          "description": "Enable trusted GNSS position publication. False provides a fair NDT-only control through the same modifier and EKF path; NDT forwarding is unchanged"
++        },
+         "threshold_gnss_stddev_yaw_deg_max": {
+           "type": "number",
+           "default": 0.3,
+@@ -59,17 +64,101 @@
+           "minimum": 0.0,
+           "description": "Optional position-only consistency gate; zero disables it"
+         },
++        "gnss_require_fresh_time_aligned_ndt": {
++          "type": "boolean",
++          "default": false,
++          "description": "For ndt_primary_position, reject GNSS unless the latest valid NDT is fresh in receive time and within gnss_ndt_max_stamp_delta_sec in source time"
++        },
++        "gnss_ndt_trusted_outage_bridge_enabled": {
++          "type": "boolean",
++          "default": false,
++          "description": "Allow a previously NDT-corroborated GNSS stream to bridge a bounded NDT receive-time outage; delayed or reordered GNSS never uses this path"
++        },
++        "gnss_ndt_trusted_outage_max_sec": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Maximum NDT receive-time outage that a pre-qualified GNSS stream may bridge"
++        },
++        "gnss_ndt_trusted_outage_warmup_count": {
++          "type": "integer",
++          "default": 0,
++          "minimum": 0,
++          "description": "Number of recent source-aligned NDT/GNSS comparisons in the outage-bridge qualification window"
++        },
++        "gnss_ndt_trusted_outage_minimum_agreement_count": {
++          "type": "integer",
++          "default": 0,
++          "minimum": 0,
++          "description": "Minimum agreements required in the qualification window; zero preserves the historical all-samples rule"
++        },
++        "gnss_ndt_trusted_outage_agreement_m": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Maximum motion-aligned NDT/GNSS XY disagreement that counts toward outage-bridge qualification"
++        },
++        "gnss_ndt_trusted_outage_agreement_nis": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Optional covariance-aware NIS limit for outage-bridge qualification; zero preserves the distance-based rule"
++        },
++        "gnss_ndt_trusted_outage_prediction_error_max_m": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Maximum constant-velocity GNSS self-prediction error during an NDT outage"
++        },
++        "gnss_ndt_trusted_outage_reset_gap_sec": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Maximum GNSS source-time gap that preserves outage-bridge qualification"
++        },
++        "gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Additional horizontal uncertainty accumulated per second without NDT corroboration"
++        },
+         "gnss_ndt_xy_innovation_max_m": {
+           "type": "number",
+           "default": 0.0,
+           "minimum": 0.0,
+           "description": "Optional position-only GNSS-versus-latest-NDT XY gate; zero disables it"
+         },
++        "gnss_ndt_robust_soft_gate_scale_m": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Optional Huber-style scale: above this disagreement the GNSS XY covariance is inflated quadratically; zero disables it"
++        },
++        "gnss_ndt_cross_source_nis_soft_gate": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Soft covariance-aware GNSS/NDT XY NIS gate using S=R_gnss+R_ndt; above it the GNSS XY covariance is inflated by NIS/gate. Must be enabled with the hard gate"
++        },
++        "gnss_ndt_cross_source_nis_hard_gate": {
++          "type": "number",
++          "default": 0.0,
++          "minimum": 0.0,
++          "description": "Hard covariance-aware GNSS/NDT XY NIS rejection gate using S=R_gnss+R_ndt. Must exceed the enabled soft gate"
++        },
+         "gnss_ndt_motion_compensate_innovation": {
+           "type": "boolean",
+           "default": false,
+           "description": "When enabled, compare GNSS with a constant-velocity NDT position at the GNSS timestamp; affects only the consistency gate and never rewrites either measurement"
+         },
++        "gnss_ndt_causal_conflict_filter_enabled": {"type": "boolean", "default": false},
++        "gnss_ndt_causal_trust_agreement_m": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_causal_conflict_m": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_causal_source_jump_m": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_causal_source_jump_margin_m": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_causal_reset_gap_sec": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_causal_warmup_count": {"type": "integer", "default": 0, "minimum": 0},
++        "gnss_ndt_causal_ndt_suspect_update_budget": {"type": "integer", "default": 0, "minimum": 0},
+         "enable_debug_topics": {
+           "type": "boolean",
+           "default": true,
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+@@ -22,6 +22,7 @@
+ 
+ #include <array>
+ #include <cstdint>
++#include <deque>
+ #include <optional>
+ #include <string>
+ 
+@@ -61,6 +62,13 @@
+     double ndt_y;
+   };
+ 
++  struct TimedXyPosition
++  {
++    int64_t stamp_ns;
++    double x;
++    double y;
++  };
++
+   // covariance matrix indexes
+   const int X_POS_IDX_ = 0;
+   const int Y_POS_IDX_ = 7;
+@@ -69,6 +77,7 @@
+ 
+   // parameters
+   FusionPolicy fusion_policy_;
++  bool gnss_position_updates_enabled_;
+   double threshold_gnss_stddev_yaw_deg_max_;
+   double threshold_gnss_stddev_z_max_;
+   double threshold_gnss_stddev_xy_bound_lower_;
+@@ -78,8 +87,20 @@
+   double gnss_pose_timeout_sec_;
+   double gnss_position_only_yaw_variance_;
+   double gnss_ndt_max_stamp_delta_sec_;
++  bool gnss_require_fresh_time_aligned_ndt_;
++  bool gnss_ndt_trusted_outage_bridge_enabled_;
++  double gnss_ndt_trusted_outage_max_sec_;
++  int64_t gnss_ndt_trusted_outage_warmup_count_;
++  int64_t gnss_ndt_trusted_outage_minimum_agreement_count_;
++  double gnss_ndt_trusted_outage_agreement_m_;
++  double gnss_ndt_trusted_outage_agreement_nis_;
++  double gnss_ndt_trusted_outage_prediction_error_max_m_;
++  double gnss_ndt_trusted_outage_reset_gap_sec_;
++  double gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec_;
+   double gnss_ndt_xy_innovation_max_m_;
+   double gnss_ndt_robust_soft_gate_scale_m_;
++  double gnss_ndt_cross_source_nis_soft_gate_;
++  double gnss_ndt_cross_source_nis_hard_gate_;
+   bool gnss_ndt_motion_compensate_innovation_;
+   bool gnss_ndt_causal_conflict_filter_enabled_;
+   double gnss_ndt_causal_trust_agreement_m_;
+@@ -104,6 +125,12 @@
+   int64_t causal_ndt_suspect_updates_left_{0};
+   std::optional<CausalSourcePair> causal_source_pair_previous_;
+   std::optional<CausalSourcePair> causal_source_pair_last_;
++  int64_t trusted_outage_agreement_count_{0};
++  std::deque<uint8_t> trusted_outage_agreement_window_;
++  bool trusted_outage_bridge_qualified_{false};
++  std::optional<TimedXyPosition> trusted_outage_gnss_previous_;
++  std::optional<TimedXyPosition> trusted_outage_gnss_last_;
++  double current_gnss_xy_covariance_scale_{1.0};
+ 
+   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     sub_gnss_pose_with_cov_;
+@@ -114,6 +141,7 @@
+   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_str_pose_source_;
+   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_double_ndt_position_stddev_;
+   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_double_gnss_position_stddev_;
++  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pub_double_gnss_ndt_cross_source_nis_;
+ 
+   void callback_gnss_pose_with_cov(
+     const geometry_msgs::msg::PoseWithCovarianceStamped::ConstSharedPtr & msg_pose_with_cov_in);
+@@ -143,6 +171,9 @@
+   std::optional<double> gnss_ndt_xy_innovation(
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
+ 
++  std::optional<double> gnss_ndt_xy_nis(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
++
+   std::optional<std::array<double, 2>> gnss_ndt_xy_reference(
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
+ 
+@@ -150,6 +181,15 @@
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
+     const std::array<double, 2> & ndt_reference, double innovation_m);
+ 
++  void reset_trusted_outage_bridge();
++
++  void observe_corroborated_gnss_for_outage_bridge(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, double innovation_m,
++    const std::optional<double> & cross_source_nis);
++
++  bool trusted_outage_bridge_allows_gnss(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, double gnss_pose_stddev_xy);
++
+   PoseSource pose_source_from_gnss_stddev(
+     double gnss_pose_yaw_stddev_deg, double gnss_pose_stddev_z, double gnss_pose_stddev_xy) const;
+ 
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+@@ -49,6 +49,8 @@
+             "fusion_policy must be 'official', 'ndt_primary_covariance', or "
+             "'ndt_primary_position', got: " + fusion_policy);
+   }
++  gnss_position_updates_enabled_ =
++    this->declare_parameter<bool>("gnss_position_updates_enabled", true);
+   threshold_gnss_stddev_yaw_deg_max_ =
+     this->declare_parameter<double>("threshold_gnss_stddev_yaw_deg_max");
+   threshold_gnss_stddev_z_max_ = this->declare_parameter<double>("threshold_gnss_stddev_z_max");
+@@ -63,10 +65,40 @@
+     this->declare_parameter<double>("gnss_position_only_yaw_variance", 1.0);
+   gnss_ndt_max_stamp_delta_sec_ =
+     this->declare_parameter<double>("gnss_ndt_max_stamp_delta_sec", 0.0);
++  gnss_require_fresh_time_aligned_ndt_ =
++    this->declare_parameter<bool>("gnss_require_fresh_time_aligned_ndt", false);
++  gnss_ndt_trusted_outage_bridge_enabled_ =
++    this->declare_parameter<bool>("gnss_ndt_trusted_outage_bridge_enabled", false);
++  gnss_ndt_trusted_outage_max_sec_ =
++    this->declare_parameter<double>("gnss_ndt_trusted_outage_max_sec", 0.0);
++  gnss_ndt_trusted_outage_warmup_count_ =
++    this->declare_parameter<int64_t>("gnss_ndt_trusted_outage_warmup_count", 0);
++  gnss_ndt_trusted_outage_minimum_agreement_count_ = this->declare_parameter<int64_t>(
++    "gnss_ndt_trusted_outage_minimum_agreement_count", 0);
++  if (gnss_ndt_trusted_outage_minimum_agreement_count_ == 0) {
++    // Backward compatibility: an omitted parameter retains V93's all-samples
++    // agreement rule. V94 explicitly opts into a bounded k-of-n window.
++    gnss_ndt_trusted_outage_minimum_agreement_count_ =
++      gnss_ndt_trusted_outage_warmup_count_;
++  }
++  gnss_ndt_trusted_outage_agreement_m_ =
++    this->declare_parameter<double>("gnss_ndt_trusted_outage_agreement_m", 0.0);
++  gnss_ndt_trusted_outage_agreement_nis_ =
++    this->declare_parameter<double>("gnss_ndt_trusted_outage_agreement_nis", 0.0);
++  gnss_ndt_trusted_outage_prediction_error_max_m_ = this->declare_parameter<double>(
++    "gnss_ndt_trusted_outage_prediction_error_max_m", 0.0);
++  gnss_ndt_trusted_outage_reset_gap_sec_ =
++    this->declare_parameter<double>("gnss_ndt_trusted_outage_reset_gap_sec", 0.0);
++  gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec_ = this->declare_parameter<double>(
++    "gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec", 0.0);
+   gnss_ndt_xy_innovation_max_m_ =
+     this->declare_parameter<double>("gnss_ndt_xy_innovation_max_m", 0.0);
+   gnss_ndt_robust_soft_gate_scale_m_ =
+     this->declare_parameter<double>("gnss_ndt_robust_soft_gate_scale_m", 0.0);
++  gnss_ndt_cross_source_nis_soft_gate_ =
++    this->declare_parameter<double>("gnss_ndt_cross_source_nis_soft_gate", 0.0);
++  gnss_ndt_cross_source_nis_hard_gate_ =
++    this->declare_parameter<double>("gnss_ndt_cross_source_nis_hard_gate", 0.0);
+   gnss_ndt_motion_compensate_innovation_ =
+     this->declare_parameter<bool>("gnss_ndt_motion_compensate_innovation", false);
+   gnss_ndt_causal_conflict_filter_enabled_ =
+@@ -96,15 +128,68 @@
+     !std::isfinite(gnss_ndt_xy_innovation_max_m_) ||
+     gnss_ndt_xy_innovation_max_m_ < 0.0 ||
+     !std::isfinite(gnss_ndt_robust_soft_gate_scale_m_) ||
+-    gnss_ndt_robust_soft_gate_scale_m_ < 0.0) {
++    gnss_ndt_robust_soft_gate_scale_m_ < 0.0 ||
++    !std::isfinite(gnss_ndt_cross_source_nis_soft_gate_) ||
++    gnss_ndt_cross_source_nis_soft_gate_ < 0.0 ||
++    !std::isfinite(gnss_ndt_cross_source_nis_hard_gate_) ||
++    gnss_ndt_cross_source_nis_hard_gate_ < 0.0 ||
++    !std::isfinite(gnss_ndt_trusted_outage_agreement_nis_) ||
++    gnss_ndt_trusted_outage_agreement_nis_ < 0.0) {
+     throw std::invalid_argument("GNSS/NDT consistency limits must be finite and non-negative");
+   }
++  const bool cross_source_nis_enabled =
++    gnss_ndt_cross_source_nis_soft_gate_ > 0.0 ||
++    gnss_ndt_cross_source_nis_hard_gate_ > 0.0;
++  if (
++    (gnss_ndt_cross_source_nis_soft_gate_ > 0.0) !=
++      (gnss_ndt_cross_source_nis_hard_gate_ > 0.0) ||
++    (cross_source_nis_enabled &&
++     gnss_ndt_cross_source_nis_soft_gate_ >= gnss_ndt_cross_source_nis_hard_gate_)) {
++    throw std::invalid_argument(
++            "cross-source NIS soft/hard gates must be both disabled or finite positive soft<hard");
++  }
+   if (
+     gnss_ndt_robust_soft_gate_scale_m_ > 0.0 &&
+     gnss_ndt_xy_innovation_max_m_ <= 0.0) {
+     throw std::invalid_argument(
+             "gnss_ndt_robust_soft_gate_scale_m requires a positive innovation maximum");
+   }
++  if (
++    gnss_require_fresh_time_aligned_ndt_ &&
++    (gnss_pose_timeout_sec_ <= 0.0 || gnss_ndt_max_stamp_delta_sec_ <= 0.0)) {
++    throw std::invalid_argument(
++            "gnss_require_fresh_time_aligned_ndt requires positive receive-time and "
++            "source-stamp limits");
++  }
++  if (gnss_ndt_trusted_outage_bridge_enabled_) {
++    if (
++      !gnss_require_fresh_time_aligned_ndt_ ||
++      gnss_ndt_xy_innovation_max_m_ <= 0.0 ||
++      !std::isfinite(gnss_ndt_trusted_outage_max_sec_) ||
++      !std::isfinite(gnss_ndt_trusted_outage_agreement_m_) ||
++      !std::isfinite(gnss_ndt_trusted_outage_prediction_error_max_m_) ||
++      !std::isfinite(gnss_ndt_trusted_outage_reset_gap_sec_) ||
++      !std::isfinite(gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec_) ||
++      gnss_ndt_trusted_outage_max_sec_ <= gnss_pose_timeout_sec_ ||
++      gnss_ndt_trusted_outage_warmup_count_ <= 0 ||
++      gnss_ndt_trusted_outage_minimum_agreement_count_ <= 0 ||
++      gnss_ndt_trusted_outage_minimum_agreement_count_ >
++        gnss_ndt_trusted_outage_warmup_count_ ||
++      gnss_ndt_trusted_outage_agreement_m_ <= 0.0 ||
++      gnss_ndt_trusted_outage_agreement_m_ >= gnss_ndt_xy_innovation_max_m_ ||
++      gnss_ndt_trusted_outage_prediction_error_max_m_ <= 0.0 ||
++      gnss_ndt_trusted_outage_reset_gap_sec_ <= 0.0 ||
++      gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec_ < 0.0) {
++      throw std::invalid_argument("trusted GNSS outage-bridge parameters are inconsistent");
++    }
++    if (
++      gnss_ndt_trusted_outage_agreement_nis_ > 0.0 &&
++      (!cross_source_nis_enabled ||
++       gnss_ndt_trusted_outage_agreement_nis_ > gnss_ndt_cross_source_nis_hard_gate_)) {
++      throw std::invalid_argument(
++              "outage-bridge NIS agreement requires enabled compatible cross-source NIS gates");
++    }
++  }
+   if (gnss_ndt_causal_conflict_filter_enabled_) {
+     if (
+       gnss_ndt_xy_innovation_max_m_ <= 0.0 ||
+@@ -151,6 +236,8 @@
+       this->create_publisher<std_msgs::msg::Float64>("~/debug/ndt_position_stddev", 10);
+     pub_double_gnss_position_stddev_ =
+       this->create_publisher<std_msgs::msg::Float64>("~/debug/gnss_position_stddev", 10);
++    pub_double_gnss_ndt_cross_source_nis_ =
++      this->create_publisher<std_msgs::msg::Float64>("~/debug/gnss_ndt_cross_source_nis", 10);
+   }
+ }
+ 
+@@ -189,6 +276,16 @@
+       return;
+     }
+ 
++    // A fair NDT-only control must exercise the same modifier, validation,
++    // subscriptions and executor path as the fusion candidate.  This switch
++    // disables only the GNSS position update; NDT continues to be forwarded
++    // byte-for-byte by callback_ndt_pose_with_cov().
++    if (!gnss_position_updates_enabled_) {
++      pose_source_ = PoseSource::NDT;
++      publish_pose_type(pose_source_);
++      return;
++    }
++
+     gnss_pose_received_time_last_ = this->now();
+     gnss_pose_with_cov_last_ = msg_pose_with_cov_in;
+     pose_source_ = PoseSource::GNSS_NDT;
+@@ -201,17 +298,9 @@
+       // orientation as a neutral yaw carrier, and make yaw uninformative.
+       auto position_only = *msg_pose_with_cov_in;
+       position_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
+-      if (gnss_ndt_robust_soft_gate_scale_m_ > 0.0) {
+-        const auto innovation_m = gnss_ndt_xy_innovation(*msg_pose_with_cov_in);
+-        if (!innovation_m) {
+-          pose_source_ = PoseSource::NDT;
+-          publish_pose_type(pose_source_);
+-          return;
+-        }
+-        const double ratio = *innovation_m / gnss_ndt_robust_soft_gate_scale_m_;
+-        const double covariance_scale = std::max(1.0, ratio * ratio);
++      if (current_gnss_xy_covariance_scale_ > 1.0) {
+         for (const int index : {0, 1, 6, 7}) {
+-          position_only.pose.covariance[index] *= covariance_scale;
++          position_only.pose.covariance[index] *= current_gnss_xy_covariance_scale_;
+         }
+       }
+       for (int axis = 0; axis < 5; ++axis) {
+@@ -429,6 +518,7 @@
+   const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
+   const double gnss_pose_stddev_xy)
+ {
++  current_gnss_xy_covariance_scale_ = 1.0;
+   if (!has_valid_ndt_pose_ || !ndt_pose_with_cov_last_) {
+     RCLCPP_WARN(this->get_logger(), "GNSS position rejected before the first valid NDT pose");
+     return false;
+@@ -441,12 +531,14 @@
+     return false;
+   }
+ 
+-  // NDT and GNSS are independent observations of the same EKF.  A current
+-  // NDT sample is useful for cross-source integrity monitoring, but it must
+-  // not be a prerequisite for a healthy GNSS position update after the EKF
+-  // has been initialized.  Otherwise an NDT outage also discards GNSS and
+-  // turns a single-sensor fault into a dual-sensor outage.
+-  bool sources_are_time_comparable = ndt_is_fresh();
++  // NDT and GNSS are independent observations of the same EKF.  By default,
++  // a current NDT sample is useful for cross-source integrity monitoring but
++  // is not a prerequisite after initialization.  Safety-critical deployments
++  // may explicitly require a fresh, source-time-aligned NDT measurement so a
++  // GNSS fault cannot turn the EKF feedback used by the matcher into a long
++  // de-facto GNSS-only interval.
++  const bool ndt_receive_time_is_fresh = ndt_is_fresh();
++  bool sources_are_time_comparable = ndt_receive_time_is_fresh;
+   if (sources_are_time_comparable && gnss_ndt_max_stamp_delta_sec_ > 0.0) {
+     const rclcpp::Time gnss_stamp(msg.header.stamp, this->get_clock()->get_clock_type());
+     const rclcpp::Time ndt_stamp(
+@@ -457,26 +549,225 @@
+       stamp_delta_sec <= gnss_ndt_max_stamp_delta_sec_;
+   }
+ 
+-  if (sources_are_time_comparable && gnss_ndt_xy_innovation_max_m_ > 0.0) {
+-    const auto innovation_m = gnss_ndt_xy_innovation(msg);
++  const bool distance_check_requested =
++    gnss_ndt_xy_innovation_max_m_ > 0.0 ||
++    gnss_ndt_robust_soft_gate_scale_m_ > 0.0 ||
++    gnss_ndt_trusted_outage_bridge_enabled_;
++  const bool nis_check_requested =
++    gnss_ndt_cross_source_nis_soft_gate_ > 0.0 ||
++    gnss_ndt_cross_source_nis_hard_gate_ > 0.0 ||
++    gnss_ndt_trusted_outage_agreement_nis_ > 0.0;
++
++  std::optional<double> innovation_m;
++  std::optional<double> cross_source_nis;
++  if (sources_are_time_comparable && (distance_check_requested || nis_check_requested)) {
++    innovation_m = gnss_ndt_xy_innovation(msg);
+     const auto reference = gnss_ndt_xy_reference(msg);
+     if (!innovation_m || !reference) {
+       RCLCPP_WARN(this->get_logger(), "GNSS position rejected because NDT innovation is unavailable");
+       return false;
+     }
++    if (nis_check_requested) {
++      cross_source_nis = gnss_ndt_xy_nis(msg);
++      if (!cross_source_nis) {
++        RCLCPP_WARN(
++          this->get_logger(),
++          "GNSS position rejected because the GNSS/NDT innovation covariance is invalid");
++        return false;
++      }
++      if (debug_mode_) {
++        std_msgs::msg::Float64 msg_double;
++        msg_double.data = *cross_source_nis;
++        pub_double_gnss_ndt_cross_source_nis_->publish(msg_double);
++      }
++      if (
++        gnss_ndt_cross_source_nis_hard_gate_ > 0.0 &&
++        *cross_source_nis > gnss_ndt_cross_source_nis_hard_gate_) {
++        reset_trusted_outage_bridge();
++        RCLCPP_WARN(this->get_logger(), "GNSS position rejected by the hard cross-source NIS gate");
++        return false;
++      }
++    }
+     if (
+       gnss_ndt_causal_conflict_filter_enabled_ &&
+       !causal_conflict_allows_gnss(msg, *reference, *innovation_m)) {
++      reset_trusted_outage_bridge();
+       RCLCPP_WARN(this->get_logger(), "GNSS position rejected by the causal conflict filter");
+       return false;
+     }
+     if (
+       !gnss_ndt_causal_conflict_filter_enabled_ &&
++      gnss_ndt_xy_innovation_max_m_ > 0.0 &&
+       *innovation_m > gnss_ndt_xy_innovation_max_m_) {
++      reset_trusted_outage_bridge();
+       RCLCPP_WARN(this->get_logger(), "GNSS position rejected by the NDT innovation gate");
+       return false;
+     }
+   }
++
++  if (sources_are_time_comparable) {
++    if (gnss_ndt_trusted_outage_bridge_enabled_) {
++      if (!innovation_m) {
++        reset_trusted_outage_bridge();
++        return false;
++      }
++      observe_corroborated_gnss_for_outage_bridge(msg, *innovation_m, cross_source_nis);
++    }
++    if (gnss_ndt_cross_source_nis_soft_gate_ > 0.0) {
++      if (!cross_source_nis) {
++        return false;
++      }
++      current_gnss_xy_covariance_scale_ =
++        std::max(1.0, *cross_source_nis / gnss_ndt_cross_source_nis_soft_gate_);
++    } else if (gnss_ndt_robust_soft_gate_scale_m_ > 0.0) {
++      if (!innovation_m) {
++        innovation_m = gnss_ndt_xy_innovation(msg);
++      }
++      if (!innovation_m) {
++        return false;
++      }
++      const double ratio = *innovation_m / gnss_ndt_robust_soft_gate_scale_m_;
++      current_gnss_xy_covariance_scale_ = std::max(1.0, ratio * ratio);
++    }
++    return true;
++  }
++
++  if (gnss_require_fresh_time_aligned_ndt_) {
++    // A fresh NDT with a mismatched source timestamp indicates a delayed or
++    // reordered GNSS observation, not a LiDAR outage. Never bridge that case.
++    if (
++      !ndt_receive_time_is_fresh &&
++      gnss_ndt_trusted_outage_bridge_enabled_ &&
++      trusted_outage_bridge_allows_gnss(msg, gnss_pose_stddev_xy)) {
++      return true;
++    }
++    RCLCPP_WARN(
++      this->get_logger(),
++      "GNSS position rejected because no fresh, source-time-aligned NDT pose exists");
++    return false;
++  }
++
++  // Backward-compatible unguarded mode. Preserve the historical robust scale
++  // behavior even though the last NDT reference may be stale.
++  if (gnss_ndt_robust_soft_gate_scale_m_ > 0.0) {
++    innovation_m = gnss_ndt_xy_innovation(msg);
++    if (!innovation_m) {
++      return false;
++    }
++    const double ratio = *innovation_m / gnss_ndt_robust_soft_gate_scale_m_;
++    current_gnss_xy_covariance_scale_ = std::max(1.0, ratio * ratio);
++  }
++  return true;
++}
++
++void PoseCovarianceModifierNode::reset_trusted_outage_bridge()
++{
++  trusted_outage_agreement_count_ = 0;
++  trusted_outage_agreement_window_.clear();
++  trusted_outage_bridge_qualified_ = false;
++  trusted_outage_gnss_previous_.reset();
++  trusted_outage_gnss_last_.reset();
++}
++
++void PoseCovarianceModifierNode::observe_corroborated_gnss_for_outage_bridge(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const double innovation_m,
++  const std::optional<double> & cross_source_nis)
++{
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  const TimedXyPosition current{
++    stamp.nanoseconds(), msg.pose.pose.position.x, msg.pose.pose.position.y};
++
++  if (trusted_outage_gnss_last_) {
++    const double gap_sec =
++      static_cast<double>(current.stamp_ns - trusted_outage_gnss_last_->stamp_ns) * 1.0e-9;
++    if (
++      !std::isfinite(gap_sec) || gap_sec <= 0.0 ||
++      gap_sec > gnss_ndt_trusted_outage_reset_gap_sec_) {
++      reset_trusted_outage_bridge();
++    }
++  }
++
++  const bool agrees_with_ndt = gnss_ndt_trusted_outage_agreement_nis_ > 0.0
++    ? cross_source_nis && *cross_source_nis <= gnss_ndt_trusted_outage_agreement_nis_
++    : innovation_m <= gnss_ndt_trusted_outage_agreement_m_;
++  const uint8_t agrees = agrees_with_ndt ? 1U : 0U;
++  trusted_outage_agreement_window_.push_back(agrees);
++  trusted_outage_agreement_count_ += agrees;
++  while (
++    trusted_outage_agreement_window_.size() >
++    static_cast<std::size_t>(gnss_ndt_trusted_outage_warmup_count_)) {
++    trusted_outage_agreement_count_ -= trusted_outage_agreement_window_.front();
++    trusted_outage_agreement_window_.pop_front();
++  }
++  trusted_outage_bridge_qualified_ =
++    trusted_outage_agreement_window_.size() ==
++      static_cast<std::size_t>(gnss_ndt_trusted_outage_warmup_count_) &&
++    trusted_outage_agreement_count_ >=
++      gnss_ndt_trusted_outage_minimum_agreement_count_;
++
++  trusted_outage_gnss_previous_ = trusted_outage_gnss_last_;
++  trusted_outage_gnss_last_ = current;
++}
++
++bool PoseCovarianceModifierNode::trusted_outage_bridge_allows_gnss(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++  const double gnss_pose_stddev_xy)
++{
++  if (!trusted_outage_bridge_qualified_ || !trusted_outage_gnss_last_) {
++    return false;
++  }
++
++  const double outage_age_sec = (this->now() - ndt_pose_received_time_last_).seconds();
++  if (
++    !std::isfinite(outage_age_sec) || outage_age_sec < 0.0 ||
++    outage_age_sec > gnss_ndt_trusted_outage_max_sec_) {
++    reset_trusted_outage_bridge();
++    return false;
++  }
++
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  const TimedXyPosition current{
++    stamp.nanoseconds(), msg.pose.pose.position.x, msg.pose.pose.position.y};
++  const double current_interval_sec =
++    static_cast<double>(current.stamp_ns - trusted_outage_gnss_last_->stamp_ns) * 1.0e-9;
++  if (
++    !std::isfinite(current_interval_sec) || current_interval_sec <= 0.0 ||
++    current_interval_sec > gnss_ndt_trusted_outage_reset_gap_sec_) {
++    reset_trusted_outage_bridge();
++    return false;
++  }
++
++  if (trusted_outage_gnss_previous_) {
++    const double previous_interval_sec = static_cast<double>(
++      trusted_outage_gnss_last_->stamp_ns - trusted_outage_gnss_previous_->stamp_ns) * 1.0e-9;
++    if (!std::isfinite(previous_interval_sec) || previous_interval_sec <= 0.0) {
++      reset_trusted_outage_bridge();
++      return false;
++    }
++    const double ratio = current_interval_sec / previous_interval_sec;
++    const double predicted_x = trusted_outage_gnss_last_->x +
++      ratio * (trusted_outage_gnss_last_->x - trusted_outage_gnss_previous_->x);
++    const double predicted_y = trusted_outage_gnss_last_->y +
++      ratio * (trusted_outage_gnss_last_->y - trusted_outage_gnss_previous_->y);
++    const double prediction_error_m =
++      std::hypot(current.x - predicted_x, current.y - predicted_y);
++    if (
++      !std::isfinite(prediction_error_m) ||
++      prediction_error_m > gnss_ndt_trusted_outage_prediction_error_max_m_) {
++      reset_trusted_outage_bridge();
++      return false;
++    }
++  }
++
++  const double added_uncertainty_m =
++    gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec_ * outage_age_sec;
++  const double covariance_scale_reference_m =
++    std::max(gnss_pose_stddev_xy, threshold_gnss_stddev_xy_bound_lower_);
++  current_gnss_xy_covariance_scale_ = std::max(
++    1.0,
++    1.0 + std::pow(added_uncertainty_m / covariance_scale_reference_m, 2));
++  trusted_outage_gnss_previous_ = trusted_outage_gnss_last_;
++  trusted_outage_gnss_last_ = current;
+   return true;
+ }
+ 
+@@ -497,6 +788,47 @@
+   return innovation_m;
+ }
+ 
++std::optional<double> PoseCovarianceModifierNode::gnss_ndt_xy_nis(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const
++{
++  const auto reference = gnss_ndt_xy_reference(msg);
++  if (!reference || !ndt_pose_with_cov_last_) {
++    return std::nullopt;
++  }
++
++  // For two independent position observations, the innovation covariance is
++  // S = R_gnss + R_ndt.  Use the complete symmetric XY blocks so correlated
++  // horizontal errors are handled without changing either source covariance.
++  const auto & gnss_covariance = msg.pose.covariance;
++  const auto & ndt_covariance = ndt_pose_with_cov_last_->pose.covariance;
++  const double s_xx = gnss_covariance[0] + ndt_covariance[0];
++  const double s_xy = gnss_covariance[1] + ndt_covariance[1];
++  const double s_yx = gnss_covariance[6] + ndt_covariance[6];
++  const double s_yy = gnss_covariance[7] + ndt_covariance[7];
++  const double covariance_scale = std::max({1.0, std::abs(s_xx), std::abs(s_yy)});
++  if (
++    !std::isfinite(s_xx) || !std::isfinite(s_xy) || !std::isfinite(s_yx) ||
++    !std::isfinite(s_yy) ||
++    std::abs(s_xy - s_yx) > 1.0e-9 * covariance_scale) {
++    return std::nullopt;
++  }
++  const double determinant = s_xx * s_yy - s_xy * s_yx;
++  if (!std::isfinite(determinant) || determinant <= 0.0) {
++    return std::nullopt;
++  }
++
++  const double delta_x = msg.pose.pose.position.x - (*reference)[0];
++  const double delta_y = msg.pose.pose.position.y - (*reference)[1];
++  const double nis =
++    (s_yy * delta_x * delta_x - (s_xy + s_yx) * delta_x * delta_y +
++     s_xx * delta_y * delta_y) /
++    determinant;
++  if (!std::isfinite(nis) || nis < -1.0e-12) {
++    return std::nullopt;
++  }
++  return std::max(0.0, nis);
++}
++
+ std::optional<std::array<double, 2>> PoseCovarianceModifierNode::gnss_ndt_xy_reference(
+   const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const
+ {
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+@@ -35,7 +35,16 @@
+     const double stamp_delta_sec = 0.0, const double innovation_m = 0.0,
+     const bool motion_compensate_innovation = false,
+     const double robust_soft_gate_scale_m = 0.0,
+-    const bool causal_conflict_filter = false)
++    const bool causal_conflict_filter = false,
++    const bool require_fresh_time_aligned_ndt = false,
++    const bool trusted_outage_bridge = false,
++    const double trusted_outage_max_sec = 0.5,
++    const int64_t trusted_outage_warmup_count = 3,
++    const int64_t trusted_outage_minimum_agreement_count = 0,
++    const bool gnss_position_updates_enabled = true,
++    const double cross_source_nis_soft_gate = 0.0,
++    const double cross_source_nis_hard_gate = 0.0,
++    const double trusted_outage_agreement_nis = 0.0)
+   {
+     rclcpp::NodeOptions options;
+     options.arguments(
+@@ -43,6 +52,7 @@
+     options.parameter_overrides(
+       {
+         {"fusion_policy", policy},
++        {"gnss_position_updates_enabled", gnss_position_updates_enabled},
+         {"threshold_gnss_stddev_yaw_deg_max", 0.3},
+         {"threshold_gnss_stddev_z_max", 0.1},
+         {"threshold_gnss_stddev_xy_bound_lower", 0.1},
+@@ -52,8 +62,21 @@
+         {"gnss_pose_timeout_sec", timeout_sec},
+         {"gnss_position_only_yaw_variance", 1.0},
+         {"gnss_ndt_max_stamp_delta_sec", stamp_delta_sec},
++        {"gnss_require_fresh_time_aligned_ndt", require_fresh_time_aligned_ndt},
++        {"gnss_ndt_trusted_outage_bridge_enabled", trusted_outage_bridge},
++        {"gnss_ndt_trusted_outage_max_sec", trusted_outage_max_sec},
++        {"gnss_ndt_trusted_outage_warmup_count", trusted_outage_warmup_count},
++        {"gnss_ndt_trusted_outage_minimum_agreement_count",
++         trusted_outage_minimum_agreement_count},
++        {"gnss_ndt_trusted_outage_agreement_m", 0.8},
++        {"gnss_ndt_trusted_outage_agreement_nis", trusted_outage_agreement_nis},
++        {"gnss_ndt_trusted_outage_prediction_error_max_m", 2.0},
++        {"gnss_ndt_trusted_outage_reset_gap_sec", 0.5},
++        {"gnss_ndt_trusted_outage_uncertainty_growth_m_per_sec", 0.2},
+         {"gnss_ndt_xy_innovation_max_m", innovation_m},
+         {"gnss_ndt_robust_soft_gate_scale_m", robust_soft_gate_scale_m},
++        {"gnss_ndt_cross_source_nis_soft_gate", cross_source_nis_soft_gate},
++        {"gnss_ndt_cross_source_nis_hard_gate", cross_source_nis_hard_gate},
+         {"gnss_ndt_motion_compensate_innovation", motion_compensate_innovation},
+         {"gnss_ndt_causal_conflict_filter_enabled", causal_conflict_filter},
+         {"gnss_ndt_causal_trust_agreement_m", 0.6},
+@@ -322,6 +345,64 @@
+   EXPECT_TRUE(harness.outputs().empty());
+ }
+ 
++TEST(PoseCovarianceModifier, ndt_control_uses_same_path_but_disables_only_gnss_updates)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.25, 3.0, false, 0.0, false, false, false,
++    0.5, 3, 0, false, 5.991464547107979, 13.815510557964274);
++  const auto ndt = harness.make_message(0.15);
++  auto gnss = harness.make_message(0.1);
++  gnss.pose.pose.position.x += 0.2;
++
++  harness.publish_ndt(ndt);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front(), ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, cross_source_nis_soft_gate_uses_both_source_covariances)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.25, 3.0, false, 0.0, false, false, false,
++    0.5, 3, 0, true, 5.991464547107979, 13.815510557964274);
++  const auto ndt = harness.make_message(0.15);
++  auto gnss = harness.make_message(0.1);
++  gnss.pose.pose.position.x += 0.5;
++
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++
++  const double expected_nis = 0.25 / (0.15 * 0.15 + 0.1 * 0.1);
++  const double expected_scale = expected_nis / 5.991464547107979;
++  EXPECT_NEAR(harness.outputs().front().pose.covariance[0], 0.01 * expected_scale, 1.0e-12);
++  EXPECT_NEAR(harness.outputs().front().pose.covariance[7], 0.01 * expected_scale, 1.0e-12);
++}
++
++TEST(PoseCovarianceModifier, cross_source_nis_hard_gate_distinguishes_confidence)
++{
++  const auto exercise = [](const double gnss_stddev) {
++    ModifierHarness harness(
++      "ndt_primary_position", 1.0, 0.25, 3.0, false, 0.0, false, false, false,
++      0.5, 3, 0, true, 5.991464547107979, 13.815510557964274);
++    const auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(gnss_stddev);
++    gnss.pose.pose.position.x += 0.7;
++    harness.publish_ndt(ndt);
++    harness.clear();
++    harness.publish_gnss(gnss);
++    return harness.outputs();
++  };
++
++  EXPECT_TRUE(exercise(0.1).empty());
++  const auto lower_confidence = exercise(0.2);
++  ASSERT_EQ(lower_confidence.size(), 1U);
++  EXPECT_GT(lower_confidence.front().pose.covariance[0], 0.2 * 0.2);
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_position_accepts_gnss_after_initialized_ndt_times_out)
+ {
+   ModifierHarness harness("ndt_primary_position", 0.05, 0.25, 3.0);
+@@ -341,6 +422,177 @@
+   EXPECT_EQ(harness.outputs().front().pose.pose.orientation, ndt.pose.pose.orientation);
+ }
+ 
++TEST(PoseCovarianceModifier, ndt_primary_position_guard_rejects_gnss_after_ndt_times_out)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.25, 0.0, false, 0.0, false, true);
++  harness.publish_ndt(harness.make_message(0.15));
++  harness.clear();
++
++  std::this_thread::sleep_for(70ms);
++  harness.publish_gnss(harness.make_message(0.2));
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_guard_rejects_source_time_mismatch)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.10, 0.0, false, 0.0, false, true);
++  auto ndt = harness.make_message(0.15);
++  auto gnss = harness.make_message(0.2);
++  gnss.header.stamp =
++    rclcpp::Time(ndt.header.stamp) + rclcpp::Duration::from_seconds(0.11);
++
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, ndt_primary_position_guard_accepts_fresh_aligned_gnss)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.15, 0.0, false, 0.0, false, true);
++  auto ndt = harness.make_message(0.15);
++  auto gnss = harness.make_message(0.2);
++  gnss.header.stamp =
++    rclcpp::Time(ndt.header.stamp) + rclcpp::Duration::from_seconds(0.05);
++
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front().pose.pose.position, gnss.pose.pose.position);
++}
++
++TEST(PoseCovarianceModifier, trusted_outage_bridge_requires_prior_cross_source_warmup)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.15, 3.0, true, 0.8, false, true, true);
++  for (int index = 0; index < 2; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x += 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    harness.publish_ndt(ndt);
++    harness.publish_gnss(gnss);
++  }
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  auto outage_gnss = harness.make_message(0.1);
++  outage_gnss.pose.pose.position.x += 0.4;
++  harness.publish_gnss(outage_gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, trusted_outage_bridge_is_bounded_and_inflates_covariance)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.15, 3.0, true, 0.8, false, true, true, 0.30);
++  for (int index = 0; index < 3; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x += 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    harness.publish_ndt(ndt);
++    harness.publish_gnss(gnss);
++  }
++
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  auto outage_gnss = harness.make_message(0.1);
++  outage_gnss.pose.pose.position.x += 0.6;
++  harness.publish_gnss(outage_gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front().pose.pose.position, outage_gnss.pose.pose.position);
++  EXPECT_GT(harness.outputs().front().pose.covariance[0], outage_gnss.pose.covariance[0]);
++  EXPECT_DOUBLE_EQ(
++    harness.outputs().front().pose.covariance[0],
++    harness.outputs().front().pose.covariance[7]);
++
++  harness.clear();
++  std::this_thread::sleep_for(300ms);
++  auto expired_gnss = harness.make_message(0.1);
++  expired_gnss.pose.pose.position.x += 0.8;
++  harness.publish_gnss(expired_gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, trusted_outage_bridge_rejects_and_revokes_on_gnss_jump)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.15, 3.0, true, 0.8, false, true, true);
++  for (int index = 0; index < 3; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x += 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    harness.publish_ndt(ndt);
++    harness.publish_gnss(gnss);
++  }
++
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  auto jumped = harness.make_message(0.1);
++  jumped.pose.pose.position.x += 5.0;
++  harness.publish_gnss(jumped);
++  EXPECT_TRUE(harness.outputs().empty());
++
++  auto recovered_without_ndt = harness.make_message(0.1);
++  recovered_without_ndt.pose.pose.position.x += 0.6;
++  harness.publish_gnss(recovered_without_ndt);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
++TEST(PoseCovarianceModifier, trusted_outage_bridge_accepts_eight_of_ten_recent_agreements)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.15, 3.0, true, 0.8, false, true, true, 0.30, 10, 8);
++  for (int index = 0; index < 10; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x += 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    if (index == 2 || index == 5) {
++      gnss.pose.pose.position.y += 1.0;  // soft disagreement, below the 3 m hard gate
++    }
++    harness.publish_ndt(ndt);
++    harness.publish_gnss(gnss);
++  }
++
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  auto outage_gnss = harness.make_message(0.1);
++  outage_gnss.pose.pose.position.x += 2.0;
++  harness.publish_gnss(outage_gnss);
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_EQ(harness.outputs().front().pose.pose.position, outage_gnss.pose.pose.position);
++}
++
++TEST(PoseCovarianceModifier, trusted_outage_bridge_rejects_seven_of_ten_recent_agreements)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 0.05, 0.15, 3.0, true, 0.8, false, true, true, 0.30, 10, 8);
++  for (int index = 0; index < 10; ++index) {
++    auto ndt = harness.make_message(0.15);
++    auto gnss = harness.make_message(0.1);
++    ndt.pose.pose.position.x += 0.2 * index;
++    gnss.pose.pose.position.x = ndt.pose.pose.position.x;
++    if (index == 1 || index == 3 || index == 5) {
++      gnss.pose.pose.position.y += 1.0;
++    }
++    harness.publish_ndt(ndt);
++    harness.publish_gnss(gnss);
++  }
++
++  harness.clear();
++  std::this_thread::sleep_for(70ms);
++  auto outage_gnss = harness.make_message(0.1);
++  outage_gnss.pose.pose.position.x += 2.0;
++  harness.publish_gnss(outage_gnss);
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_position_rejects_large_ndt_innovation)
+ {
+   ModifierHarness harness("ndt_primary_position", 1.0, 0.25, 3.0);
+

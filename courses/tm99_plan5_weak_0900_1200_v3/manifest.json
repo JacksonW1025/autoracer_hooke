@@ -1,0 +1,195 @@
+{
+  "assets": {
+    "course.csv": {
+      "rows": 615,
+      "sha256": "aaaba20ccdc712772808d4f450234e5e86177f24b5803dd340d2125ad5f696e7"
+    },
+    "input_provenance.json": {
+      "sha256": "b4eabce811d25c8c67beb3d3be2a446d2d42a984e7c11dbcfff236cd1206ca89"
+    },
+    "profile_derivation.json": {
+      "sha256": "84dca323f5cf6d1dcf7748b6e3dff4b4ac055b69249c8976162db540e8d2bbf5"
+    },
+    "road_extents.csv": {
+      "rows": 615,
+      "sha256": "08ef7da147d8f0cedc020cb9712c42d24e5fb0476d5818be250168f76df97fc1"
+    }
+  },
+  "frame_id": "map",
+  "geometry": {
+    "boundary_semantics": "progress-indexed functional Frenet offsets, capped at 1.8 m and inset from RoadEval road extents",
+    "carmaker_route_length_m": 10651.823376,
+    "course_length_m": 304.743260287,
+    "frame_contract": "CarMaker Fr0 == localization map",
+    "longitudinal_endpoint_margin_m": 9.647830999999686,
+    "longitudinal_endpoint_semantics": "the complete CarMaker Vehicle.OuterSkin remains inside the finite road at the fixed-course endpoint",
+    "maximum_left_offset_m": 1.5,
+    "maximum_right_offset_m": 1.5,
+    "minimum_footprint_margin_m": 0.2,
+    "plan5_source_progress_end_m": 1204.856717738,
+    "plan5_source_progress_start_m": 900.113457451,
+    "race_lateral_safety_inset": {
+      "direction": "left",
+      "maximum_m": 0.25,
+      "ramp_end_source_progress_m": 220.0,
+      "ramp_start_source_progress_m": 150.0,
+      "semantics": "bounded in-lane inset from the independently validated real-downhill trajectory; CarMaker RoadEval is authoritative for simulator clearance"
+    },
+    "road_edge_margin_m": 0.2,
+    "road_eval_evidence": "course center and both functional offsets independently evaluated against the configured CarMaker road",
+    "route_end_inset_m": 13.064830999999685,
+    "route_start_inset_m": 0.766554,
+    "sample_interval_m": 0.5,
+    "vehicle_feasible_smoothing": {
+      "max_steer_angle_rad": 0.605,
+      "maximum_allowed_displacement_m": 0.12,
+      "maximum_displacement_m": 0.11572411773609076,
+      "minimum_controller_steer_rate_limit_radps": 0.6981317007977318,
+      "passes": 9,
+      "planning_curvature_limit_1pm": 0.2453102295951555,
+      "planning_steer_rate_limit_radps": 0.6283185307179586,
+      "steering_curvature_utilization": 0.9,
+      "steering_rate_utilization": 0.9,
+      "vehicle_curvature_limit_1pm": 0.272566921772395,
+      "wheel_base_m": 2.537,
+      "xy_kernel": [
+        0.25,
+        0.5,
+        0.25
+      ]
+    },
+    "vehicle_forward_extent_m": 3.417,
+    "vehicle_width_m": 1.801
+  },
+  "holdout_alignment": {
+    "method": "local_path_projection",
+    "projection_sample_interval_m": 0.25,
+    "projection_window_m": 10.0,
+    "semantics": "local_path_projection removes bounded longitudinal phase error without allowing matches to remote switchback segments"
+  },
+  "limitations": [
+    "The functional corridor is capped at 3.6 m and narrows where RoadEval requires it; it is not a surveyed curb polygon.",
+    "GT and RoadEval evidence are offline-only and are not runtime planner inputs.",
+    "The 3.5 m lane width is provisional; the functional corridor is conservatively capped at 3.0 m.",
+    "The centreline originates from the independent downhill PCD; it is not a surveyed lane marking or curb polygon.",
+    "The 0.250 m left safety inset remains within the right-hand lane; bounded XY smoothing keeps the path vehicle-feasible and within the original independent-holdout limits; it is validated against the CarMaker road, not a surveyed lane marking."
+  ],
+  "map": {
+    "id": "tm99_uphill_official_axes_corrected_propagated_20260716",
+    "input_contract_sha256": "1795319b559e0a333953ec7f37014f480e6045e9a866406aeeedd03d910ff560",
+    "map_projector_info_sha256": "9e12a2b9b870ee109f03e9a73e974be44be8dbdf7925e6da76af8a9e8ae4111b",
+    "pointcloud_map_metadata_sha256": "4c9ddb069d77b6d8f1d3e64b21207b7b768d008b5397769ef9bb04a0b4ab36c8",
+    "release_manifest_sha256": "04bc71b35c030a115e1b3ab8c0af5a2b16d54cd051607c87331c36de141c7cb1"
+  },
+  "map_id": "tm99_uphill_official_axes_corrected_propagated_20260716",
+  "route_id": "tm99_plan5_weak_0900_1200",
+  "schema_version": 2,
+  "smoothing": {
+    "max_offset_m": 0.05,
+    "radius": 2
+  },
+  "source": {
+    "build_collection": "prepared_full_course",
+    "build_route_progress_sha256": "9de4c60edc1affa2aea8e7043c73c2122940c3243a3b8a7272f709ac575a318d",
+    "build_vehicle_state_sha256": "d745347add3f20da27b187cb6986e9e565e218618877395fc48c91308fe10a30",
+    "holdout_collection": "prepared_full_course",
+    "holdout_route_progress_sha256": "8cd32620c65646abd14f60932a366ee4321cb65709354f5f647b839c2d43931f",
+    "holdout_vehicle_state_sha256": "a79cdae8f5dc966ab0234bca76b460d69251429e3367478a45f9acafad248c79",
+    "plan5_slice": {
+      "course": {
+        "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/course.csv",
+        "sha256": "93a8a6df536c65e3cdd15cf2e29e9e40bef231fa6e24c1f98f150f677a0acb2e",
+        "size_bytes": 2826553
+      },
+      "source_progress_end_m": 1204.856717738,
+      "source_progress_start_m": 900.113457451
+    },
+    "race_safety_course_source": {
+      "course_sha256": "b13481c515781ea8187e782082da9c9e5ff9e815ebf83176a302d20455c615d2",
+      "manifest_sha256": "6eb6be3707a2dba3e0d357358d3d367eb72a32cdadab16ecf78b18d211d37228",
+      "road_extents_sha256": "e76c785b965c1c6fb5b0ce22e6018a5c5809bcbae93fea83eba966712ef74d95",
+      "version": "tm99_downhill_full_0000_10650_v1_official_uphill_map"
+    },
+    "road_extents_sha256": "3a0689fc0e2b8d28ca1ab1fc0dc8590106008964a38821e4e5145cf5741018e2",
+    "road_file": "TM99_Downhill_Full_0000_10666_V3_MovieNXNative.rd5",
+    "road_file_sha256": "c1b46e5849146f6645c99a11d97509bc7003c0eba44312d0bbd9fe99ed762fd9",
+    "testrun": "AutoracerCollection_TM99_Downhill_Full_0000_10666_V3MovieNXNativePhysicalReferenceSlow",
+    "testrun_sha256": "e9178831e27f3336e1f83b0d4b5a8a828f26874b0dce154b17ae5356b0c5e373",
+    "tm99_input_provenance_sha256": "07f6972ea28078c7c0fa3e96a945586c261401ead2eee11754e93d10f496d99f"
+  },
+  "speed_profile": {
+    "acceleration_point_semantics": "outgoing_segment_to_next_point",
+    "curvature_envelope_semantics": "the speed ceiling uses the worst absolute curvature within one wheelbase before and after each point, preventing sub-vehicle-length speed spikes",
+    "curvature_envelope_window_m": 5.074,
+    "max_accel_mps2": 0.8,
+    "max_decel_mps2": -1.5,
+    "max_lateral_accel_mps2": 0.2,
+    "mode": "non_binding_ceiling_after_lateral_safety_inset",
+    "non_binding_ceiling_mps": 100.0,
+    "serialized_acceleration_abs_tolerance": 5e-08
+  },
+  "validation": {
+    "checks": {
+      "build_center_on_road": true,
+      "finite": true,
+      "forward_yaw": true,
+      "geometry_smoothing_bounded": true,
+      "independent_holdout_max": true,
+      "independent_holdout_p95": true,
+      "lateral_accel_bounded": true,
+      "lateral_inset_bounded": true,
+      "longitudinal_accel_bounded": true,
+      "longitudinal_endpoint_footprint_margin": true,
+      "outgoing_acceleration_consistent": true,
+      "positive_offsets": true,
+      "road_eval_functional_corridor": true,
+      "s_strictly_increasing": true,
+      "spacing_bounded": true,
+      "speed_bounded": true,
+      "speed_profile_curvature_envelope_conservative": true,
+      "steering_curvature_bounded": true,
+      "steering_rate_bounded": true,
+      "terminal_stop": true
+    },
+    "metrics": {
+      "course_length_m": 304.743260287,
+      "curvature_abs_max_1pm": 0.235224044,
+      "functional_offset_maximum_step_m": 0.0,
+      "functional_offset_minimum_left_m": 1.5,
+      "functional_offset_minimum_right_m": 1.5,
+      "geometry_smoothing_max_displacement_m": 0.11572411773609076,
+      "holdout_raw_path_length_m": 10614.070647712126,
+      "holdout_xy_bound_semantics": "exact local-path projection against the immutable independent CarMaker physical-traversal holdout bound by input provenance",
+      "holdout_xy_max_m": 0.6870873020313409,
+      "holdout_xy_mean_m": 0.2931033705287856,
+      "holdout_xy_p95_m": 0.6338047034529695,
+      "holdout_xy_triangle_upper_max_m_advisory": 1.05066807121546,
+      "holdout_xy_triangle_upper_p95_m_advisory": 0.7861848210989266,
+      "lateral_accel_max_mps2": 0.2000000425829685,
+      "lateral_inset_maximum_m": 0.25,
+      "longitudinal_endpoint_footprint_margin_m": 9.647830999999686,
+      "planning_curvature_limit_1pm": 0.2453102295951555,
+      "planning_steer_rate_limit_radps": 0.6283185307179586,
+      "point_count": 615,
+      "raw_path_length_m": 10651.82337658235,
+      "required_steer_angle_abs_max_rad": 0.5380362484879976,
+      "required_steer_rate_abs_max_radps": 0.414557003580313,
+      "road_eval_minimum_left_extent_m": 4.88687677383,
+      "road_eval_minimum_outward_clearance_m": 0.235131,
+      "road_eval_minimum_right_extent_m": 1.73513050079,
+      "smoothing_max_deviation_m": 0.05000000000009235,
+      "spacing_max_m": 0.5352471774458536,
+      "spacing_min_m": 0.32335332568982267,
+      "speed_profile_curvature_envelope_abs_max_1pm": 0.235224044,
+      "target_acceleration_max_mps2": 0.8,
+      "target_acceleration_min_mps2": -1.5,
+      "total_geometry_displacement_max_m": 0.36360213585207335,
+      "vehicle_curvature_limit_1pm": 0.272566921772395,
+      "vehicle_footprint_minimum_margin_m": 0.5995,
+      "yaw_tangent_error_max_rad": 0.0
+    },
+    "proof_scope": "Every geometry/corridor row is an unchanged subset of the already validated authoritative full course. Progress is rebased for planner initialization; the last 5.34 m has only a conservative terminal speed taper and lies beyond the scored 300 m interval.",
+    "status": "PASS"
+  },
+  "version": "tm99_plan5_weak_0900_1200_v3"
+}

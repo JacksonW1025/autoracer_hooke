@@ -1,0 +1,398 @@
+--- a/src/autoware/core/common/autoware_kalman_filter/include/autoware/kalman_filter/time_delay_kalman_filter.hpp
++++ b/src/autoware/core/common/autoware_kalman_filter/include/autoware/kalman_filter/time_delay_kalman_filter.hpp
+@@ -52,8 +52,13 @@
+    * @param P0 initial covariance of estimated state
+    * @param max_delay_step Maximum number of delay steps, which determines the dimension of the
+    * extended kalman filter
+-   */
+-  void init(const Eigen::MatrixXd & x, const Eigen::MatrixXd & P, const int max_delay_step);
++   * @param non_delayed_tail_size Number of trailing state elements kept only at the current time.
++   * This is intended for slowly varying nuisance states that are observed together with delayed
++   * vehicle states but do not require a full delay history.
++   */
++  void init(
++    const Eigen::MatrixXd & x, const Eigen::MatrixXd & P, int max_delay_step,
++    int non_delayed_tail_size = 0);
+ 
+   /**
+    * @brief get latest time estimated state
+@@ -66,6 +71,16 @@
+   Eigen::MatrixXd getLatestP() const;
+ 
+   /**
++   * @brief Get a logical state element at a delayed vehicle-state step.
++   *
++   * A configured non-delayed tail is shared by all delay steps and therefore
++   * always resolves to its current value.
++   */
++  double getDelayedXelement(int delay_step, int state_index) const;
++
++  [[nodiscard]] int getExtendedStateDimension() const { return dim_x_ex_; }
++
++  /**
+    * @brief calculate kalman filter covariance by precision model with time delay. This is mainly
+    * for EKF of nonlinear process model.
+    * @param x_next predicted state by prediction model
+@@ -103,9 +118,15 @@
+     bool decorrelate_selected_states = false);
+ 
+ private:
++  [[nodiscard]] int delayedStateOffset(int delay_step) const;
++  [[nodiscard]] Eigen::MatrixXd createExtendedMeasurementMatrix(
++    const Eigen::MatrixXd & C, int delay_step) const;
++
+   int max_delay_step_{0};  //!< @brief maximum number of delay steps
+   int dim_x_{0};           //!< @brief dimension of latest state
+-  int dim_x_ex_{0};        //!< @brief dimension of extended state with dime delay
++  int dim_x_ex_{0};        //!< @brief dimension of extended state with time delay
++  int non_delayed_tail_size_{0};
++  int delayed_state_size_{0};
+ };
+ }  // namespace autoware::kalman_filter
+ #endif  // AUTOWARE__KALMAN_FILTER__TIME_DELAY_KALMAN_FILTER_HPP_
+--- a/src/autoware/core/common/autoware_kalman_filter/src/time_delay_kalman_filter.cpp
++++ b/src/autoware/core/common/autoware_kalman_filter/src/time_delay_kalman_filter.cpp
+@@ -15,23 +15,40 @@
+ #include "autoware/kalman_filter/time_delay_kalman_filter.hpp"
+ 
+ #include <iostream>
++#include <stdexcept>
+ #include <utility>
+ 
+ namespace autoware::kalman_filter
+ {
+ void TimeDelayKalmanFilter::init(
+-  const Eigen::MatrixXd & x, const Eigen::MatrixXd & P0, const int max_delay_step)
++  const Eigen::MatrixXd & x, const Eigen::MatrixXd & P0, const int max_delay_step,
++  const int non_delayed_tail_size)
+ {
++  if (
++    max_delay_step <= 0 || non_delayed_tail_size < 0 ||
++    non_delayed_tail_size >= x.rows() || P0.rows() != x.rows() ||
++    P0.cols() != x.rows()) {
++    throw std::invalid_argument("invalid time-delay Kalman filter dimensions");
++  }
+   max_delay_step_ = max_delay_step;
+   dim_x_ = x.rows();
+-  dim_x_ex_ = dim_x_ * max_delay_step;
++  non_delayed_tail_size_ = non_delayed_tail_size;
++  delayed_state_size_ = dim_x_ - non_delayed_tail_size_;
++  dim_x_ex_ =
++    dim_x_ + delayed_state_size_ * (max_delay_step_ - 1);
+ 
+   x_ = Eigen::MatrixXd::Zero(dim_x_ex_, 1);
+   P_ = Eigen::MatrixXd::Zero(dim_x_ex_, dim_x_ex_);
+ 
+-  for (int i = 0; i < max_delay_step_; ++i) {
+-    x_.block(i * dim_x_, 0, dim_x_, 1) = x;
+-    P_.block(i * dim_x_, i * dim_x_, dim_x_, dim_x_) = P0;
++  x_.block(0, 0, dim_x_, 1) = x;
++  P_.block(0, 0, dim_x_, dim_x_) = P0;
++  for (int step = 1; step < max_delay_step_; ++step) {
++    const int offset = delayedStateOffset(step);
++    x_.block(offset, 0, delayed_state_size_, 1) =
++      x.topRows(delayed_state_size_);
++    P_.block(
++      offset, offset, delayed_state_size_, delayed_state_size_) =
++      P0.topLeftCorner(delayed_state_size_, delayed_state_size_);
+   }
+ }
+ 
+@@ -45,6 +62,46 @@
+   return P_.block(0, 0, dim_x_, dim_x_);
+ }
+ 
++int TimeDelayKalmanFilter::delayedStateOffset(const int delay_step) const
++{
++  if (delay_step < 0 || delay_step >= max_delay_step_) {
++    throw std::out_of_range("delay step is outside the valid range");
++  }
++  return delay_step == 0
++           ? 0
++           : dim_x_ + (delay_step - 1) * delayed_state_size_;
++}
++
++double TimeDelayKalmanFilter::getDelayedXelement(
++  const int delay_step, const int state_index) const
++{
++  if (state_index < 0 || state_index >= dim_x_) {
++    throw std::out_of_range("state index is outside the valid range");
++  }
++  if (state_index >= delayed_state_size_) {
++    return x_(state_index, 0);
++  }
++  return x_(delayedStateOffset(delay_step) + state_index, 0);
++}
++
++Eigen::MatrixXd TimeDelayKalmanFilter::createExtendedMeasurementMatrix(
++  const Eigen::MatrixXd & C, const int delay_step) const
++{
++  if (C.cols() != dim_x_) {
++    return {};
++  }
++  Eigen::MatrixXd C_ex = Eigen::MatrixXd::Zero(C.rows(), dim_x_ex_);
++  C_ex.block(
++    0, delayedStateOffset(delay_step), C.rows(), delayed_state_size_) =
++    C.leftCols(delayed_state_size_);
++  if (non_delayed_tail_size_ > 0) {
++    C_ex.block(
++      0, delayed_state_size_, C.rows(), non_delayed_tail_size_) =
++      C.rightCols(non_delayed_tail_size_);
++  }
++  return C_ex;
++}
++
+ bool TimeDelayKalmanFilter::predictWithDelay(
+   const Eigen::MatrixXd & x_next, const Eigen::MatrixXd & A, const Eigen::MatrixXd & Q)
+ {
+@@ -62,6 +119,50 @@
+    *     [     P21*A'    P21    P22]
+    */
+ 
++  if (
++    x_next.rows() != dim_x_ || x_next.cols() != 1 ||
++    A.rows() != dim_x_ || A.cols() != dim_x_ ||
++    Q.rows() != dim_x_ || Q.cols() != dim_x_) {
++    return false;
++  }
++
++  if (non_delayed_tail_size_ > 0) {
++    Eigen::MatrixXd x_tmp = Eigen::MatrixXd::Zero(dim_x_ex_, 1);
++    x_tmp.block(0, 0, dim_x_, 1) = x_next;
++    for (int step = 1; step < max_delay_step_; ++step) {
++      const int source_offset = delayedStateOffset(step - 1);
++      const int destination_offset = delayedStateOffset(step);
++      x_tmp.block(destination_offset, 0, delayed_state_size_, 1) =
++        x_.block(source_offset, 0, delayed_state_size_, 1);
++    }
++
++    Eigen::MatrixXd P_tmp = Eigen::MatrixXd::Zero(dim_x_ex_, dim_x_ex_);
++    P_tmp.block(0, 0, dim_x_, dim_x_) =
++      A * P_.block(0, 0, dim_x_, dim_x_) * A.transpose() + Q;
++    for (int row_step = 1; row_step < max_delay_step_; ++row_step) {
++      const int row_source = delayedStateOffset(row_step - 1);
++      const int row_destination = delayedStateOffset(row_step);
++      P_tmp.block(0, row_destination, dim_x_, delayed_state_size_) =
++        A * P_.block(0, row_source, dim_x_, delayed_state_size_);
++      P_tmp.block(row_destination, 0, delayed_state_size_, dim_x_) =
++        P_.block(row_source, 0, delayed_state_size_, dim_x_) *
++        A.transpose();
++      for (int column_step = 1; column_step < max_delay_step_; ++column_step) {
++        const int column_source = delayedStateOffset(column_step - 1);
++        const int column_destination = delayedStateOffset(column_step);
++        P_tmp.block(
++          row_destination, column_destination, delayed_state_size_,
++          delayed_state_size_) =
++          P_.block(
++            row_source, column_source, delayed_state_size_,
++            delayed_state_size_);
++      }
++    }
++    x_ = std::move(x_tmp);
++    P_ = std::move(P_tmp);
++    return true;
++  }
++
+   const int d_dim_x = dim_x_ex_ - dim_x_;
+ 
+   /* slide states in the time direction */
+@@ -85,7 +186,7 @@
+   const Eigen::MatrixXd & y, const Eigen::MatrixXd & C, const Eigen::MatrixXd & R,
+   const int delay_step)
+ {
+-  if (delay_step >= max_delay_step_) {
++  if (delay_step < 0 || delay_step >= max_delay_step_) {
+     std::cerr << "delay step is larger than max_delay_step. ignore update." << std::endl;
+     return false;
+   }
+@@ -93,8 +194,11 @@
+   const int dim_y = y.rows();
+ 
+   /* set measurement matrix */
+-  Eigen::MatrixXd C_ex = Eigen::MatrixXd::Zero(dim_y, dim_x_ex_);
+-  C_ex.block(0, dim_x_ * delay_step, dim_y, dim_x_) = C;
++  const Eigen::MatrixXd C_ex =
++    createExtendedMeasurementMatrix(C, delay_step);
++  if (C_ex.rows() != dim_y) {
++    return false;
++  }
+ 
+   return update(y, C_ex, R);
+ }
+@@ -115,12 +219,22 @@
+   }
+ 
+   const int dim_y = y.rows();
+-  Eigen::MatrixXd C_ex = Eigen::MatrixXd::Zero(dim_y, dim_x_ex_);
+-  C_ex.block(0, dim_x_ * delay_step, dim_y, dim_x_) = C;
++  const Eigen::MatrixXd C_ex =
++    createExtendedMeasurementMatrix(C, delay_step);
++  if (C_ex.rows() != dim_y) {
++    return false;
++  }
+ 
+-  Eigen::VectorXi state_update_mask_ex(dim_x_ex_);
++  Eigen::VectorXi state_update_mask_ex = Eigen::VectorXi::Zero(dim_x_ex_);
+   for (int step = 0; step < max_delay_step_; ++step) {
+-    state_update_mask_ex.segment(step * dim_x_, dim_x_) = state_update_mask;
++    state_update_mask_ex.segment(
++      delayedStateOffset(step), delayed_state_size_) =
++      state_update_mask.head(delayed_state_size_);
++  }
++  if (non_delayed_tail_size_ > 0) {
++    state_update_mask_ex.segment(
++      delayed_state_size_, non_delayed_tail_size_) =
++      state_update_mask.tail(non_delayed_tail_size_);
+   }
+   return updateWithStateMask(
+     y, C_ex, R, state_update_mask_ex, selected_state_variance_floor,
+--- a/src/autoware/core/common/autoware_kalman_filter/test/test_time_delay_kalman_filter.cpp
++++ b/src/autoware/core/common/autoware_kalman_filter/test/test_time_delay_kalman_filter.cpp
+@@ -169,3 +169,81 @@
+   }
+   EXPECT_TRUE(selected_state_changed);
+ }
++
++TEST(time_delay_kalman_filter, non_delayed_tail_reduces_dimension_and_tracks_current_value)
++{
++  Eigen::MatrixXd state(8, 1);
++  state << 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0;
++  const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(8, 8);
++  TimeDelayKalmanFilter filter;
++  filter.init(state, covariance, 50, 2);
++
++  EXPECT_EQ(filter.getExtendedStateDimension(), 302);
++  for (int step : {0, 1, 25, 49}) {
++    EXPECT_DOUBLE_EQ(filter.getDelayedXelement(step, 0), 1.0);
++    EXPECT_DOUBLE_EQ(filter.getDelayedXelement(step, 5), 6.0);
++    EXPECT_DOUBLE_EQ(filter.getDelayedXelement(step, 6), 7.0);
++    EXPECT_DOUBLE_EQ(filter.getDelayedXelement(step, 7), 8.0);
++  }
++
++  Eigen::MatrixXd predicted = state;
++  predicted.block(0, 0, 6, 1).array() += 10.0;
++  predicted(6) = 70.0;
++  predicted(7) = 80.0;
++  ASSERT_TRUE(
++    filter.predictWithDelay(
++      predicted, Eigen::MatrixXd::Identity(8, 8), Eigen::MatrixXd::Zero(8, 8)));
++
++  EXPECT_DOUBLE_EQ(filter.getDelayedXelement(0, 0), 11.0);
++  EXPECT_DOUBLE_EQ(filter.getDelayedXelement(1, 0), 1.0);
++  for (int step : {0, 1, 25, 49}) {
++    EXPECT_DOUBLE_EQ(filter.getDelayedXelement(step, 6), 70.0);
++    EXPECT_DOUBLE_EQ(filter.getDelayedXelement(step, 7), 80.0);
++  }
++}
++
++TEST(time_delay_kalman_filter, delayed_measurement_uses_delayed_vehicle_and_current_tail)
++{
++  Eigen::MatrixXd state(4, 1);
++  state << 1.0, 0.0, 0.0, 2.0;
++  const Eigen::MatrixXd covariance = Eigen::MatrixXd::Identity(4, 4);
++  TimeDelayKalmanFilter filter;
++  filter.init(state, covariance, 3, 1);
++
++  Eigen::MatrixXd predicted = state;
++  predicted(0) = 10.0;
++  ASSERT_TRUE(
++    filter.predictWithDelay(
++      predicted, Eigen::MatrixXd::Identity(4, 4), Eigen::MatrixXd::Zero(4, 4)));
++
++  Eigen::MatrixXd before;
++  filter.getX(before);
++  Eigen::MatrixXd measurement(1, 1);
++  measurement << 3.0;  // delayed x (1.0) + current bias (2.0)
++  Eigen::MatrixXd measurement_matrix = Eigen::MatrixXd::Zero(1, 4);
++  measurement_matrix(0, 0) = 1.0;
++  measurement_matrix(0, 3) = 1.0;
++  ASSERT_TRUE(
++    filter.updateWithDelay(
++      measurement, measurement_matrix, 0.01 * Eigen::MatrixXd::Identity(1, 1), 1));
++
++  Eigen::MatrixXd after;
++  filter.getX(after);
++  EXPECT_TRUE(after.isApprox(before, 1.0e-12));
++}
++
++TEST(time_delay_kalman_filter, default_layout_remains_fully_delayed)
++{
++  const Eigen::Vector3d state(1.0, 2.0, 3.0);
++  const Eigen::Matrix3d covariance = Eigen::Matrix3d::Identity();
++  TimeDelayKalmanFilter filter;
++  filter.init(state, covariance, 5);
++
++  EXPECT_EQ(filter.getExtendedStateDimension(), 15);
++  Eigen::MatrixXd extended_state;
++  filter.getX(extended_state);
++  ASSERT_EQ(extended_state.rows(), 15);
++  for (int step = 0; step < 5; ++step) {
++    EXPECT_TRUE((extended_state.block<3, 1>(step * 3, 0).isApprox(state)));
++  }
++}
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
+@@ -61,7 +61,9 @@
+     p(IDX::GNSS_BY, IDX::GNSS_BY) = bias_variance;
+   }
+ 
+-  kalman_filter_.init(x, p, static_cast<int>(params_.extend_state_step));
++  kalman_filter_.init(
++    x, p, static_cast<int>(params_.extend_state_step),
++    params_.enable_gnss_bias_estimation ? 2 : 0);
+   z_filter_.set_proc_var(params_.z_filter_proc_dev * params_.z_filter_proc_dev);
+   roll_filter_.set_proc_var(params_.roll_filter_proc_dev * params_.roll_filter_proc_dev);
+   pitch_filter_.set_proc_var(params_.pitch_filter_proc_dev * params_.pitch_filter_proc_dev);
+@@ -98,7 +100,9 @@
+     p(IDX::GNSS_BY, IDX::GNSS_BY) = bias_variance;
+   }
+ 
+-  kalman_filter_.init(x, p, static_cast<int>(params_.extend_state_step));
++  kalman_filter_.init(
++    x, p, static_cast<int>(params_.extend_state_step),
++    params_.enable_gnss_bias_estimation ? 2 : 0);
+ 
+   const double z = initial_pose.pose.pose.position.z;
+ 
+@@ -309,7 +313,8 @@
+     offset the yaw angle so that the difference from the yaw angle that ekf holds internally
+     is less than 2 pi. */
+   double yaw = tf2::getYaw(pose.pose.pose.orientation);
+-  const double ekf_yaw = kalman_filter_.getXelement(delay_step * dim_x_ + IDX::YAW);
++  const double ekf_yaw =
++    kalman_filter_.getDelayedXelement(static_cast<int>(delay_step), IDX::YAW);
+   const double yaw_error = normalize_yaw(yaw - ekf_yaw);  // normalize the error not to exceed 2 pi
+   yaw = yaw_error + ekf_yaw;
+ 
+@@ -329,11 +334,16 @@
+ 
+   /* Gate */
+   Eigen::Vector3d y_ekf(
+-    kalman_filter_.getXelement(delay_step * dim_x_ + IDX::X),
+-    kalman_filter_.getXelement(delay_step * dim_x_ + IDX::Y), ekf_yaw);
++    kalman_filter_.getDelayedXelement(static_cast<int>(delay_step), IDX::X),
++    kalman_filter_.getDelayedXelement(static_cast<int>(delay_step), IDX::Y),
++    ekf_yaw);
+   if (is_position_only_measurement && params_.enable_gnss_bias_estimation) {
+-    y_ekf.x() += kalman_filter_.getXelement(delay_step * dim_x_ + IDX::GNSS_BX);
+-    y_ekf.y() += kalman_filter_.getXelement(delay_step * dim_x_ + IDX::GNSS_BY);
++    y_ekf.x() +=
++      kalman_filter_.getDelayedXelement(
++        static_cast<int>(delay_step), IDX::GNSS_BX);
++    y_ekf.y() +=
++      kalman_filter_.getDelayedXelement(
++        static_cast<int>(delay_step), IDX::GNSS_BY);
+   }
+   const Eigen::MatrixXd p_curr = kalman_filter_.getLatestP();
+   const Eigen::MatrixXd c_gate =
+@@ -492,8 +502,8 @@
+   }
+ 
+   const Eigen::Vector2d y_ekf(
+-    kalman_filter_.getXelement(delay_step * dim_x_ + IDX::VX),
+-    kalman_filter_.getXelement(delay_step * dim_x_ + IDX::WZ));
++    kalman_filter_.getDelayedXelement(static_cast<int>(delay_step), IDX::VX),
++    kalman_filter_.getDelayedXelement(static_cast<int>(delay_step), IDX::WZ));
+   const Eigen::MatrixXd p_curr = kalman_filter_.getLatestP();
+   const Eigen::MatrixXd p_y = p_curr.block(4, 4, dim_y, dim_y);
+ 

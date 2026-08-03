@@ -1,0 +1,1536 @@
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp	2026-08-01 19:21:04.389217278 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp	2026-08-01 19:07:48.960872657 +0800
+@@ -16,6 +16,7 @@
+ #define AUTOWARE__EKF_LOCALIZER__EKF_MODULE_HPP_
+ 
+ #include "autoware/ekf_localizer/hyper_parameters.hpp"
++#include "autoware/ekf_localizer/position_only_innovation_monitor.hpp"
+ #include "autoware/ekf_localizer/state_index.hpp"
+ #include "autoware/ekf_localizer/warning.hpp"
+ 
+@@ -78,6 +79,7 @@
+   void set_proc_var(const double proc_var) { proc_var_x_c_ = proc_var; }
+   [[nodiscard]] double get_x() const { return x_; }
+   [[nodiscard]] double get_var() const { return var_; }
++  [[nodiscard]] bool is_initialized() const { return initialized_; }
+ 
+ private:
+   bool initialized_;
+@@ -110,6 +112,16 @@
+   [[nodiscard]] double get_gnss_position_correction_authority() const;
+   [[nodiscard]] size_t get_position_only_accepted_count() const;
+   [[nodiscard]] size_t get_position_only_nis_rejected_count() const;
++  [[nodiscard]] size_t get_position_only_sequential_rejected_count() const;
++  [[nodiscard]] double get_latest_position_only_nis() const;
++  [[nodiscard]] Eigen::Vector2d
++  get_latest_position_only_standardized_innovation() const;
++  [[nodiscard]] double get_position_only_sequential_statistic() const;
++  [[nodiscard]] bool get_position_only_sequential_latched() const;
++  [[nodiscard]] size_t get_position_only_sequential_observed_count() const;
++  [[nodiscard]] size_t get_height_only_accepted_count() const;
++  [[nodiscard]] size_t get_height_only_nis_rejected_count() const;
++  [[nodiscard]] double get_latest_height_only_nis() const;
+   [[nodiscard]] std::array<double, 36> get_current_pose_covariance(
+       bool apply_gnss_position_correction = false) const;
+   [[nodiscard]] std::array<double, 36> get_current_twist_covariance() const;
+@@ -136,6 +148,9 @@
+   void update_simple_1d_filters(
+       const geometry_msgs::msg::PoseWithCovarianceStamped &pose,
+       const size_t smoothing_step);
++  void update_height_filter(
++      const geometry_msgs::msg::PoseWithCovarianceStamped &pose,
++      size_t smoothing_step);
+ 
+   TimeDelayKalmanFilter kalman_filter_;
+ 
+@@ -143,6 +158,7 @@
+   const int dim_x_;
+   std::vector<double> accumulated_delay_times_;
+   const HyperParameters params_;
++  PositionOnlyInnovationMonitor position_only_innovation_monitor_;
+ 
+   Simple1DFilter z_filter_;
+   Simple1DFilter roll_filter_;
+@@ -160,6 +176,15 @@
+   double gnss_position_correction_authority_{0.0};
+   size_t position_only_accepted_count_{0};
+   size_t position_only_nis_rejected_count_{0};
++  size_t position_only_sequential_rejected_count_{0};
++  double latest_position_only_nis_{0.0};
++  Eigen::Vector2d latest_position_only_standardized_innovation_{
++      Eigen::Vector2d::Zero()};
++  bool has_accepted_height_only_measurement_{false};
++  int64_t last_accepted_height_only_source_stamp_ns_{0};
++  size_t height_only_accepted_count_{0};
++  size_t height_only_nis_rejected_count_{0};
++  double latest_height_only_nis_{0.0};
+ };
+ 
+ } // namespace autoware::ekf_localizer
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp	2026-08-01 19:21:04.391217299 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp	2026-08-01 19:09:44.025079761 +0800
+@@ -18,6 +18,7 @@
+ #include <rclcpp/rclcpp.hpp>
+ 
+ #include <algorithm>
++#include <cstdint>
+ #include <string>
+ 
+ namespace autoware::ekf_localizer {
+@@ -43,6 +44,10 @@
+             "pose_measurement.pose_smoothing_steps")),
+         max_pose_queue_size(node->declare_parameter<int>(
+             "pose_measurement.max_pose_queue_size")),
++        pose_subscription_qos_depth(static_cast<size_t>(std::max<std::int64_t>(
++            node->declare_parameter<int>(
++                "pose_measurement.pose_subscription_qos_depth", 1),
++            1))),
+         enable_position_only_state_mask(node->declare_parameter<bool>(
+             "pose_measurement.enable_position_only_state_mask", false)),
+         position_only_yaw_variance_threshold(node->declare_parameter<double>(
+@@ -65,6 +70,37 @@
+             1.0)),
+         position_only_nis_gate(node->declare_parameter<double>(
+             "pose_measurement.position_only_nis_gate", 0.0)),
++        position_only_sequential_integrity_enabled(
++            node->declare_parameter<bool>(
++                "pose_measurement.position_only_sequential_integrity_enabled",
++                false)),
++        position_only_sequential_warmup_samples(
++            static_cast<size_t>(std::max<std::int64_t>(
++                node->declare_parameter<int>(
++                    "pose_measurement.position_only_sequential_warmup_samples",
++                    50),
++                0))),
++        position_only_sequential_reference_sigma(
++            node->declare_parameter<double>(
++                "pose_measurement.position_only_sequential_reference_sigma",
++                0.5)),
++        position_only_sequential_decision_threshold(
++            node->declare_parameter<double>(
++                "pose_measurement.position_only_sequential_decision_threshold",
++                15.0)),
++        position_only_sequential_recovery_samples(static_cast<
++                                                  size_t>(std::max<
++                                                          std::int64_t>(
++            node->declare_parameter<int>(
++                "pose_measurement.position_only_sequential_recovery_samples",
++                20),
++            1))),
++        position_only_sequential_recovery_nis_threshold(node->declare_parameter<
++                                                        double>(
++            "pose_measurement.position_only_sequential_recovery_nis_threshold",
++            5.991464547107979)),
++        position_only_sequential_reset_gap_sec(node->declare_parameter<double>(
++            "pose_measurement.position_only_sequential_reset_gap_sec", 1.0)),
+         position_only_gnss_minimum_xy_std_m(node->declare_parameter<double>(
+             "pose_measurement.position_only_gnss_minimum_xy_std_m", 0.0)),
+         position_only_ndt_fixed_xy_std_m(node->declare_parameter<double>(
+@@ -81,6 +117,14 @@
+             node->declare_parameter<double>(
+                 "pose_measurement.position_only_correction_initial_settle_sec",
+                 0.0)),
++        enable_height_only_measurement(node->declare_parameter<bool>(
++            "pose_measurement.enable_height_only_measurement", false)),
++        height_only_xy_variance_threshold_m2(node->declare_parameter<double>(
++            "pose_measurement.height_only_xy_variance_threshold_m2", 100000.0)),
++        height_only_z_variance_threshold_m2(node->declare_parameter<double>(
++            "pose_measurement.height_only_z_variance_threshold_m2", 3.24)),
++        height_only_nis_gate(node->declare_parameter<double>(
++            "pose_measurement.height_only_nis_gate", 10.827566170662733)),
+         twist_additional_delay(node->declare_parameter<double>(
+             "twist_measurement.twist_additional_delay")),
+         twist_gate_dist(node->declare_parameter<double>(
+@@ -138,6 +182,7 @@
+   const double pose_gate_dist;
+   const size_t pose_smoothing_steps;
+   const size_t max_pose_queue_size;
++  const size_t pose_subscription_qos_depth;
+   const bool enable_position_only_state_mask;
+   const double position_only_yaw_variance_threshold;
+   const double position_only_state_variance_floor_m2;
+@@ -148,12 +193,23 @@
+   const bool enable_position_only_dual_projection;
+   const double position_only_information_variance_multiplier;
+   const double position_only_nis_gate;
++  const bool position_only_sequential_integrity_enabled;
++  const size_t position_only_sequential_warmup_samples;
++  const double position_only_sequential_reference_sigma;
++  const double position_only_sequential_decision_threshold;
++  const size_t position_only_sequential_recovery_samples;
++  const double position_only_sequential_recovery_nis_threshold;
++  const double position_only_sequential_reset_gap_sec;
+   const double position_only_gnss_minimum_xy_std_m;
+   const double position_only_ndt_fixed_xy_std_m;
+   const double position_only_correction_full_age_sec;
+   const double position_only_correction_zero_age_sec;
+   const double position_only_correction_rise_rate_per_sec;
+   const double position_only_correction_initial_settle_sec;
++  const bool enable_height_only_measurement;
++  const double height_only_xy_variance_threshold_m2;
++  const double height_only_z_variance_threshold_m2;
++  const double height_only_nis_gate;
+   const double twist_additional_delay;
+   const double twist_gate_dist;
+   const size_t twist_smoothing_steps;
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp	2026-08-01 19:21:04.403217425 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/measurement.hpp	2026-08-01 19:07:28.161654466 +0800
+@@ -25,6 +25,10 @@
+ bool is_position_only_pose_measurement(
+   const std::array<double, 36ul> & covariance, bool feature_enabled,
+   double yaw_variance_threshold);
++bool is_height_only_pose_measurement(
++  const std::array<double, 36ul> & covariance, bool feature_enabled,
++  double xy_variance_threshold, double z_variance_threshold,
++  double yaw_variance_threshold);
+ Eigen::Matrix<double, 3, 6> pose_measurement_matrix();
+ Eigen::Matrix<double, 2, 6> position_only_pose_measurement_matrix();
+ Eigen::Matrix<double, 2, 6> twist_measurement_matrix();
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/position_only_innovation_monitor.hpp b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/position_only_innovation_monitor.hpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/position_only_innovation_monitor.hpp	1970-01-01 08:00:00.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/position_only_innovation_monitor.hpp	2026-08-01 01:55:18.207394789 +0800
+@@ -0,0 +1,188 @@
++// Copyright 2026 Autoware Foundation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#ifndef AUTOWARE__EKF_LOCALIZER__POSITION_ONLY_INNOVATION_MONITOR_HPP_
++#define AUTOWARE__EKF_LOCALIZER__POSITION_ONLY_INNOVATION_MONITOR_HPP_
++
++#include <Eigen/Core>
++
++#include <algorithm>
++#include <array>
++#include <cmath>
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++#include <stdexcept>
++
++namespace autoware::ekf_localizer {
++
++struct PositionOnlyInnovationMonitorConfig {
++  bool enabled{false};
++  std::size_t warmup_samples{50};
++  double reference_sigma{0.5};
++  double decision_threshold{15.0};
++  std::size_t recovery_samples{20};
++  double recovery_nis_threshold{5.991464547107979};
++  double reset_gap_sec{1.0};
++};
++
++struct PositionOnlyInnovationMonitorResult {
++  bool reject{false};
++  bool latched{false};
++  double statistic{0.0};
++};
++
++/// Two-sided Page-CUSUM monitor for persistent, signed position innovations.
++///
++/// The ordinary per-sample NIS gate remains the first line of defence.  This
++/// monitor is evaluated only for samples that already passed that gate.  It
++/// detects a different failure mode: many individually plausible innovations
++/// that keep pushing in one direction.  When disabled it is a strict no-op.
++class PositionOnlyInnovationMonitor {
++public:
++  explicit PositionOnlyInnovationMonitor(
++      const PositionOnlyInnovationMonitorConfig &config = {})
++      : config_(config) {
++    validate_config();
++  }
++
++  void reset() {
++    positive_cusum_.fill(0.0);
++    negative_cusum_.fill(0.0);
++    warmup_count_ = 0;
++    recovery_count_ = 0;
++    observed_count_ = 0;
++    rejected_count_ = 0;
++    last_stamp_ns_ = 0;
++    latched_ = false;
++    statistic_ = 0.0;
++  }
++
++  PositionOnlyInnovationMonitorResult
++  observe(const Eigen::Vector2d &marginal_standardized_innovation,
++          const double nis, const std::int64_t stamp_ns) {
++    if (!config_.enabled) {
++      return {};
++    }
++    if (!marginal_standardized_innovation.allFinite() || !std::isfinite(nis) ||
++        nis < 0.0) {
++      latched_ = true;
++      ++rejected_count_;
++      return result(true);
++    }
++
++    if (last_stamp_ns_ != 0) {
++      // The EKF's pose smoothing intentionally applies one source
++      // measurement several times.  Those applications are not independent
++      // innovation samples.  Count and evaluate each source timestamp once;
++      // otherwise smoothing both over-weights the evidence and repeatedly
++      // resets the sequence on a zero timestamp gap.
++      if (stamp_ns == last_stamp_ns_) {
++        return result(latched_);
++      }
++      const double gap_sec =
++          static_cast<double>(stamp_ns - last_stamp_ns_) / 1.0e9;
++      if (gap_sec < 0.0 || gap_sec > config_.reset_gap_sec) {
++        reset_sequence_preserving_latch();
++      }
++    }
++    last_stamp_ns_ = stamp_ns;
++    ++observed_count_;
++
++    if (latched_) {
++      if (nis <= config_.recovery_nis_threshold) {
++        ++recovery_count_;
++      } else {
++        recovery_count_ = 0;
++      }
++      if (recovery_count_ >= config_.recovery_samples) {
++        latched_ = false;
++        reset_sequence_preserving_latch();
++        return result(false);
++      }
++      ++rejected_count_;
++      return result(true);
++    }
++
++    if (warmup_count_ < config_.warmup_samples) {
++      ++warmup_count_;
++      return result(false);
++    }
++
++    for (std::size_t axis = 0; axis < 2; ++axis) {
++      const double value =
++          marginal_standardized_innovation(static_cast<Eigen::Index>(axis));
++      positive_cusum_[axis] = std::max(0.0, positive_cusum_[axis] + value -
++                                                config_.reference_sigma);
++      negative_cusum_[axis] = std::max(0.0, negative_cusum_[axis] - value -
++                                                config_.reference_sigma);
++    }
++    statistic_ = std::max({positive_cusum_[0], positive_cusum_[1],
++                           negative_cusum_[0], negative_cusum_[1]});
++    if (statistic_ >= config_.decision_threshold) {
++      latched_ = true;
++      recovery_count_ = 0;
++      ++rejected_count_;
++      return result(true);
++    }
++    return result(false);
++  }
++
++  [[nodiscard]] bool latched() const { return latched_; }
++  [[nodiscard]] double statistic() const { return statistic_; }
++  [[nodiscard]] std::size_t observed_count() const { return observed_count_; }
++  [[nodiscard]] std::size_t rejected_count() const { return rejected_count_; }
++
++private:
++  void validate_config() const {
++    if (!std::isfinite(config_.reference_sigma) ||
++        config_.reference_sigma < 0.0 ||
++        !std::isfinite(config_.decision_threshold) ||
++        config_.decision_threshold <= 0.0 || config_.recovery_samples == 0 ||
++        !std::isfinite(config_.recovery_nis_threshold) ||
++        config_.recovery_nis_threshold <= 0.0 ||
++        !std::isfinite(config_.reset_gap_sec) || config_.reset_gap_sec <= 0.0) {
++      throw std::invalid_argument(
++          "invalid position-only innovation monitor configuration");
++    }
++  }
++
++  void reset_sequence_preserving_latch() {
++    positive_cusum_.fill(0.0);
++    negative_cusum_.fill(0.0);
++    warmup_count_ = 0;
++    recovery_count_ = 0;
++    statistic_ = 0.0;
++  }
++
++  [[nodiscard]] PositionOnlyInnovationMonitorResult
++  result(const bool reject) const {
++    return {reject, latched_, statistic_};
++  }
++
++  PositionOnlyInnovationMonitorConfig config_;
++  std::array<double, 2> positive_cusum_{{0.0, 0.0}};
++  std::array<double, 2> negative_cusum_{{0.0, 0.0}};
++  std::size_t warmup_count_{0};
++  std::size_t recovery_count_{0};
++  std::size_t observed_count_{0};
++  std::size_t rejected_count_{0};
++  std::int64_t last_stamp_ns_{0};
++  bool latched_{false};
++  double statistic_{0.0};
++};
++
++} // namespace autoware::ekf_localizer
++
++#endif // AUTOWARE__EKF_LOCALIZER__POSITION_ONLY_INNOVATION_MONITOR_HPP_
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_localizer.cpp b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_localizer.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_localizer.cpp	2026-08-01 19:21:04.399217383 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_localizer.cpp	2026-08-01 19:08:42.058429687 +0800
+@@ -49,8 +49,8 @@
+       warning_(std::make_shared<Warning>(this)), tf2_buffer_(this->get_clock()),
+       tf2_listener_(tf2_buffer_), params_(this), ekf_dt_(params_.ekf_dt),
+       pose_queue_(params_.pose_smoothing_steps, params_.max_pose_queue_size),
+-      position_only_pose_queue_(
+-        params_.pose_smoothing_steps, params_.max_pose_queue_size),
++      position_only_pose_queue_(params_.pose_smoothing_steps,
++                                params_.max_pose_queue_size),
+       twist_queue_(params_.twist_smoothing_steps,
+                    params_.max_twist_queue_size) {
+   is_activated_ = false;
+@@ -93,7 +93,7 @@
+           std::bind(&EKFLocalizer::callback_initial_pose, this, _1));
+   sub_pose_with_cov_ =
+       create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
+-          "in_pose_with_covariance", 1,
++          "in_pose_with_covariance", params_.pose_subscription_qos_depth,
+           std::bind(&EKFLocalizer::callback_pose_with_covariance, this, _1));
+   sub_twist_with_cov_ =
+       create_subscription<geometry_msgs::msg::TwistWithCovarianceStamped>(
+@@ -191,7 +191,7 @@
+ 
+   /* pose measurement update */
+   pose_diag_info_.queue_size =
+-    pose_queue_.size() + position_only_pose_queue_.size();
++      pose_queue_.size() + position_only_pose_queue_.size();
+   pose_diag_info_.is_passed_delay_gate = true;
+   pose_diag_info_.delay_time = 0.0;
+   pose_diag_info_.delay_time_threshold = 0.0;
+@@ -206,15 +206,16 @@
+         "------------------------- start Pose -------------------------");
+     stop_watch_.tic();
+ 
+-    const auto update_queue = [this, &current_time, &pose_is_updated](auto & queue) {
+-        const size_t n = queue.size();
+-        for (size_t i = 0; i < n; ++i) {
+-          const auto pose = queue.pop_increment_age();
+-          const bool is_updated = ekf_module_->measurement_update_pose(
++    const auto update_queue = [this, &current_time,
++                               &pose_is_updated](auto &queue) {
++      const size_t n = queue.size();
++      for (size_t i = 0; i < n; ++i) {
++        const auto pose = queue.pop_increment_age();
++        const bool is_updated = ekf_module_->measurement_update_pose(
+             *pose, current_time, pose_diag_info_);
+-          pose_is_updated = pose_is_updated || is_updated;
+-        }
+-      };
++        pose_is_updated = pose_is_updated || is_updated;
++      }
++    };
+     // The local NDT state is authoritative for scan-matcher feedback. Apply
+     // every NDT update first, then estimate the independent GNSS correction.
+     update_queue(pose_queue_);
+@@ -332,22 +333,23 @@
+   }
+ 
+   const bool use_separate_position_only_queue =
+-    params_.enable_position_only_dual_projection &&
+-    is_position_only_pose_measurement(
+-      msg->pose.covariance, params_.enable_position_only_state_mask,
+-      params_.position_only_yaw_variance_threshold);
+-  auto & queue =
+-    use_separate_position_only_queue ? position_only_pose_queue_ : pose_queue_;
++      params_.enable_position_only_dual_projection &&
++      is_position_only_pose_measurement(
++          msg->pose.covariance, params_.enable_position_only_state_mask,
++          params_.position_only_yaw_variance_threshold);
++  auto &queue = use_separate_position_only_queue ? position_only_pose_queue_
++                                                 : pose_queue_;
+   queue.push(msg);
+ 
+   // Warn if queue is exceeded
+   if (queue.exceeded()) {
+     warning_->warn_throttle(
+-        fmt::format(
+-          "[EKF] {} pose queue size ({}) is exceeding max_queue_size "
+-          "({}). Consider increasing max_queue_size or reducing input frequency.",
+-          use_separate_position_only_queue ? "position-only" : "primary",
+-          queue.size(), queue.max_queue_size()),
++        fmt::format("[EKF] {} pose queue size ({}) is exceeding max_queue_size "
++                    "({}). Consider increasing max_queue_size or reducing "
++                    "input frequency.",
++                    use_separate_position_only_queue ? "position-only"
++                                                     : "primary",
++                    queue.size(), queue.max_queue_size()),
+         2000);
+     queue.pop();
+   }
+@@ -429,6 +431,8 @@
+   const Eigen::Vector2d gnss_bias = ekf_module_->get_gnss_position_bias();
+   const Eigen::Vector2d applied_correction =
+       ekf_module_->get_applied_gnss_position_correction();
++  const Eigen::Vector2d standardized_innovation =
++      ekf_module_->get_latest_position_only_standardized_innovation();
+   autoware_internal_debug_msgs::msg::Float64MultiArrayStamped gnss_debug;
+   gnss_debug.stamp = current_ekf_twist.header.stamp;
+   gnss_debug.data = {
+@@ -438,7 +442,19 @@
+       applied_correction.x(),
+       applied_correction.y(),
+       static_cast<double>(ekf_module_->get_position_only_accepted_count()),
+-      static_cast<double>(ekf_module_->get_position_only_nis_rejected_count())};
++      static_cast<double>(ekf_module_->get_position_only_nis_rejected_count()),
++      ekf_module_->get_latest_position_only_nis(),
++      standardized_innovation.x(),
++      standardized_innovation.y(),
++      ekf_module_->get_position_only_sequential_statistic(),
++      ekf_module_->get_position_only_sequential_latched() ? 1.0 : 0.0,
++      static_cast<double>(
++          ekf_module_->get_position_only_sequential_rejected_count()),
++      static_cast<double>(
++          ekf_module_->get_position_only_sequential_observed_count()),
++      static_cast<double>(ekf_module_->get_height_only_accepted_count()),
++      static_cast<double>(ekf_module_->get_height_only_nis_rejected_count()),
++      ekf_module_->get_latest_height_only_nis()};
+   pub_gnss_correction_debug_->publish(gnss_debug);
+ 
+   /* publish latest odometry */
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp	2026-08-01 19:21:04.405217446 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp	2026-08-01 19:08:28.218284491 +0800
+@@ -46,7 +46,17 @@
+     : warning_(std::move(warning)),
+       dim_x_(params.enable_gnss_bias_estimation ? 8 : 6),
+       accumulated_delay_times_(params.extend_state_step, 1.0E15),
+-      params_(params), last_angular_velocity_(0.0, 0.0, 0.0) {
++      params_(params),
++      position_only_innovation_monitor_({
++          params.position_only_sequential_integrity_enabled,
++          params.position_only_sequential_warmup_samples,
++          params.position_only_sequential_reference_sigma,
++          params.position_only_sequential_decision_threshold,
++          params.position_only_sequential_recovery_samples,
++          params.position_only_sequential_recovery_nis_threshold,
++          params.position_only_sequential_reset_gap_sec,
++      }),
++      last_angular_velocity_(0.0, 0.0, 0.0) {
+   Eigen::MatrixXd x = Eigen::MatrixXd::Zero(dim_x_, 1);
+   Eigen::MatrixXd p =
+       Eigen::MatrixXd::Identity(dim_x_, dim_x_) * 1.0E15; // for x & y
+@@ -113,6 +123,10 @@
+   gnss_position_correction_authority_ = 0.0;
+   position_only_accepted_count_ = 0;
+   position_only_nis_rejected_count_ = 0;
++  position_only_sequential_rejected_count_ = 0;
++  latest_position_only_nis_ = 0.0;
++  latest_position_only_standardized_innovation_.setZero();
++  position_only_innovation_monitor_.reset();
+   const double settle_sec =
+       std::max(params_.position_only_correction_initial_settle_sec, 0.0);
+   position_only_correction_settle_until_ns_ =
+@@ -246,6 +260,43 @@
+   return position_only_nis_rejected_count_;
+ }
+ 
++size_t EKFModule::get_position_only_sequential_rejected_count() const {
++  return position_only_sequential_rejected_count_;
++}
++
++double EKFModule::get_latest_position_only_nis() const {
++  return latest_position_only_nis_;
++}
++
++Eigen::Vector2d
++EKFModule::get_latest_position_only_standardized_innovation() const {
++  return latest_position_only_standardized_innovation_;
++}
++
++double EKFModule::get_position_only_sequential_statistic() const {
++  return position_only_innovation_monitor_.statistic();
++}
++
++bool EKFModule::get_position_only_sequential_latched() const {
++  return position_only_innovation_monitor_.latched();
++}
++
++size_t EKFModule::get_position_only_sequential_observed_count() const {
++  return position_only_innovation_monitor_.observed_count();
++}
++
++size_t EKFModule::get_height_only_accepted_count() const {
++  return height_only_accepted_count_;
++}
++
++size_t EKFModule::get_height_only_nis_rejected_count() const {
++  return height_only_nis_rejected_count_;
++}
++
++double EKFModule::get_latest_height_only_nis() const {
++  return latest_height_only_nis_;
++}
++
+ size_t EKFModule::find_closest_delay_time_index(double target_value) const {
+   // If target_value is too large, return last index + 1
+   if (target_value > accumulated_delay_times_.back()) {
+@@ -382,6 +433,60 @@
+     return false;
+   }
+ 
++  const bool is_height_only_measurement = is_height_only_pose_measurement(
++      pose.pose.covariance, params_.enable_height_only_measurement,
++      params_.height_only_xy_variance_threshold_m2,
++      params_.height_only_z_variance_threshold_m2,
++      params_.position_only_yaw_variance_threshold);
++  if (is_height_only_measurement) {
++    const auto compensated_pose =
++        compensate_rph_with_delay(pose, last_angular_velocity_, delay_time);
++    const double measured_z = compensated_pose.pose.pose.position.z;
++    using COV_IDX =
++        autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
++    const double measurement_variance =
++        compensated_pose.pose.covariance[COV_IDX::Z_Z];
++    if (!std::isfinite(measured_z) || !std::isfinite(measurement_variance) ||
++        measurement_variance <= 0.0) {
++      warning_->warn(
++          "[EKF] height-only measurement or covariance is invalid. Ignore update.");
++      return false;
++    }
++    double nis = 0.0;
++    if (z_filter_.is_initialized()) {
++      const double innovation_variance =
++          z_filter_.get_var() + measurement_variance;
++      const double innovation = measured_z - z_filter_.get_x();
++      if (!std::isfinite(innovation_variance) || innovation_variance <= 0.0) {
++        warning_->warn(
++            "[EKF] height-only innovation covariance is invalid. Ignore update.");
++        return false;
++      }
++      nis = innovation * innovation / innovation_variance;
++    }
++    latest_height_only_nis_ = nis;
++    if (!std::isfinite(nis) ||
++        (params_.height_only_nis_gate > 0.0 && nis > params_.height_only_nis_gate)) {
++      ++height_only_nis_rejected_count_;
++      pose_diag_info.is_passed_mahalanobis_gate = false;
++      pose_diag_info.mahalanobis_distance = std::max(
++          pose_diag_info.mahalanobis_distance,
++          std::isfinite(nis) ? std::sqrt(std::max(nis, 0.0)) : 0.0);
++      warning_->warn_throttle(
++          "[EKF] height-only measurement rejected by the NIS gate.", 2000);
++      return false;
++    }
++    update_height_filter(compensated_pose, params_.pose_smoothing_steps);
++    const int64_t source_stamp_ns = rclcpp::Time(pose.header.stamp).nanoseconds();
++    if (!has_accepted_height_only_measurement_ ||
++        source_stamp_ns > last_accepted_height_only_source_stamp_ns_) {
++      ++height_only_accepted_count_;
++      last_accepted_height_only_source_stamp_ns_ = source_stamp_ns;
++    }
++    has_accepted_height_only_measurement_ = true;
++    return true;
++  }
++
+   /* Since the kalman filter cannot handle the rotation angle directly,
+     offset the yaw angle so that the difference from the yaw angle that ekf
+     holds internally is less than 2 pi. */
+@@ -429,6 +534,8 @@
+   const Eigen::MatrixXd p_curr = kalman_filter_.getLatestP();
+   double distance = 0.0;
+   double gate_threshold = params_.pose_gate_dist;
++  Eigen::Vector2d position_only_standardized_innovation =
++      Eigen::Vector2d::Zero();
+   if (use_dual_projection) {
+     const Eigen::Vector2d local_position(
+         kalman_filter_.getDelayedXelement(static_cast<int>(delay_step), IDX::X),
+@@ -456,6 +563,11 @@
+     }
+     const Eigen::Matrix2d innovation_covariance =
+         c_bias * p_curr * c_bias.transpose() + single_sample_covariance;
++    const Eigen::Vector2d innovation = bias_observation - bias_prediction;
++    position_only_standardized_innovation.x() =
++        innovation.x() / std::sqrt(innovation_covariance(0, 0));
++    position_only_standardized_innovation.y() =
++        innovation.y() / std::sqrt(innovation_covariance(1, 1));
+     distance = std::sqrt(
+         std::max(squared_mahalanobis(bias_prediction, bias_observation,
+                                      innovation_covariance),
+@@ -468,8 +580,7 @@
+     const Eigen::Vector2d y_position = y.block<2, 1>(0, 0);
+     const Eigen::Matrix2d innovation_covariance =
+         position_only_pose_innovation_covariance(
+-            p_curr, params_.enable_gnss_bias_estimation,
+-            pose.pose.covariance);
++            p_curr, params_.enable_gnss_bias_estimation, pose.pose.covariance);
+     const Eigen::LDLT<Eigen::Matrix2d> covariance_ldlt(
+         innovation_covariance.selfadjointView<Eigen::Lower>());
+     if (!innovation_covariance.allFinite() ||
+@@ -479,10 +590,14 @@
+           "[EKF] invalid position-only innovation covariance. Ignore update.");
+       return false;
+     }
+-    distance = std::sqrt(
+-        std::max(squared_mahalanobis(
+-                     y_ekf_position, y_position, innovation_covariance),
+-                 0.0));
++    const Eigen::Vector2d innovation = y_position - y_ekf_position;
++    position_only_standardized_innovation.x() =
++        innovation.x() / std::sqrt(innovation_covariance(0, 0));
++    position_only_standardized_innovation.y() =
++        innovation.y() / std::sqrt(innovation_covariance(1, 1));
++    distance = std::sqrt(std::max(
++        squared_mahalanobis(y_ekf_position, y_position, innovation_covariance),
++        0.0));
+     if (params_.position_only_nis_gate > 0.0) {
+       gate_threshold = std::sqrt(params_.position_only_nis_gate);
+     }
+@@ -493,6 +608,12 @@
+   }
+   pose_diag_info.mahalanobis_distance =
+       std::max(distance, pose_diag_info.mahalanobis_distance);
++  if (is_position_only_measurement &&
++      !params_.position_only_sequential_integrity_enabled) {
++    latest_position_only_nis_ = distance * distance;
++    latest_position_only_standardized_innovation_ =
++        position_only_standardized_innovation;
++  }
+   if (distance > gate_threshold) {
+     pose_diag_info.is_passed_mahalanobis_gate = false;
+     if (is_position_only_measurement) {
+@@ -504,6 +625,31 @@
+     return false;
+   }
+ 
++  if (is_position_only_measurement) {
++    const auto observed_before =
++        position_only_innovation_monitor_.observed_count();
++    const auto sequential_result = position_only_innovation_monitor_.observe(
++        position_only_standardized_innovation, distance * distance,
++        rclcpp::Time(pose.header.stamp).nanoseconds());
++    if (position_only_innovation_monitor_.observed_count() > observed_before) {
++      // Preserve the innovation from the first application of each unique
++      // source measurement for diagnostics.  Later EKF smoothing applications
++      // are correlated reuses of that same observation.
++      latest_position_only_nis_ = distance * distance;
++      latest_position_only_standardized_innovation_ =
++          position_only_standardized_innovation;
++    }
++    if (sequential_result.reject) {
++      ++position_only_sequential_rejected_count_;
++      warning_->warn_throttle(
++          fmt::format("[EKF] position-only sequential integrity gate latched "
++                      "(statistic={:.3f}). Ignore the measurement data.",
++                      sequential_result.statistic),
++          2000);
++      return false;
++    }
++  }
++
+   DEBUG_PRINT_MAT(y.transpose());
+   DEBUG_PRINT_MAT(y_ekf.transpose());
+   DEBUG_PRINT_MAT((y - y_ekf).transpose());
+@@ -750,4 +896,14 @@
+   pitch_filter_.update(rpy.y, pitch_var, ekf_dt_);
+ }
+ 
++void EKFModule::update_height_filter(
++    const geometry_msgs::msg::PoseWithCovarianceStamped &pose,
++    const size_t smoothing_step) {
++  using COV_IDX =
++      autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
++  const double z_var =
++      pose.pose.covariance[COV_IDX::Z_Z] * static_cast<double>(smoothing_step);
++  z_filter_.update(pose.pose.pose.position.z, z_var, ekf_dt_);
++}
++
+ } // namespace autoware::ekf_localizer
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp b/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp	2026-08-01 19:21:04.404217435 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/measurement.cpp	2026-08-01 19:07:28.162654477 +0800
+@@ -34,6 +34,26 @@
+          yaw_variance >= yaw_variance_threshold;
+ }
+ 
++bool is_height_only_pose_measurement(
++  const std::array<double, 36ul> & covariance, const bool feature_enabled,
++  const double xy_variance_threshold, const double z_variance_threshold,
++  const double yaw_variance_threshold)
++{
++  using COV_IDX = autoware_utils_geometry::xyzrpy_covariance_index::XYZRPY_COV_IDX;
++  const double x_variance = covariance.at(COV_IDX::X_X);
++  const double y_variance = covariance.at(COV_IDX::Y_Y);
++  const double z_variance = covariance.at(COV_IDX::Z_Z);
++  const double yaw_variance = covariance.at(COV_IDX::YAW_YAW);
++  return feature_enabled && std::isfinite(xy_variance_threshold) &&
++         xy_variance_threshold > 0.0 && std::isfinite(z_variance_threshold) &&
++         z_variance_threshold > 0.0 && std::isfinite(yaw_variance_threshold) &&
++         yaw_variance_threshold >= 0.0 && std::isfinite(x_variance) &&
++         std::isfinite(y_variance) && std::isfinite(z_variance) &&
++         std::isfinite(yaw_variance) && x_variance >= xy_variance_threshold &&
++         y_variance >= xy_variance_threshold && z_variance > 0.0 &&
++         z_variance <= z_variance_threshold && yaw_variance >= yaw_variance_threshold;
++}
++
+ Eigen::Matrix<double, 3, 6> pose_measurement_matrix()
+ {
+   Eigen::Matrix<double, 3, 6> c = Eigen::Matrix<double, 3, 6>::Zero();
+二进制文件 SimProject_TianmenRace/docs/evidence/tm99_plan5_component_gated_height_v98/dependency_reconstruction_v2/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/__pycache__/test_ekf_localizer_launch.cpython-310.pyc 和 autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/__pycache__/test_ekf_localizer_launch.cpython-310.pyc 不同
+二进制文件 SimProject_TianmenRace/docs/evidence/tm99_plan5_component_gated_height_v98/dependency_reconstruction_v2/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/__pycache__/test_ekf_localizer_mahalanobis.cpython-310.pyc 和 autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/__pycache__/test_ekf_localizer_mahalanobis.cpython-310.pyc 不同
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp b/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp	2026-08-01 19:21:04.405217446 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_measurement.cpp	2026-08-01 19:11:13.459017993 +0800
+@@ -47,6 +47,28 @@
+       covariance, true, std::numeric_limits<double>::infinity()));
+ }
+ 
++TEST(Measurement, height_only_pose_measurement_requires_all_component_markers)
++{
++  std::array<double, 36> covariance{};
++  covariance.fill(0.0);
++  covariance[0] = 1000000.0;
++  covariance[7] = 1000000.0;
++  covariance[14] = 0.1089;
++  covariance[35] = 1.0;
++  EXPECT_FALSE(is_height_only_pose_measurement(covariance, false, 100000.0, 3.24, 0.5));
++  EXPECT_TRUE(is_height_only_pose_measurement(covariance, true, 100000.0, 3.24, 0.5));
++
++  covariance[0] = 99999.0;
++  EXPECT_FALSE(is_height_only_pose_measurement(covariance, true, 100000.0, 3.24, 0.5));
++  covariance[0] = 1000000.0;
++  covariance[14] = 0.0;
++  EXPECT_FALSE(is_height_only_pose_measurement(covariance, true, 100000.0, 3.24, 0.5));
++  covariance[14] = 3.240001;
++  EXPECT_FALSE(is_height_only_pose_measurement(covariance, true, 100000.0, 3.24, 0.5));
++  covariance[14] = std::numeric_limits<double>::quiet_NaN();
++  EXPECT_FALSE(is_height_only_pose_measurement(covariance, true, 100000.0, 3.24, 0.5));
++}
++
+ TEST(Measurement, position_only_pose_measurement_matrix_excludes_yaw)
+ {
+   const Eigen::Matrix<double, 2, 6> m = position_only_pose_measurement_matrix();
+diff -ruN a/src/autoware/core/localization/autoware_ekf_localizer/test/test_position_only_innovation_monitor.cpp b/src/autoware/core/localization/autoware_ekf_localizer/test/test_position_only_innovation_monitor.cpp
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_position_only_innovation_monitor.cpp	1970-01-01 08:00:00.000000000 +0800
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_position_only_innovation_monitor.cpp	2026-08-01 01:55:18.208394799 +0800
+@@ -0,0 +1,178 @@
++// Copyright 2026 Autoware Foundation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//     http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#include "autoware/ekf_localizer/position_only_innovation_monitor.hpp"
++
++#include <gtest/gtest.h>
++
++#include <limits>
++
++namespace autoware::ekf_localizer {
++
++TEST(PositionOnlyInnovationMonitor, disabled_is_strict_no_op) {
++  PositionOnlyInnovationMonitor monitor;
++  for (std::int64_t sample = 1; sample <= 100; ++sample) {
++    const auto result = monitor.observe(Eigen::Vector2d(100.0, -100.0), 20000.0,
++                                        sample * 100000000);
++    EXPECT_FALSE(result.reject);
++    EXPECT_FALSE(result.latched);
++  }
++  EXPECT_EQ(monitor.observed_count(), 0U);
++  EXPECT_EQ(monitor.rejected_count(), 0U);
++}
++
++TEST(PositionOnlyInnovationMonitor,
++     persistent_signed_innovation_latches_after_warmup) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  config.warmup_samples = 2;
++  config.reference_sigma = 0.5;
++  config.decision_threshold = 3.0;
++  PositionOnlyInnovationMonitor monitor(config);
++
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 100000000).reject);
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 200000000).reject);
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 300000000).reject);
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 400000000).reject);
++  const auto trigger =
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 500000000);
++  EXPECT_TRUE(trigger.reject);
++  EXPECT_TRUE(trigger.latched);
++  EXPECT_DOUBLE_EQ(trigger.statistic, 3.0);
++}
++
++TEST(PositionOnlyInnovationMonitor,
++     alternating_zero_mean_sequence_does_not_latch) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  config.warmup_samples = 0;
++  config.reference_sigma = 0.5;
++  config.decision_threshold = 5.0;
++  PositionOnlyInnovationMonitor monitor(config);
++  for (std::int64_t sample = 1; sample <= 200; ++sample) {
++    const double sign = sample % 2 == 0 ? 1.0 : -1.0;
++    EXPECT_FALSE(
++        monitor.observe(Eigen::Vector2d(sign, -sign), 2.0, sample * 100000000)
++            .reject);
++  }
++  EXPECT_FALSE(monitor.latched());
++}
++
++TEST(PositionOnlyInnovationMonitor, timestamp_gap_resets_unlatched_sequence) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  config.warmup_samples = 0;
++  config.reference_sigma = 0.5;
++  config.decision_threshold = 3.0;
++  config.reset_gap_sec = 0.5;
++  PositionOnlyInnovationMonitor monitor(config);
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 100000000).reject);
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 200000000).reject);
++  EXPECT_FALSE(
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 1000000000).reject);
++  EXPECT_LT(monitor.statistic(), 3.0);
++}
++
++TEST(PositionOnlyInnovationMonitor,
++     repeated_smoothing_application_is_not_a_new_sample) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  config.warmup_samples = 0;
++  config.reference_sigma = 0.5;
++  config.decision_threshold = 2.0;
++  PositionOnlyInnovationMonitor monitor(config);
++
++  const auto first =
++      monitor.observe(Eigen::Vector2d(1.0, 0.0), 1.0, 100000000);
++  EXPECT_FALSE(first.reject);
++  EXPECT_DOUBLE_EQ(first.statistic, 0.5);
++  EXPECT_EQ(monitor.observed_count(), 1U);
++
++  for (int smoothing_step = 0; smoothing_step < 5; ++smoothing_step) {
++    const auto repeated =
++        monitor.observe(Eigen::Vector2d(3.0, 0.0), 9.0, 100000000);
++    EXPECT_FALSE(repeated.reject);
++    EXPECT_DOUBLE_EQ(repeated.statistic, first.statistic);
++  }
++  EXPECT_EQ(monitor.observed_count(), 1U);
++
++  const auto second =
++      monitor.observe(Eigen::Vector2d(1.0, 0.0), 1.0, 200000000);
++  EXPECT_FALSE(second.reject);
++  EXPECT_DOUBLE_EQ(second.statistic, 1.0);
++  EXPECT_EQ(monitor.observed_count(), 2U);
++}
++
++TEST(PositionOnlyInnovationMonitor,
++     repeated_smoothing_application_preserves_latched_rejection) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  config.warmup_samples = 0;
++  config.reference_sigma = 0.5;
++  config.decision_threshold = 1.0;
++  PositionOnlyInnovationMonitor monitor(config);
++
++  const auto trigger =
++      monitor.observe(Eigen::Vector2d(1.5, 0.0), 2.25, 100000000);
++  ASSERT_TRUE(trigger.reject);
++  ASSERT_TRUE(trigger.latched);
++  EXPECT_EQ(monitor.observed_count(), 1U);
++
++  const auto repeated =
++      monitor.observe(Eigen::Vector2d(0.0, 0.0), 0.0, 100000000);
++  EXPECT_TRUE(repeated.reject);
++  EXPECT_TRUE(repeated.latched);
++  EXPECT_EQ(monitor.observed_count(), 1U);
++  EXPECT_EQ(monitor.rejected_count(), 1U);
++}
++
++TEST(PositionOnlyInnovationMonitor,
++     latched_monitor_requires_consecutive_clean_recovery) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  config.warmup_samples = 0;
++  config.reference_sigma = 0.5;
++  config.decision_threshold = 1.0;
++  config.recovery_samples = 2;
++  config.recovery_nis_threshold = 2.0;
++  PositionOnlyInnovationMonitor monitor(config);
++  EXPECT_TRUE(
++      monitor.observe(Eigen::Vector2d(2.0, 0.0), 4.0, 100000000).reject);
++  EXPECT_TRUE(
++      monitor.observe(Eigen::Vector2d(0.1, 0.0), 0.01, 200000000).reject);
++  const auto recovered =
++      monitor.observe(Eigen::Vector2d(0.1, 0.0), 0.01, 300000000);
++  EXPECT_FALSE(recovered.reject);
++  EXPECT_FALSE(recovered.latched);
++}
++
++TEST(PositionOnlyInnovationMonitor,
++     non_finite_input_fails_closed_when_enabled) {
++  PositionOnlyInnovationMonitorConfig config;
++  config.enabled = true;
++  PositionOnlyInnovationMonitor monitor(config);
++  const auto result = monitor.observe(
++      Eigen::Vector2d(std::numeric_limits<double>::quiet_NaN(), 0.0), 1.0,
++      100000000);
++  EXPECT_TRUE(result.reject);
++  EXPECT_TRUE(result.latched);
++}
++
++} // namespace autoware::ekf_localizer
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json	2026-08-01 19:21:04.417217571 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/schema/pose_covariance_modifier.schema.json	2026-08-01 19:09:08.599708122 +0800
+@@ -17,6 +17,18 @@
+           "default": true,
+           "description": "Enable trusted GNSS position publication. False provides a fair NDT-only control through the same modifier and EKF path; NDT forwarding is unchanged"
+         },
++        "gnss_height_updates_enabled": {"type": "boolean", "default": false},
++        "gnss_height_min_update_interval_sec": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_height_variance_floor_m2": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_height_disabled_variance_m2": {"type": "number", "default": 1000000.0, "exclusiveMinimum": 0.0},
++        "gnss_ndt_height_innovation_max_m": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_height_nis_hard_gate": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_height_outage_warmup_count": {"type": "integer", "default": 0, "minimum": 0},
++        "gnss_ndt_height_outage_minimum_agreement_count": {"type": "integer", "default": 0, "minimum": 0},
++        "gnss_ndt_height_outage_bridge_enabled": {"type": "boolean", "default": false},
++        "gnss_ndt_height_outage_max_sec": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_height_outage_max_vertical_speed_mps": {"type": "number", "default": 0.0, "minimum": 0.0},
++        "gnss_ndt_height_outage_reset_gap_sec": {"type": "number", "default": 0.0, "minimum": 0.0},
+         "threshold_gnss_stddev_yaw_deg_max": {
+           "type": "number",
+           "default": 0.3,
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp	2026-08-01 19:21:04.418217582 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/include/pose_covariance_modifier.hpp	2026-08-01 19:04:53.023026951 +0800
+@@ -69,6 +69,12 @@
+     double y;
+   };
+ 
++  struct TimedHeight
++  {
++    int64_t stamp_ns;
++    double z;
++  };
++
+   // covariance matrix indexes
+   const int X_POS_IDX_ = 0;
+   const int Y_POS_IDX_ = 7;
+@@ -78,6 +84,18 @@
+   // parameters
+   FusionPolicy fusion_policy_;
+   bool gnss_position_updates_enabled_;
++  bool gnss_height_updates_enabled_;
++  double gnss_height_min_update_interval_sec_;
++  double gnss_height_variance_floor_m2_;
++  double gnss_height_disabled_variance_m2_;
++  double gnss_ndt_height_innovation_max_m_;
++  double gnss_ndt_height_nis_hard_gate_;
++  int64_t gnss_ndt_height_outage_warmup_count_;
++  int64_t gnss_ndt_height_outage_minimum_agreement_count_;
++  bool gnss_ndt_height_outage_bridge_enabled_;
++  double gnss_ndt_height_outage_max_sec_;
++  double gnss_ndt_height_outage_max_vertical_speed_mps_;
++  double gnss_ndt_height_outage_reset_gap_sec_;
+   double threshold_gnss_stddev_yaw_deg_max_;
+   double threshold_gnss_stddev_z_max_;
+   double threshold_gnss_stddev_xy_bound_lower_;
+@@ -131,6 +149,11 @@
+   std::optional<TimedXyPosition> trusted_outage_gnss_previous_;
+   std::optional<TimedXyPosition> trusted_outage_gnss_last_;
+   double current_gnss_xy_covariance_scale_{1.0};
++  std::deque<uint8_t> trusted_height_agreement_window_;
++  bool trusted_height_outage_bridge_qualified_{false};
++  std::optional<TimedHeight> trusted_height_previous_;
++  std::optional<TimedHeight> trusted_height_last_;
++  std::optional<int64_t> last_published_height_stamp_ns_;
+ 
+   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+     sub_gnss_pose_with_cov_;
+@@ -168,6 +191,28 @@
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
+     double gnss_pose_stddev_xy);
+ 
++  bool gnss_height_is_trusted(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++    double gnss_pose_stddev_z);
++
++  std::optional<double> gnss_ndt_height_reference(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
++
++  void observe_corroborated_gnss_height(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg, bool agrees);
++
++  bool trusted_height_outage_bridge_allows_gnss(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++    double gnss_pose_stddev_z);
++
++  void reset_trusted_height_outage_bridge();
++
++  void publish_position_only_measurement(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg);
++
++  void publish_height_only_measurement(
++    const geometry_msgs::msg::PoseWithCovarianceStamped & msg);
++
+   std::optional<double> gnss_ndt_xy_innovation(
+     const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const;
+ 
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp	2026-08-01 19:21:04.424217645 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/src/pose_covariance_modifier.cpp	2026-08-01 19:07:13.633502057 +0800
+@@ -51,6 +51,30 @@
+   }
+   gnss_position_updates_enabled_ =
+     this->declare_parameter<bool>("gnss_position_updates_enabled", true);
++  gnss_height_updates_enabled_ =
++    this->declare_parameter<bool>("gnss_height_updates_enabled", false);
++  gnss_height_min_update_interval_sec_ =
++    this->declare_parameter<double>("gnss_height_min_update_interval_sec", 0.0);
++  gnss_height_variance_floor_m2_ =
++    this->declare_parameter<double>("gnss_height_variance_floor_m2", 0.0);
++  gnss_height_disabled_variance_m2_ =
++    this->declare_parameter<double>("gnss_height_disabled_variance_m2", 1000000.0);
++  gnss_ndt_height_innovation_max_m_ =
++    this->declare_parameter<double>("gnss_ndt_height_innovation_max_m", 0.0);
++  gnss_ndt_height_nis_hard_gate_ =
++    this->declare_parameter<double>("gnss_ndt_height_nis_hard_gate", 0.0);
++  gnss_ndt_height_outage_warmup_count_ = this->declare_parameter<int64_t>(
++    "gnss_ndt_height_outage_warmup_count", 0);
++  gnss_ndt_height_outage_minimum_agreement_count_ = this->declare_parameter<int64_t>(
++    "gnss_ndt_height_outage_minimum_agreement_count", 0);
++  gnss_ndt_height_outage_bridge_enabled_ = this->declare_parameter<bool>(
++    "gnss_ndt_height_outage_bridge_enabled", false);
++  gnss_ndt_height_outage_max_sec_ =
++    this->declare_parameter<double>("gnss_ndt_height_outage_max_sec", 0.0);
++  gnss_ndt_height_outage_max_vertical_speed_mps_ = this->declare_parameter<double>(
++    "gnss_ndt_height_outage_max_vertical_speed_mps", 0.0);
++  gnss_ndt_height_outage_reset_gap_sec_ = this->declare_parameter<double>(
++    "gnss_ndt_height_outage_reset_gap_sec", 0.0);
+   threshold_gnss_stddev_yaw_deg_max_ =
+     this->declare_parameter<double>("threshold_gnss_stddev_yaw_deg_max");
+   threshold_gnss_stddev_z_max_ = this->declare_parameter<double>("threshold_gnss_stddev_z_max");
+@@ -123,6 +147,46 @@
+     throw std::invalid_argument("gnss_position_only_yaw_variance must be finite and positive");
+   }
+   if (
++    !std::isfinite(gnss_height_min_update_interval_sec_) ||
++    gnss_height_min_update_interval_sec_ < 0.0 ||
++    !std::isfinite(gnss_height_variance_floor_m2_) ||
++    gnss_height_variance_floor_m2_ < 0.0 ||
++    !std::isfinite(gnss_height_disabled_variance_m2_) ||
++    gnss_height_disabled_variance_m2_ <= 0.0 ||
++    !std::isfinite(gnss_ndt_height_innovation_max_m_) ||
++    gnss_ndt_height_innovation_max_m_ < 0.0 ||
++    !std::isfinite(gnss_ndt_height_nis_hard_gate_) ||
++    gnss_ndt_height_nis_hard_gate_ < 0.0) {
++    throw std::invalid_argument("GNSS height limits must be finite and non-negative");
++  }
++  if (gnss_height_updates_enabled_) {
++    if (
++      fusion_policy_ != FusionPolicy::NDT_PRIMARY_POSITION ||
++      gnss_height_variance_floor_m2_ <= 0.0 ||
++      gnss_ndt_height_innovation_max_m_ <= 0.0 ||
++      gnss_ndt_height_nis_hard_gate_ <= 0.0) {
++      throw std::invalid_argument(
++              "GNSS height updates require ndt_primary_position and positive integrity limits");
++    }
++  }
++  if (gnss_ndt_height_outage_bridge_enabled_) {
++    if (
++      !gnss_height_updates_enabled_ ||
++      !gnss_require_fresh_time_aligned_ndt_ ||
++      gnss_ndt_height_outage_warmup_count_ <= 0 ||
++      gnss_ndt_height_outage_minimum_agreement_count_ <= 0 ||
++      gnss_ndt_height_outage_minimum_agreement_count_ >
++        gnss_ndt_height_outage_warmup_count_ ||
++      !std::isfinite(gnss_ndt_height_outage_max_sec_) ||
++      gnss_ndt_height_outage_max_sec_ <= gnss_pose_timeout_sec_ ||
++      !std::isfinite(gnss_ndt_height_outage_max_vertical_speed_mps_) ||
++      gnss_ndt_height_outage_max_vertical_speed_mps_ <= 0.0 ||
++      !std::isfinite(gnss_ndt_height_outage_reset_gap_sec_) ||
++      gnss_ndt_height_outage_reset_gap_sec_ <= 0.0) {
++      throw std::invalid_argument("trusted GNSS height outage-bridge parameters are inconsistent");
++    }
++  }
++  if (
+     !std::isfinite(gnss_ndt_max_stamp_delta_sec_) ||
+     gnss_ndt_max_stamp_delta_sec_ < 0.0 ||
+     !std::isfinite(gnss_ndt_xy_innovation_max_m_) ||
+@@ -264,13 +328,17 @@
+        std::sqrt(msg_pose_with_cov_in->pose.covariance[Y_POS_IDX_])) /
+       2;
+ 
+-    const bool trusted =
++    const bool xy_trusted =
+       fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION
+         ? gnss_position_is_trusted(*msg_pose_with_cov_in, gnss_pose_stddev_xy)
+         : gnss_is_trusted(
+             *msg_pose_with_cov_in, gnss_pose_yaw_stddev_deg, gnss_pose_stddev_z,
+             gnss_pose_stddev_xy);
+-    if (!trusted) {
++    const bool height_trusted =
++      fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION &&
++      gnss_height_updates_enabled_ &&
++      gnss_height_is_trusted(*msg_pose_with_cov_in, gnss_pose_stddev_z);
++    if (!xy_trusted && !height_trusted) {
+       pose_source_ = PoseSource::NDT;
+       publish_pose_type(pose_source_);
+       return;
+@@ -297,26 +365,16 @@
+     pose_source_ = PoseSource::GNSS_NDT;
+     publish_pose_type(pose_source_);
+     if (fusion_policy_ == FusionPolicy::NDT_PRIMARY_POSITION) {
+-      // The real TM99 GNSS position originates from BESTPOS, while the input
+-      // orientation originates from INSPVAX and is correlated with the IMU
+-      // already consumed by the EKF.  The EKF pose interface has no native
+-      // position-only message, so retain x/y exactly, use the latest NDT
+-      // orientation as a neutral yaw carrier, and make yaw uninformative.
+-      auto position_only = *msg_pose_with_cov_in;
+-      position_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
+-      if (current_gnss_xy_covariance_scale_ > 1.0) {
+-        for (const int index : {0, 1, 6, 7}) {
+-          position_only.pose.covariance[index] *= current_gnss_xy_covariance_scale_;
+-        }
++      if (xy_trusted) {
++        publish_position_only_measurement(*msg_pose_with_cov_in);
+       }
+-      for (int axis = 0; axis < 5; ++axis) {
+-        position_only.pose.covariance[axis * 6 + 5] = 0.0;
+-        position_only.pose.covariance[5 * 6 + axis] = 0.0;
++      if (height_trusted) {
++        publish_height_only_measurement(*msg_pose_with_cov_in);
+       }
+-      position_only.pose.covariance[YAW_POS_IDX_] = gnss_position_only_yaw_variance_;
+-      pub_pose_with_covariance_stamped_->publish(position_only);
+     } else {
+-      pub_pose_with_covariance_stamped_->publish(*msg_pose_with_cov_in);
++      if (xy_trusted) {
++        pub_pose_with_covariance_stamped_->publish(*msg_pose_with_cov_in);
++      }
+     }
+ 
+     if (debug_mode_) {
+@@ -666,6 +724,206 @@
+   return true;
+ }
+ 
++std::optional<double> PoseCovarianceModifierNode::gnss_ndt_height_reference(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg) const
++{
++  if (!ndt_pose_with_cov_last_) {
++    return std::nullopt;
++  }
++  double reference_z = ndt_pose_with_cov_last_->pose.pose.position.z;
++  if (gnss_ndt_motion_compensate_innovation_ && ndt_pose_with_cov_previous_) {
++    const rclcpp::Time previous_stamp(
++      ndt_pose_with_cov_previous_->header.stamp, this->get_clock()->get_clock_type());
++    const rclcpp::Time latest_stamp(
++      ndt_pose_with_cov_last_->header.stamp, this->get_clock()->get_clock_type());
++    const rclcpp::Time gnss_stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++    const double ndt_interval_sec = (latest_stamp - previous_stamp).seconds();
++    const double gnss_from_latest_sec = (gnss_stamp - latest_stamp).seconds();
++    if (
++      std::isfinite(ndt_interval_sec) && ndt_interval_sec > 1.0e-6 &&
++      std::isfinite(gnss_from_latest_sec)) {
++      const double velocity_z =
++        (ndt_pose_with_cov_last_->pose.pose.position.z -
++         ndt_pose_with_cov_previous_->pose.pose.position.z) /
++        ndt_interval_sec;
++      reference_z += velocity_z * gnss_from_latest_sec;
++    }
++  }
++  return std::isfinite(reference_z) ? std::optional<double>{reference_z} : std::nullopt;
++}
++
++void PoseCovarianceModifierNode::reset_trusted_height_outage_bridge()
++{
++  trusted_height_agreement_window_.clear();
++  trusted_height_outage_bridge_qualified_ = false;
++  trusted_height_previous_.reset();
++  trusted_height_last_.reset();
++}
++
++void PoseCovarianceModifierNode::observe_corroborated_gnss_height(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg, const bool agrees)
++{
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  const TimedHeight current{stamp.nanoseconds(), msg.pose.pose.position.z};
++  if (trusted_height_last_) {
++    const double gap_sec =
++      static_cast<double>(current.stamp_ns - trusted_height_last_->stamp_ns) * 1.0e-9;
++    if (
++      !std::isfinite(gap_sec) || gap_sec <= 0.0 ||
++      gap_sec > gnss_ndt_height_outage_reset_gap_sec_) {
++      reset_trusted_height_outage_bridge();
++    }
++  }
++  trusted_height_agreement_window_.push_back(agrees ? 1U : 0U);
++  while (
++    trusted_height_agreement_window_.size() >
++    static_cast<std::size_t>(gnss_ndt_height_outage_warmup_count_)) {
++    trusted_height_agreement_window_.pop_front();
++  }
++  const auto agreement_count = static_cast<int64_t>(std::count(
++      trusted_height_agreement_window_.begin(), trusted_height_agreement_window_.end(), 1U));
++  trusted_height_outage_bridge_qualified_ =
++    trusted_height_agreement_window_.size() ==
++      static_cast<std::size_t>(gnss_ndt_height_outage_warmup_count_) &&
++    agreement_count >= gnss_ndt_height_outage_minimum_agreement_count_;
++  trusted_height_previous_ = trusted_height_last_;
++  trusted_height_last_ = current;
++}
++
++bool PoseCovarianceModifierNode::trusted_height_outage_bridge_allows_gnss(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++  const double gnss_pose_stddev_z)
++{
++  if (
++    !gnss_ndt_height_outage_bridge_enabled_ ||
++    !trusted_height_outage_bridge_qualified_ || !trusted_height_last_ ||
++    gnss_pose_stddev_z > threshold_gnss_stddev_z_max_) {
++    return false;
++  }
++  const double outage_age_sec = (this->now() - ndt_pose_received_time_last_).seconds();
++  if (
++    !std::isfinite(outage_age_sec) || outage_age_sec < 0.0 ||
++    outage_age_sec > gnss_ndt_height_outage_max_sec_) {
++    reset_trusted_height_outage_bridge();
++    return false;
++  }
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  const int64_t stamp_ns = stamp.nanoseconds();
++  const double gap_sec =
++    static_cast<double>(stamp_ns - trusted_height_last_->stamp_ns) * 1.0e-9;
++  if (
++    !std::isfinite(gap_sec) || gap_sec <= 0.0 ||
++    gap_sec > gnss_ndt_height_outage_reset_gap_sec_) {
++    reset_trusted_height_outage_bridge();
++    return false;
++  }
++  const double vertical_speed =
++    std::abs(msg.pose.pose.position.z - trusted_height_last_->z) / gap_sec;
++  if (
++    !std::isfinite(vertical_speed) ||
++    vertical_speed > gnss_ndt_height_outage_max_vertical_speed_mps_) {
++    reset_trusted_height_outage_bridge();
++    return false;
++  }
++  trusted_height_previous_ = trusted_height_last_;
++  trusted_height_last_ = TimedHeight{stamp_ns, msg.pose.pose.position.z};
++  return true;
++}
++
++bool PoseCovarianceModifierNode::gnss_height_is_trusted(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg,
++  const double gnss_pose_stddev_z)
++{
++  if (
++    !std::isfinite(gnss_pose_stddev_z) ||
++    gnss_pose_stddev_z > threshold_gnss_stddev_z_max_ ||
++    !has_valid_ndt_pose_ || !ndt_pose_with_cov_last_ ||
++    msg.header.frame_id != last_valid_ndt_frame_id_) {
++    return false;
++  }
++  bool sources_are_time_comparable = ndt_is_fresh();
++  if (sources_are_time_comparable && gnss_ndt_max_stamp_delta_sec_ > 0.0) {
++    const rclcpp::Time gnss_stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++    const rclcpp::Time ndt_stamp(
++      ndt_pose_with_cov_last_->header.stamp, this->get_clock()->get_clock_type());
++    const double stamp_delta_sec = std::abs((gnss_stamp - ndt_stamp).seconds());
++    sources_are_time_comparable =
++      std::isfinite(stamp_delta_sec) && stamp_delta_sec <= gnss_ndt_max_stamp_delta_sec_;
++  }
++  if (!sources_are_time_comparable) {
++    return !ndt_is_fresh() && trusted_height_outage_bridge_allows_gnss(
++      msg, gnss_pose_stddev_z);
++  }
++  const auto reference = gnss_ndt_height_reference(msg);
++  if (!reference) {
++    reset_trusted_height_outage_bridge();
++    return false;
++  }
++  const double innovation = msg.pose.pose.position.z - *reference;
++  const double innovation_variance =
++    msg.pose.covariance[Z_POS_IDX_] + ndt_pose_with_cov_last_->pose.covariance[Z_POS_IDX_];
++  if (
++    !std::isfinite(innovation) || !std::isfinite(innovation_variance) ||
++    innovation_variance <= 0.0) {
++    reset_trusted_height_outage_bridge();
++    return false;
++  }
++  const double nis = innovation * innovation / innovation_variance;
++  const bool agrees =
++    std::abs(innovation) <= gnss_ndt_height_innovation_max_m_ &&
++    std::isfinite(nis) && nis <= gnss_ndt_height_nis_hard_gate_;
++  if (gnss_ndt_height_outage_bridge_enabled_) {
++    observe_corroborated_gnss_height(msg, agrees);
++  }
++  return agrees;
++}
++
++void PoseCovarianceModifierNode::publish_position_only_measurement(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg)
++{
++  auto position_only = msg;
++  position_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
++  if (current_gnss_xy_covariance_scale_ > 1.0) {
++    for (const int index : {0, 1, 6, 7}) {
++      position_only.pose.covariance[index] *= current_gnss_xy_covariance_scale_;
++    }
++  }
++  for (int axis = 0; axis < 5; ++axis) {
++    position_only.pose.covariance[axis * 6 + 5] = 0.0;
++    position_only.pose.covariance[5 * 6 + axis] = 0.0;
++  }
++  position_only.pose.covariance[YAW_POS_IDX_] = gnss_position_only_yaw_variance_;
++  pub_pose_with_covariance_stamped_->publish(position_only);
++}
++
++void PoseCovarianceModifierNode::publish_height_only_measurement(
++  const geometry_msgs::msg::PoseWithCovarianceStamped & msg)
++{
++  const rclcpp::Time stamp(msg.header.stamp, this->get_clock()->get_clock_type());
++  if (last_published_height_stamp_ns_) {
++    const double interval_sec =
++      static_cast<double>(stamp.nanoseconds() - *last_published_height_stamp_ns_) * 1.0e-9;
++    if (
++      !std::isfinite(interval_sec) || interval_sec < gnss_height_min_update_interval_sec_) {
++      return;
++    }
++  }
++  auto height_only = msg;
++  height_only.pose.pose.position.x = ndt_pose_with_cov_last_->pose.pose.position.x;
++  height_only.pose.pose.position.y = ndt_pose_with_cov_last_->pose.pose.position.y;
++  height_only.pose.pose.orientation = ndt_pose_with_cov_last_->pose.pose.orientation;
++  height_only.pose.covariance.fill(0.0);
++  height_only.pose.covariance[X_POS_IDX_] = gnss_height_disabled_variance_m2_;
++  height_only.pose.covariance[Y_POS_IDX_] = gnss_height_disabled_variance_m2_;
++  height_only.pose.covariance[Z_POS_IDX_] =
++    std::max(msg.pose.covariance[Z_POS_IDX_], gnss_height_variance_floor_m2_);
++  height_only.pose.covariance[21] = gnss_height_disabled_variance_m2_;
++  height_only.pose.covariance[28] = gnss_height_disabled_variance_m2_;
++  height_only.pose.covariance[YAW_POS_IDX_] = gnss_position_only_yaw_variance_;
++  pub_pose_with_covariance_stamped_->publish(height_only);
++  last_published_height_stamp_ns_ = stamp.nanoseconds();
++}
++
+ void PoseCovarianceModifierNode::reset_trusted_outage_bridge()
+ {
+   trusted_outage_agreement_count_ = 0;
+diff -ruN a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp
+--- a/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp	2026-08-01 19:21:04.419217593 +0800
++++ b/src/autoware/universe/localization/autoware_pose_covariance_modifier/test/test_pose_covariance_modifier.cpp	2026-08-01 19:12:08.247592765 +0800
+@@ -44,7 +44,8 @@
+     const bool gnss_position_updates_enabled = true,
+     const double cross_source_nis_soft_gate = 0.0,
+     const double cross_source_nis_hard_gate = 0.0,
+-    const double trusted_outage_agreement_nis = 0.0)
++    const double trusted_outage_agreement_nis = 0.0,
++    const bool gnss_height_updates_enabled = false)
+   {
+     rclcpp::NodeOptions options;
+     options.arguments(
+@@ -53,6 +54,18 @@
+       {
+         {"fusion_policy", policy},
+         {"gnss_position_updates_enabled", gnss_position_updates_enabled},
++        {"gnss_height_updates_enabled", gnss_height_updates_enabled},
++        {"gnss_height_min_update_interval_sec", 0.0},
++        {"gnss_height_variance_floor_m2", 0.1089},
++        {"gnss_height_disabled_variance_m2", 1000000.0},
++        {"gnss_ndt_height_innovation_max_m", 3.0},
++        {"gnss_ndt_height_nis_hard_gate", 10.827566170662733},
++        {"gnss_ndt_height_outage_warmup_count", 3},
++        {"gnss_ndt_height_outage_minimum_agreement_count", 2},
++        {"gnss_ndt_height_outage_bridge_enabled", false},
++        {"gnss_ndt_height_outage_max_sec", 2.0},
++        {"gnss_ndt_height_outage_max_vertical_speed_mps", 5.0},
++        {"gnss_ndt_height_outage_reset_gap_sec", 0.5},
+         {"threshold_gnss_stddev_yaw_deg_max", 0.3},
+         {"threshold_gnss_stddev_z_max", 0.1},
+         {"threshold_gnss_stddev_xy_bound_lower", 0.1},
+@@ -332,6 +345,63 @@
+   }
+ }
+ 
++TEST(PoseCovarianceModifier, component_gated_height_publishes_independent_xy_and_z_measurements)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.25, 3.0, false, 0.0, false, true, false,
++    2.0, 3, 2, true, 5.991464547107979, 13.815510557964274, 0.0, true);
++  auto ndt = harness.make_message(0.15, 0.20);
++  auto gnss = harness.make_message(0.20, 0.05, 15.0);
++  gnss.pose.pose.position.x += 0.1;
++  gnss.pose.pose.position.z += 0.1;
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++
++  ASSERT_EQ(harness.outputs().size(), 2U);
++  const auto & xy = harness.outputs()[0];
++  const auto & height = harness.outputs()[1];
++  EXPECT_EQ(xy.pose.pose.position, gnss.pose.pose.position);
++  EXPECT_DOUBLE_EQ(xy.pose.covariance[35], 1.0);
++  EXPECT_DOUBLE_EQ(height.pose.pose.position.x, ndt.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(height.pose.pose.position.y, ndt.pose.pose.position.y);
++  EXPECT_DOUBLE_EQ(height.pose.pose.position.z, gnss.pose.pose.position.z);
++  EXPECT_DOUBLE_EQ(height.pose.covariance[0], 1000000.0);
++  EXPECT_DOUBLE_EQ(height.pose.covariance[7], 1000000.0);
++  EXPECT_DOUBLE_EQ(height.pose.covariance[14], 0.1089);
++  EXPECT_EQ(height.pose.pose.orientation, ndt.pose.pose.orientation);
++}
++
++TEST(PoseCovarianceModifier, component_gated_height_survives_xy_rejection_without_gnss_yaw)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.25, 3.0, false, 0.0, false, true, false,
++    2.0, 3, 2, true, 5.991464547107979, 13.815510557964274, 0.0, true);
++  const auto ndt = harness.make_message(0.15, 0.20);
++  auto gnss = harness.make_message(0.30, 0.05, 20.0);
++  gnss.pose.pose.position.z += 0.1;
++  harness.publish_ndt(ndt);
++  harness.clear();
++  harness.publish_gnss(gnss);
++
++  ASSERT_EQ(harness.outputs().size(), 1U);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.pose.position.x, ndt.pose.pose.position.x);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.pose.position.z, gnss.pose.pose.position.z);
++  EXPECT_DOUBLE_EQ(harness.outputs()[0].pose.covariance[0], 1000000.0);
++  EXPECT_EQ(harness.outputs()[0].pose.pose.orientation, ndt.pose.pose.orientation);
++}
++
++TEST(PoseCovarianceModifier, ndt_control_master_switch_suppresses_xy_and_height)
++{
++  ModifierHarness harness(
++    "ndt_primary_position", 1.0, 0.25, 3.0, false, 0.0, false, true, false,
++    2.0, 3, 2, false, 5.991464547107979, 13.815510557964274, 0.0, true);
++  harness.publish_ndt(harness.make_message(0.15, 0.20));
++  harness.clear();
++  harness.publish_gnss(harness.make_message(0.20, 0.05));
++  EXPECT_TRUE(harness.outputs().empty());
++}
++
+ TEST(PoseCovarianceModifier, ndt_primary_position_never_publishes_gnss_only_or_bad_xy)
+ {
+   ModifierHarness harness("ndt_primary_position");
+
