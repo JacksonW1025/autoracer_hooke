@@ -33,6 +33,7 @@ from tf2_msgs.msg import TFMessage
 WINDOW_SECONDS = 5.0
 READINESS_STABILITY_SECONDS = 0.0
 PROGRESS_HEARTBEAT_SECONDS = 5.0
+DASHBOARD_REFRESH_SECONDS = 0.5
 LIDAR_PROBE_STOP_TIMEOUT_SECONDS = 30.0
 LIDAR_PROBE_CACHE_BYTES = 256 * 1024 * 1024
 
@@ -117,6 +118,7 @@ def g90_com2_summary(values: dict[str, str]) -> tuple[str, str]:
 StatusItem = tuple[str, str, str]
 DEFAULT_TERMINAL_COLUMNS = 80
 MINIMUM_TERMINAL_COLUMNS = 20
+DASHBOARD_FD_ENV = "RC_MAPPING_DASHBOARD_FD"
 
 
 def display_width(text: str) -> int:
@@ -177,6 +179,25 @@ def pad_display(text: str, width: int) -> str:
     return text + " " * max(0, width - display_width(text))
 
 
+def truncate_display(text: str, columns: int) -> str:
+    """Keep one dashboard field on one physical terminal row."""
+
+    columns = max(1, columns)
+    if display_width(text) <= columns:
+        return text
+    ellipsis = "…"
+    available = max(0, columns - display_width(ellipsis))
+    rendered: list[str] = []
+    width = 0
+    for character in text:
+        character_width = display_width(character)
+        if width + character_width > available:
+            break
+        rendered.append(character)
+        width += character_width
+    return "".join(rendered) + ellipsis
+
+
 def render_status_rows(items: tuple[StatusItem, ...], columns: int) -> tuple[str, ...]:
     """Render one device per row, wrapping details to the current terminal width."""
 
@@ -203,6 +224,117 @@ def render_status_rows(items: tuple[StatusItem, ...], columns: int) -> tuple[str
         continuation = " " * prefix_width
         rendered.extend(continuation + line for line in detail_lines[1:])
     return tuple(rendered)
+
+
+def render_dashboard_status_rows(
+    items: tuple[StatusItem, ...], columns: int
+) -> tuple[str, ...]:
+    """Render exactly one clipped row per item for the fixed dashboard."""
+
+    if not items:
+        return ()
+    columns = max(1, columns)
+    label_width = max(display_width(label) for label, _, _ in items)
+    rendered: list[str] = []
+    for label, state, detail in items:
+        prefix = f"{pad_display(label, label_width)}  {state}  "
+        prefix_width = display_width(prefix)
+        if prefix_width >= columns:
+            rendered.append(truncate_display(f"{label} {state}", columns))
+            continue
+        rendered.append(
+            prefix + truncate_display(detail, columns - prefix_width)
+        )
+    return tuple(rendered)
+
+
+def render_dashboard_frame(
+    *,
+    stage_number: int,
+    stage_name: str,
+    items: tuple[StatusItem, ...],
+    status: str,
+    footer: str,
+    columns: int,
+) -> tuple[str, ...]:
+    """Build one complete menu-6 frame without terminal control bytes."""
+
+    columns = max(1, columns)
+    logical_lines = [
+        "Autoracer RC — 菜单 6：建图录制",
+        "",
+        f"阶段 {stage_number}/6    {stage_name}",
+        "",
+        *render_dashboard_status_rows(items, columns),
+        "",
+        f"状态        {status}",
+        "",
+        footer,
+    ]
+    return tuple(truncate_display(line, columns) for line in logical_lines)
+
+
+class TerminalDashboard:
+    """Render full frames on an inherited terminal FD while stdout stays a log."""
+
+    def __init__(self) -> None:
+        self._fd: int | None = None
+        self._stream: Any | None = None
+        raw_fd = os.environ.get(DASHBOARD_FD_ENV, "")
+        try:
+            fd = int(raw_fd)
+        except ValueError:
+            return
+        if fd < 0 or not os.isatty(fd):
+            return
+        try:
+            self._stream = os.fdopen(
+                os.dup(fd), "w", encoding="utf-8", buffering=1
+            )
+        except OSError:
+            return
+        self._fd = fd
+
+    @property
+    def enabled(self) -> bool:
+        return self._fd is not None and self._stream is not None
+
+    def columns(self) -> int:
+        if self._fd is None:
+            return terminal_columns()
+        try:
+            columns = os.get_terminal_size(self._fd).columns
+        except OSError:
+            columns = DEFAULT_TERMINAL_COLUMNS
+        return max(1, columns)
+
+    def render(
+        self,
+        *,
+        stage_number: int,
+        stage_name: str,
+        items: tuple[StatusItem, ...],
+        status: str,
+        footer: str = "[Q] 取消",
+    ) -> None:
+        if self._stream is None:
+            return
+        frame = render_dashboard_frame(
+            stage_number=stage_number,
+            stage_name=stage_name,
+            items=items,
+            status=status,
+            footer=footer,
+            columns=self.columns(),
+        )
+        self._stream.write("\x1b[H" + "\n".join(frame) + "\x1b[J")
+        self._stream.flush()
+
+    def close(self) -> None:
+        if self._stream is not None:
+            self._stream.close()
+        self._stream = None
+        self._fd = None
 
 
 def changed_status_items(
@@ -770,6 +902,13 @@ class MappingPreflight(Node):
             "nmea": 0,
             "nmea_parse_errors": 0,
         }
+        self.display_reception_times: dict[str, list[float]] = {
+            "lidar": [],
+            "imu": [],
+            "GGA": [],
+            "GST": [],
+            "THS": [],
+        }
         self.acquisition_counts_at_window_start: dict[str, int] = {}
         self.lidar_probe_evidence: dict[str, Any] = {}
         self.reset_window()
@@ -828,9 +967,17 @@ class MappingPreflight(Node):
             self.stamp_violations[key] += 1
         self.last_stamp[key] = value
 
+    def remember_display_sample(self, key: str, received: float) -> None:
+        samples = self.display_reception_times[key]
+        samples.append(received)
+        cutoff = received - 3.0
+        while len(samples) > 2 and samples[0] < cutoff:
+            del samples[0]
+
     def on_lidar_serialized(self, serialized: bytes) -> None:
         received = time.monotonic()
         self.acquisition_counts["lidar"] += 1
+        self.remember_display_sample("lidar", received)
         if self.window_active:
             self.reception_times["lidar"].append(received)
         try:
@@ -864,6 +1011,7 @@ class MappingPreflight(Node):
     def on_imu(self, message: Imu) -> None:
         received = time.monotonic()
         self.acquisition_counts["imu"] += 1
+        self.remember_display_sample("imu", received)
         frame = normalize_frame(message.header.frame_id)
         self.latest_imu_valid = frame == IMU_FRAME
         self.latest_imu_detail = (
@@ -892,14 +1040,17 @@ class MappingPreflight(Node):
             self.acquisition_counts["nmea_parse_errors"] += 1
 
         if formatter == "GGA":
+            self.remember_display_sample("GGA", received)
             self.latest_gga_valid = bool(parsed.get("accepted"))
             self.latest_gga_detail = dict(parsed)
             self.latest_seen["GGA"] = received
         elif formatter == "GST":
+            self.remember_display_sample("GST", received)
             self.latest_gst_valid = bool(parsed.get("accepted"))
             self.latest_gst_detail = dict(parsed)
             self.latest_seen["GST"] = received
         elif formatter == "THS":
+            self.remember_display_sample("THS", received)
             self.latest_ths_valid = bool(parsed.get("accepted"))
             self.latest_ths_detail = dict(parsed)
             self.latest_seen["THS"] = received
@@ -1023,17 +1174,21 @@ class MappingPreflight(Node):
                 current - seen <= ACQUISITION_FRESHNESS_SECONDS[key]
             )
 
+        def with_rate(key: str, detail: str) -> str:
+            rate = sample_rate(self.display_reception_times[key])
+            return f"{rate:.1f} Hz，{detail}" if rate > 0.0 else detail
+
         if not is_fresh("lidar"):
             lidar = ("等待", "无数据或数据已中断")
         elif self.latest_lidar_valid:
-            lidar = ("正常", self.latest_lidar_detail)
+            lidar = ("正常", with_rate("lidar", self.latest_lidar_detail))
         else:
             lidar = ("故障", self.latest_lidar_detail)
 
         if not is_fresh("imu"):
             imu = ("等待", "无数据或数据已中断")
         elif self.latest_imu_valid:
-            imu = ("正常", self.latest_imu_detail)
+            imu = ("正常", with_rate("imu", self.latest_imu_detail))
         else:
             imu = ("故障", self.latest_imu_detail)
 
@@ -1052,7 +1207,10 @@ class MappingPreflight(Node):
         elif self.latest_gga_valid:
             quality = int(self.latest_gga_detail.get("quality", -1))
             solution = "RTK Fixed" if quality == 4 else "RTK Float"
-            gga = ("正常", f"{solution}，quality={quality}")
+            gga = (
+                "正常",
+                with_rate("GGA", f"{solution}，quality={quality}"),
+            )
         elif "quality" in self.latest_gga_detail:
             gga = (
                 "等待",
@@ -1064,14 +1222,14 @@ class MappingPreflight(Node):
         if not is_fresh("GST"):
             gst = ("等待", "无数据或数据已中断")
         elif self.latest_gst_valid:
-            gst = ("正常", "完整且新鲜")
+            gst = ("正常", with_rate("GST", "完整且新鲜"))
         else:
             gst = ("等待", "协方差不可用或不完整")
 
         if not is_fresh("THS"):
             ths = ("等待", "无数据或数据已中断")
         elif self.latest_ths_valid:
-            ths = ("正常", "mode=A")
+            ths = ("正常", with_rate("THS", "mode=A"))
         else:
             mode = self.latest_ths_detail.get("mode", "<empty>") or "<empty>"
             ths = ("等待", f"mode={mode}，需要 A")
@@ -1246,6 +1404,53 @@ class MappingPreflight(Node):
         }
 
 
+def quality_window_status_items(
+    node: MappingPreflight, *, lidar_probe_ready: bool
+) -> tuple[StatusItem, ...]:
+    """Return live fixed-window counters without changing any quality gate."""
+
+    def sample_detail(key: str) -> str:
+        samples = node.reception_times[key]
+        rate = sample_rate(samples)
+        gap = maximum_gap(samples)
+        if rate <= 0.0:
+            return f"{len(samples)} 条"
+        if gap is None:
+            return f"{rate:.1f} Hz，{len(samples)} 条"
+        return f"{rate:.1f} Hz，最大间隔 {gap:.2f} s"
+
+    def rtk_detail() -> str:
+        quality = node.latest_gga_detail.get("quality")
+        labels = {4: "RTK Fixed", 5: "RTK Float"}
+        solution = labels.get(quality, f"quality={quality}")
+        return f"{sample_detail('GGA')}，{solution}"
+
+    com2_state, com2_detail = g90_com2_summary(node.latest_com2_values)
+    return (
+        (
+            "LiDAR",
+            "采样中" if lidar_probe_ready else "等待",
+            "rosbag2 原始点云探针已订阅"
+            if lidar_probe_ready
+            else "正在确认 rosbag2 原始点云订阅",
+        ),
+        ("IMU", "采样中", sample_detail("imu")),
+        ("RTK", "采样中", rtk_detail()),
+        ("GST", "采样中", sample_detail("GST")),
+        ("THS", "采样中", sample_detail("THS")),
+        ("G90 COM2", com2_state, com2_detail),
+        (
+            "静态 TF",
+            "正常"
+            if REQUIRED_STATIC_TRANSFORMS <= node.static_transforms
+            else "等待",
+            "3/3"
+            if REQUIRED_STATIC_TRANSFORMS <= node.static_transforms
+            else "固定变换不完整",
+        ),
+    )
+
+
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
@@ -1361,7 +1566,7 @@ def self_test() -> int:
             "缺少 base_link 到 lidar_top、imu_link、gnss_link 的静态变换",
         ),
     )
-    for columns in (60, 80, 120):
+    for columns in (20, 40, 60, 80, 120):
         rendered = render_status_rows(render_items, columns)
         if not rendered or any(display_width(line) > columns for line in rendered):
             raise RuntimeError(
@@ -1369,6 +1574,25 @@ def self_test() -> int:
             )
         if any("｜" in line for line in rendered):
             raise RuntimeError("self-test rendered a multi-device separator")
+        frame = render_dashboard_frame(
+            stage_number=1,
+            stage_name="设备预检",
+            items=render_items,
+            status=readiness_summary(render_items),
+            footer="[Q] 取消",
+            columns=columns,
+        )
+        if not frame or any(display_width(line) > columns for line in frame):
+            raise RuntimeError(
+                f"self-test rendered a dashboard line wider than {columns} columns"
+            )
+        if len(frame) != len(render_items) + 8:
+            raise RuntimeError("self-test dashboard changed its fixed row count")
+        title = "Autoracer RC — 菜单 6：建图录制"
+        if not title.startswith(frame[0].removesuffix("…")):
+            raise RuntimeError("self-test rendered an unexpected dashboard title")
+        if not any("阶段 1/6" in line for line in frame):
+            raise RuntimeError("self-test omitted the dashboard stage counter")
     updated_items = render_items[:4] + (
         ("RTK", "正常", "RTK Float，quality=5"),
     ) + render_items[5:]
@@ -1433,10 +1657,12 @@ def main() -> int:
     node = MappingPreflight()
     lidar_probe: LidarProbeRecorder | None = None
     cancel_input = OperatorCancelInput()
+    dashboard = TerminalDashboard()
     blockers: list[str] = []
     try:
         cancel_input.enable()
         next_progress_report = start_monotonic
+        next_dashboard_render = start_monotonic
         previous_items: tuple[StatusItem, ...] | None = None
         while True:
             if cancel_input.requested():
@@ -1452,7 +1678,23 @@ def main() -> int:
                 if previous_items is None
                 else changed_status_items(previous_items, items)
             )
-            if changed_items:
+            if dashboard.enabled:
+                if changed_items or current >= next_dashboard_render:
+                    dashboard.render(
+                        stage_number=1,
+                        stage_name="设备预检",
+                        items=items,
+                        status=readiness_summary(items),
+                    )
+                    next_dashboard_render = current + DASHBOARD_REFRESH_SECONDS
+                if changed_items:
+                    heading = "当前状态" if previous_items is None else "状态变化"
+                    print(f"[设备预检 {elapsed:.0f}s] {heading}", flush=True)
+                    for label, state, detail in changed_items:
+                        print(f"{label} {state}：{detail}", flush=True)
+                    print(readiness_summary(items), flush=True)
+                    previous_items = items
+            elif changed_items:
                 heading = "当前状态" if previous_items is None else "状态变化"
                 print()
                 print_wrapped(
@@ -1470,11 +1712,23 @@ def main() -> int:
                 )
                 next_progress_report = current + PROGRESS_HEARTBEAT_SECONDS
             if not blockers:
-                print()
-                print_wrapped(
-                    "[设备预检] 所有必需输入已同时在线；不再增加稳定等待，"
+                transition = (
+                    "所有必需输入已同时在线；不再增加稳定等待，"
                     f"立即进入 {WINDOW_SECONDS:.0f} 秒质量窗口。"
                 )
+                if dashboard.enabled:
+                    print(f"[设备预检] {transition}", flush=True)
+                    dashboard.render(
+                        stage_number=2,
+                        stage_name="固定质量窗口",
+                        items=quality_window_status_items(
+                            node, lidar_probe_ready=False
+                        ),
+                        status="正在确认 rosbag2 原始点云订阅",
+                    )
+                else:
+                    print()
+                    print_wrapped(f"[设备预检] {transition}")
                 break
 
         acquisition_wait = time.monotonic() - start_monotonic
@@ -1484,10 +1738,21 @@ def main() -> int:
             arguments.lidar_qos_file,
             arguments.lidar_probe_log,
         )
-        print_wrapped("[质量准备] 正在确认 rosbag2 已订阅 LiDAR 原始点云...")
+        quality_prepare_message = "正在确认 rosbag2 已订阅 LiDAR 原始点云"
+        if dashboard.enabled:
+            print(f"[质量准备] {quality_prepare_message}", flush=True)
+            dashboard.render(
+                stage_number=2,
+                stage_name="固定质量窗口",
+                items=quality_window_status_items(node, lidar_probe_ready=False),
+                status=quality_prepare_message,
+            )
+        else:
+            print_wrapped(f"[质量准备] {quality_prepare_message}...")
         lidar_probe.start()
         probe_warmup_start = time.monotonic()
         next_probe_report = probe_warmup_start + PROGRESS_HEARTBEAT_SECONDS
+        next_dashboard_render = probe_warmup_start
         while not lidar_probe.subscription_ready():
             if cancel_input.requested():
                 raise OperatorCancelled
@@ -1495,32 +1760,91 @@ def main() -> int:
             lidar_probe.ensure_running()
             rclpy.spin_once(node, timeout_sec=0.05)
             current = time.monotonic()
+            if dashboard.enabled and current >= next_dashboard_render:
+                dashboard.render(
+                    stage_number=2,
+                    stage_name="固定质量窗口",
+                    items=quality_window_status_items(
+                        node, lidar_probe_ready=False
+                    ),
+                    status=quality_prepare_message,
+                )
+                next_dashboard_render = current + DASHBOARD_REFRESH_SECONDS
             if current >= next_probe_report:
-                print_wrapped("[质量准备] 仍在等待 rosbag2 LiDAR 订阅确认...")
+                if dashboard.enabled:
+                    print(
+                        "[质量准备] 仍在等待 rosbag2 LiDAR 订阅确认",
+                        flush=True,
+                    )
+                else:
+                    print_wrapped(
+                        "[质量准备] 仍在等待 rosbag2 LiDAR 订阅确认..."
+                    )
                 next_probe_report = current + PROGRESS_HEARTBEAT_SECONDS
         probe_subscription_wait_seconds = time.monotonic() - probe_warmup_start
-        print_wrapped("[质量准备] LiDAR 订阅已确认，开始固定质量采样。")
+        if dashboard.enabled:
+            print("[质量准备] LiDAR 订阅已确认，开始固定质量采样", flush=True)
+        else:
+            print_wrapped("[质量准备] LiDAR 订阅已确认，开始固定质量采样。")
 
         node.begin_window()
         window_start_monotonic = time.monotonic()
         window_start_epoch_ns = time.time_ns()
         previous_window_summary = "全部输入在线"
-        print_wrapped(
-            f"[质量窗口] 开始 {WINDOW_SECONDS:.0f} 秒固定采样，输入必须持续在线。"
+        next_dashboard_render = window_start_monotonic
+        window_start_message = (
+            f"开始 {WINDOW_SECONDS:.0f} 秒固定采样，输入必须持续在线"
         )
+        if dashboard.enabled:
+            print(f"[质量窗口] {window_start_message}", flush=True)
+        else:
+            print_wrapped(f"[质量窗口] {window_start_message}。")
         while time.monotonic() - window_start_monotonic < WINDOW_SECONDS:
             if cancel_input.requested():
                 raise OperatorCancelled
             ensure_process_alive(arguments.watch_pid)
             lidar_probe.ensure_running()
             rclpy.spin_once(node, timeout_sec=0.05)
+            current = time.monotonic()
             blockers = node.readiness_blockers()
             window_summary = readiness_summary(node.status_items())
+            window_elapsed = current - window_start_monotonic
+            if dashboard.enabled and current >= next_dashboard_render:
+                dashboard.render(
+                    stage_number=2,
+                    stage_name="固定质量窗口",
+                    items=quality_window_status_items(
+                        node, lidar_probe_ready=True
+                    ),
+                    status=(
+                        f"进度 {min(window_elapsed, WINDOW_SECONDS):.1f} / "
+                        f"{WINDOW_SECONDS:.1f} 秒；{window_summary}"
+                    ),
+                )
+                next_dashboard_render = current + DASHBOARD_REFRESH_SECONDS
             if window_summary != previous_window_summary:
-                print_wrapped(f"[质量窗口] {window_summary}")
+                if dashboard.enabled:
+                    print(f"[质量窗口] {window_summary}", flush=True)
+                else:
+                    print_wrapped(f"[质量窗口] {window_summary}")
                 previous_window_summary = window_summary
         window_end_epoch_ns = time.time_ns()
-        print_wrapped(f"[质量窗口] {WINDOW_SECONDS:.0f} 秒采样完成。")
+        if dashboard.enabled:
+            dashboard.render(
+                stage_number=2,
+                stage_name="固定质量窗口",
+                items=quality_window_status_items(node, lidar_probe_ready=True),
+                status=(
+                    f"进度 {WINDOW_SECONDS:.1f} / {WINDOW_SECONDS:.1f} 秒；"
+                    "正在停止临时探针并核对质量"
+                ),
+            )
+            print(
+                f"[质量窗口] {WINDOW_SECONDS:.0f} 秒采样完成",
+                flush=True,
+            )
+        else:
+            print_wrapped(f"[质量窗口] {WINDOW_SECONDS:.0f} 秒采样完成。")
         node.window_active = False
         probe_exit_code = lidar_probe.stop()
         probe_state, probe_evidence = analyze_lidar_probe(
@@ -1539,11 +1863,32 @@ def main() -> int:
         payload["started_at"] = started_at
         write_json(arguments.output, payload)
         if payload["status"] == "PASS":
-            print_wrapped("[预检通过] 所有固定窗口质量检查通过。")
+            if dashboard.enabled:
+                dashboard.render(
+                    stage_number=2,
+                    stage_name="固定质量窗口",
+                    items=quality_window_status_items(
+                        node, lidar_probe_ready=True
+                    ),
+                    status="所有固定窗口质量检查通过，正在进入 READY",
+                )
+                print("[预检通过] 所有固定窗口质量检查通过", flush=True)
+            else:
+                print_wrapped("[预检通过] 所有固定窗口质量检查通过。")
         else:
-            print_wrapped(
-                "[预检失败] 未通过项：" + "，".join(payload["failures"])
-            )
+            failure_summary = "未通过项：" + "，".join(payload["failures"])
+            if dashboard.enabled:
+                dashboard.render(
+                    stage_number=2,
+                    stage_name="固定质量窗口",
+                    items=quality_window_status_items(
+                        node, lidar_probe_ready=True
+                    ),
+                    status=failure_summary,
+                )
+                print(f"[预检失败] {failure_summary}", flush=True)
+            else:
+                print_wrapped(f"[预检失败] {failure_summary}")
         return 0 if payload["status"] == "PASS" else 3
     except OperatorCancelled:
         payload = {
@@ -1586,6 +1931,7 @@ def main() -> int:
         return 4
     finally:
         cancel_input.restore()
+        dashboard.close()
         if lidar_probe is not None:
             lidar_probe.stop()
         node.destroy_node()

@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -89,6 +90,33 @@ DRIVING_PROFILES_PATH = PACKAGE_ROOT / "config" / "rc" / "driving_profiles.yaml"
 
 def _yaml(path):
     return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _bash_function(source, name, following_name):
+    start = source.index(f"{name}()")
+    end = source.index(f"{following_name}()", start)
+    return source[start:end]
+
+
+def _shell_fit(function_source, function_name, text, columns):
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            function_source + f'\n{function_name} "$1" "$2"',
+            "bash",
+            text,
+            str(columns),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout
+
+
+def _dashboard_width(text):
+    return sum(1 if ord(character) <= 127 else 2 for character in text)
 
 
 def test_rc_sensing_terminates_at_platform_independent_topics():
@@ -619,6 +647,116 @@ def test_mapping_recording_is_manual_unlimited_fixed_or_float_and_sensor_only():
     )
     assert "def subscription_ready(self)" in MAPPING_PREFLIGHT_SOURCE
     assert "while not lidar_probe.subscription_ready()" in MAPPING_PREFLIGHT_SOURCE
+
+
+def test_mapping_and_autonomy_dashboards_are_fixed_screen_and_width_aware():
+    for source, prefix in (
+        (MAPPING_RECORDING_SOURCE, "mapping_dashboard"),
+        (RC_ENTRY_SOURCE, "terminal_ui"),
+    ):
+        assert "\\033[?1049h" in source
+        assert "\\033[?25l" in source
+        assert "\\033[?25h" in source
+        assert "\\033[?1049l" in source
+        assert "\\033[J" in source
+        assert "stty size </dev/tty" in source
+        assert f"{prefix}_fit()" in source
+        assert f"{prefix}_draw()" in source
+
+    mapping_fit = _bash_function(
+        MAPPING_RECORDING_SOURCE,
+        "mapping_dashboard_fit",
+        "mapping_dashboard_draw",
+    )
+    autonomy_fit = _bash_function(
+        RC_ENTRY_SOURCE,
+        "terminal_ui_fit",
+        "terminal_ui_draw",
+    )
+    sample = "状态        这是一条很长的真实故障原因 / rc-map-id-with-long-name"
+    for width in (20, 40, 60):
+        for function_source, function_name in (
+            (mapping_fit, "mapping_dashboard_fit"),
+            (autonomy_fit, "terminal_ui_fit"),
+        ):
+            rendered = _shell_fit(function_source, function_name, sample, width)
+            assert _dashboard_width(rendered) <= width
+            assert rendered.endswith("…")
+
+    for stage in (1, 3, 4, 5, 6):
+        assert f"阶段 {stage}/6" in MAPPING_RECORDING_SOURCE
+    assert "stage_number=2" in MAPPING_PREFLIGHT_SOURCE
+    assert 'stage_name="固定质量窗口"' in MAPPING_PREFLIGHT_SOURCE
+    assert 'DASHBOARD_FD_ENV = "RC_MAPPING_DASHBOARD_FD"' in (
+        MAPPING_PREFLIGHT_SOURCE
+    )
+    assert "class TerminalDashboard" in MAPPING_PREFLIGHT_SOURCE
+    assert '"\\x1b[H" + "\\n".join(frame) + "\\x1b[J"' in (
+        MAPPING_PREFLIGHT_SOURCE
+    )
+    assert "render_dashboard_status_rows" in MAPPING_PREFLIGHT_SOURCE
+    assert "self-test dashboard changed its fixed row count" in (
+        MAPPING_PREFLIGHT_SOURCE
+    )
+    assert "for columns in (20, 40, 60, 80, 120)" in MAPPING_PREFLIGHT_SOURCE
+    assert (
+        '"${PREFLIGHT_COMMAND[@]}" >"${SESSION_DIR}/logs/preflight.log" 2>&1'
+        in MAPPING_RECORDING_SOURCE
+    )
+    assert '"${SESSION_DIR}/logs/stop_console.log"' in MAPPING_RECORDING_SOURCE
+
+    mapping_failure = _bash_function(
+        MAPPING_RECORDING_SOURCE, "fail", "validate_text"
+    )
+    assert mapping_failure.index("mapping_dashboard_render_failure") < (
+        mapping_failure.index("mapping_dashboard_wait_for_q")
+    )
+    mapping_finalize = MAPPING_RECORDING_SOURCE[
+        MAPPING_RECORDING_SOURCE.index("finalize_recording()"):
+        MAPPING_RECORDING_SOURCE.index('RECORDING_STARTED_EPOCH="$(date +%s)"')
+    ]
+    assert mapping_finalize.index("mapping_dashboard_render_result") < (
+        mapping_finalize.index("mapping_dashboard_wait_for_q")
+    )
+
+    for stage in range(1, 7):
+        assert f"阶段 {stage}/6" in RC_ENTRY_SOURCE
+    for renderer in (
+        "autonomy_render_preparing",
+        "autonomy_render_ready",
+        "autonomy_render_start_confirmation",
+        "autonomy_render_running",
+        "autonomy_render_stopping",
+        "autonomy_render_complete",
+        "autonomy_render_failure",
+    ):
+        assert f"{renderer}()" in RC_ENTRY_SOURCE
+    assert "runtime 快照未提供数值，不猜测" in RC_ENTRY_SOURCE
+    autonomy_renderers = RC_ENTRY_SOURCE[
+        RC_ENTRY_SOURCE.index("autonomy_render_preparing()"):
+        RC_ENTRY_SOURCE.index("wait_for_q_acknowledgement()")
+    ]
+    assert "｜" not in autonomy_renderers
+    assert "ARRIVED / FINISHED" not in autonomy_renderers
+    assert "当前快照未区分到达或人工停车" in autonomy_renderers
+
+    acknowledgement = _bash_function(
+        RC_ENTRY_SOURCE,
+        "acknowledge_autonomy_failure",
+        "wait_for_autonomy_ready",
+    )
+    assert acknowledgement.index("autonomy_render_failure") < (
+        acknowledgement.index("wait_for_q_acknowledgement")
+    )
+    autonomy_start = RC_ENTRY_SOURCE[
+        RC_ENTRY_SOURCE.index("start_autonomy()"):
+        RC_ENTRY_SOURCE.index("run_and_report()")
+    ]
+    success_page = autonomy_start.index("autonomy_render_complete")
+    assert autonomy_start.rindex("stop_active", 0, success_page) < success_page
+    assert success_page < autonomy_start.index(
+        "wait_for_q_acknowledgement", success_page
+    )
 
 
 def test_automatic_driving_entry_uses_the_user_approved_low_speed_profile():

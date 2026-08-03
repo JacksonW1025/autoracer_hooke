@@ -81,19 +81,148 @@ RUNTIME_CONTROL_MODE="null"
 RUNTIME_GEAR="null"
 RUNTIME_ENGAGED=0
 
+TERMINAL_UI_ACTIVE=0
+TERMINAL_UI_NOTICE=""
+TERMINAL_UI_LAST_FAILURE=""
+AUTONOMY_EFFECTIVE_SPEED=""
+AUTONOMY_RUN_STARTED_EPOCH=0
+
+terminal_ui_note() {
+  local level="$1"
+  shift
+  TERMINAL_UI_NOTICE="$*"
+  if [[ "${level}" == "FAIL" ]]; then
+    TERMINAL_UI_LAST_FAILURE="$*"
+  fi
+  if [[ -n "${SESSION_ROOT}" && -d "${SESSION_ROOT}" ]]; then
+    printf '[%s] %s\n' "${level}" "$*" \
+      >>"${SESSION_ROOT}/operator.log" 2>/dev/null || true
+  fi
+}
+
+terminal_ui_begin() {
+  if (( TERMINAL_UI_ACTIVE == 1 )) \
+    || [[ ! -t 0 || ! -t 1 || "${TERM:-dumb}" == "dumb" ]] \
+    || (( VERBOSE == 1 )) \
+    || is_dry_run
+  then
+    return 0
+  fi
+  if ! { exec 3>/dev/tty; } 2>/dev/null; then
+    return 0
+  fi
+  TERMINAL_UI_ACTIVE=1
+  printf '\033[?1049h\033[?25l\033[H\033[2J' >&3
+}
+
+terminal_ui_end() {
+  if (( TERMINAL_UI_ACTIVE == 0 )); then
+    return 0
+  fi
+  printf '\033[?25h\033[?1049l' >&3 2>/dev/null || true
+  exec 3>&-
+  TERMINAL_UI_ACTIVE=0
+}
+
+terminal_ui_columns() {
+  local dimensions=""
+  local columns=""
+  dimensions="$(stty size </dev/tty 2>/dev/null || true)"
+  columns="${dimensions##* }"
+  if [[ ! "${columns}" =~ ^[0-9]+$ ]]; then
+    columns=80
+  fi
+  ((columns < 4)) && columns=4
+  printf '%s\n' "${columns}"
+}
+
+terminal_ui_fit() {
+  local text="$1"
+  local maximum_width="$2"
+  local width=0
+  local index character code character_width
+  for ((index = 0; index < ${#text}; index += 1)); do
+    character="${text:index:1}"
+    printf -v code '%d' "'${character}"
+    if ((code <= 127)); then
+      character_width=1
+    else
+      character_width=2
+    fi
+    width=$((width + character_width))
+  done
+  if ((width <= maximum_width)); then
+    printf '%s' "${text}"
+    return 0
+  fi
+
+  local output=""
+  local output_width=0
+  local content_limit=$((maximum_width - 2))
+  ((content_limit < 0)) && content_limit=0
+  for ((index = 0; index < ${#text}; index += 1)); do
+    character="${text:index:1}"
+    printf -v code '%d' "'${character}"
+    if ((code <= 127)); then
+      character_width=1
+    else
+      character_width=2
+    fi
+    if ((output_width + character_width > content_limit)); then
+      break
+    fi
+    output+="${character}"
+    output_width=$((output_width + character_width))
+  done
+  printf '%s…' "${output}"
+}
+
+terminal_ui_draw() {
+  (( TERMINAL_UI_ACTIVE == 1 )) || return 0
+  local columns line line_number=0
+  local line_count=$#
+  columns="$(terminal_ui_columns)"
+  columns=$((columns - 1))
+  printf '\033[H' >&3
+  for line in "$@"; do
+    line_number=$((line_number + 1))
+    terminal_ui_fit "${line}" "${columns}" >&3
+    if ((line_number < line_count)); then
+      printf '\n' >&3
+    fi
+  done
+  printf '\033[J' >&3
+}
+
 info() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "$*"
+    return 0
+  fi
   printf '[INFO] %s\n' "$*"
 }
 
 ok() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note OK "$*"
+    return 0
+  fi
   printf '[ OK ] %s\n' "$*"
 }
 
 warn() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note WARN "$*"
+    return 0
+  fi
   printf '[WARN] %s\n' "$*" >&2
 }
 
 fail() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note FAIL "$*"
+    return 0
+  fi
   printf '[FAIL] %s\n' "$*" >&2
 }
 
@@ -270,7 +399,9 @@ start_launch() {
   sleep 1
   if ! kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; then
     fail "${label} 启动后立即退出"
-    tail -n 40 "${ACTIVE_LOG}" >&2 || true
+    if (( TERMINAL_UI_ACTIVE == 0 )); then
+      tail -n 40 "${ACTIVE_LOG}" >&2 || true
+    fi
     wait "${ACTIVE_PID}" 2>/dev/null || true
     ACTIVE_PID=""
     ACTIVE_LABEL=""
@@ -301,7 +432,9 @@ start_runtime_state_watch() {
   sleep 1
   if ! kill -0 "${RUNTIME_STATE_WATCH_PID}" >/dev/null 2>&1; then
     fail "runtime 状态订阅器启动后立即退出"
-    tail -n 40 "${RUNTIME_STATE_WATCH_LOG}" >&2 || true
+    if (( TERMINAL_UI_ACTIVE == 0 )); then
+      tail -n 40 "${RUNTIME_STATE_WATCH_LOG}" >&2 || true
+    fi
     wait "${RUNTIME_STATE_WATCH_PID}" 2>/dev/null || true
     RUNTIME_STATE_WATCH_PID=""
     return 1
@@ -389,6 +522,7 @@ stop_active() {
 
 on_exit() {
   stop_active
+  terminal_ui_end
   if [[ -n "${SESSION_ROOT}" ]]; then
     info "运行日志保留在 ${SESSION_ROOT}"
   fi
@@ -1554,10 +1688,223 @@ PY
     RUNTIME_CONTROL_MODE RUNTIME_GEAR RUNTIME_ENGAGED <<<"${parsed}"
 }
 
+autonomy_control_mode_label() {
+  case "${RUNTIME_CONTROL_MODE}" in
+    1) printf 'AUTO (1)' ;;
+    4) printf 'MANUAL (4)' ;;
+    0) printf 'UNKNOWN (0)' ;;
+    null|'') printf '未报告' ;;
+    *) printf '原始值 %s' "${RUNTIME_CONTROL_MODE}" ;;
+  esac
+}
+
+autonomy_gear_label() {
+  case "${RUNTIME_GEAR}" in
+    1) printf 'PARK (1)' ;;
+    2) printf 'REVERSE (2)' ;;
+    4) printf 'DRIVE (4)' ;;
+    22) printf 'NEUTRAL (22)' ;;
+    null|'') printf '未报告' ;;
+    *) printf '原始值 %s' "${RUNTIME_GEAR}" ;;
+  esac
+}
+
+autonomy_boolean_label() {
+  if (( $1 == 1 )); then
+    printf '是'
+  else
+    printf '否'
+  fi
+}
+
+autonomy_elapsed() {
+  local now total
+  now="$(date +%s)"
+  total=$((now - AUTONOMY_RUN_STARTED_EPOCH))
+  ((total < 0)) && total=0
+  printf '%02d:%02d:%02d' \
+    "$((total / 3600))" "$(((total % 3600) / 60))" "$((total % 60))"
+}
+
+autonomy_render_preparing() {
+  local graph_state="尚未启动"
+  local correction_state="检查中"
+  local runtime_state="等待状态订阅"
+  local detail="${TERMINAL_UI_NOTICE:-正在准备完整运行图}"
+  if [[ -n "${ACTIVE_PID}" ]] && kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; then
+    graph_state="运行中"
+  fi
+  if (( G90_CORRECTION_READY == 1 )); then
+    correction_state="READY"
+  elif [[ "${G90_CORRECTION_MESSAGE}" != "未观测" ]]; then
+    correction_state="${G90_CORRECTION_MESSAGE}"
+  fi
+  if [[ -n "${RUNTIME_STATE}" ]]; then
+    runtime_state="${RUNTIME_STATE} / ${RUNTIME_REASON}"
+  fi
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 1/6    系统准备" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "地图/路线   PASS / ${AUTONOMY_ROUTE_LENGTH} m" \
+    "运行方案    ${AUTONOMY_PROFILE_NAME}" \
+    "速度上限    ${AUTONOMY_EFFECTIVE_SPEED} m/s" \
+    "完整运行图  ${graph_state}" \
+    "G90 差分    ${correction_state}" \
+    "Runtime     ${runtime_state}" \
+    "定位        检查中（由正式 runtime 门控）" \
+    "Planning    检查中（由正式 runtime 门控）" \
+    "底盘反馈    检查中（由正式 runtime 门控）" \
+    "控制输出    禁止（READY 前）" \
+    "" \
+    "状态        ${detail}" \
+    "" \
+    "                                      [Q] 取消"
+}
+
+autonomy_render_ready() {
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 2/6    READY" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "地图/路线   PASS / ${AUTONOMY_ROUTE_LENGTH} m" \
+    "航向补偿    ${AUTONOMY_HEADING_OFFSET_DEG}°（合同一致）" \
+    "运行方案    ${AUTONOMY_PROFILE_NAME}" \
+    "速度上限    ${AUTONOMY_EFFECTIVE_SPEED} m/s" \
+    "定位        READY" \
+    "G90 差分    READY" \
+    "Planning    READY" \
+    "底盘反馈    READY" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "控制输出    禁止，等待 S" \
+    "" \
+    "                    [S] 开始自动驾驶    [Q] 取消"
+}
+
+autonomy_render_start_confirmation() {
+  local status="$1"
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 3/6    开始确认" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "开始输入    已收到 S" \
+    "资产        PASS" \
+    "定位        $([[ ${RUNTIME_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "G90 差分    $([[ ${G90_CORRECTION_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "Planning    $([[ ${RUNTIME_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "底盘反馈    $([[ ${RUNTIME_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "控制输出    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "" \
+    "状态        ${status}" \
+    "" \
+    "                                      [Q] 取消"
+}
+
+autonomy_render_running() {
+  local route_state="READY 已确认；当前快照无数值进度"
+  if [[ "${RUNTIME_STATE}" == "FINISHED" ]]; then
+    route_state="Runtime FINISHED；未区分到达或人工停车"
+  fi
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 4/6    自动驾驶运行中" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "运行时间    $(autonomy_elapsed)" \
+    "Runtime     ${RUNTIME_STATE:-等待状态} / ${RUNTIME_REASON:-未报告}" \
+    "路线状态    ${route_state}" \
+    "定位        READY（由 runtime 持续门控）" \
+    "Planning    READY（由 runtime 持续门控）" \
+    "控制使能    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "已接管      $(autonomy_boolean_label "${RUNTIME_ENGAGED}")" \
+    "速度        runtime 快照未提供数值，不猜测" \
+    "" \
+    "                         [Q] 请求正常停车"
+}
+
+autonomy_render_stopping() {
+  local status="$1"
+  local stopped_state="等待正式 runtime 确认"
+  local state_line="正在等待安全停止；不会自动重试"
+  if [[ "${RUNTIME_STATE}" == "FINISHED" ]] \
+    || { [[ "${RUNTIME_STATE}" == "FAULT" ]] && runtime_fault_is_stopped; }
+  then
+    stopped_state="已由正式 runtime 确认"
+    state_line="安全停止已确认；正在完成退出或清理"
+  fi
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 5/6    停车与退出自动模式" \
+    "" \
+    "Runtime     ${RUNTIME_STATE:-等待状态} / ${RUNTIME_REASON:-未报告}" \
+    "停止请求    ${status}" \
+    "控制使能    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "已接管      $(autonomy_boolean_label "${RUNTIME_ENGAGED}")" \
+    "Hall 零速   ${stopped_state}" \
+    "" \
+    "状态        ${state_line}"
+}
+
+autonomy_render_complete() {
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 6/6    完成" \
+    "" \
+    "安全退出    PASS" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "Runtime     ${RUNTIME_STATE} / ${RUNTIME_REASON}" \
+    "路线到达    当前快照未区分到达或人工停车" \
+    "车辆停止    已由正式 runtime 确认" \
+    "自动模式    已退出" \
+    "运行图      已停止并回收" \
+    "" \
+    "日志目录    ${SESSION_ROOT}" \
+    "" \
+    "                              [Q] 返回主菜单"
+}
+
+autonomy_render_failure() {
+  local conclusion="$1"
+  local detail="$2"
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "结果        FAIL" \
+    "故障结论    ${conclusion}" \
+    "真实原因    ${detail}" \
+    "" \
+    "Runtime     ${RUNTIME_STATE:-未取得}" \
+    "控制使能    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "日志目录    ${SESSION_ROOT:-尚未创建}" \
+    "" \
+    "故障结论已经固定，不会自动重试。" \
+    "                              [Q] 确认并清理"
+}
+
 wait_for_q_acknowledgement() {
   local prompt="$1"
   local key=""
-  printf '%s\n' "${prompt}"
+  if (( TERMINAL_UI_ACTIVE == 0 )); then
+    printf '%s\n' "${prompt}"
+  fi
   while true; do
     key=""
     if ! IFS= read -r -s -n 1 key; then
@@ -1572,7 +1919,13 @@ wait_for_q_acknowledgement() {
 
 acknowledge_autonomy_failure() {
   local conclusion="$1"
-  fail "${conclusion}"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    local detail="${TERMINAL_UI_LAST_FAILURE:-${RUNTIME_REASON:-未取得具体原因}}"
+    terminal_ui_note FAIL "${conclusion}"
+    autonomy_render_failure "${conclusion}" "${detail}"
+  else
+    fail "${conclusion}"
+  fi
   if is_dry_run || [[ ! -t 0 ]]; then
     return 0
   fi
@@ -1583,7 +1936,12 @@ wait_for_autonomy_ready() {
   local last_reason=""
   local last_correction_message=""
   local key=""
-  info "完整运行图正在准备；不设超时，按 Q 取消。"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "完整运行图正在准备；不设超时"
+    autonomy_render_preparing
+  else
+    info "完整运行图正在准备；不设超时，按 Q 取消。"
+  fi
 
   while kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; do
     key=""
@@ -1623,6 +1981,9 @@ wait_for_autonomy_ready() {
         last_reason="${RUNTIME_REASON}"
       fi
     fi
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      autonomy_render_preparing
+    fi
   done
 
   fail "自动驾驶运行图在 READY 前退出"
@@ -1636,6 +1997,10 @@ wait_for_autonomy_start_decision() {
   local current_status=""
   local last_correction_message=""
 
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_ready
+  fi
+
   while kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; do
     key=""
     if IFS= read -r -s -n 1 -t 0.2 key; then
@@ -1645,6 +2010,9 @@ wait_for_autonomy_start_decision() {
           if (( start_requested == 0 )); then
             start_requested=1
             info "已收到开始请求；正在进行最终状态确认，按 Q 取消。"
+            if (( TERMINAL_UI_ACTIVE == 1 )); then
+              autonomy_render_start_confirmation "正在进行最终 runtime 与差分确认"
+            fi
           fi
           ;;
       esac
@@ -1694,6 +2062,13 @@ wait_for_autonomy_start_decision() {
         fi
       fi
     fi
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      if (( start_requested == 1 )); then
+        autonomy_render_start_confirmation "正在进行最终 runtime 与差分确认"
+      else
+        autonomy_render_ready
+      fi
+    fi
   done
 
   fail "自动驾驶运行图在等待 S/Q 时退出"
@@ -1734,11 +2109,19 @@ monitor_autonomy_run() {
   local stop_requested=0
   local fault_reported=0
 
-  info "自动驾驶运行中；按 Q 请求正常停车。"
+  AUTONOMY_RUN_STARTED_EPOCH="$(date +%s)"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_running
+  else
+    info "自动驾驶运行中；按 Q 请求正常停车。"
+  fi
   while kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; do
     key=""
     if IFS= read -r -s -n 1 -t 0.2 key; then
       if [[ "${key}" =~ ^[qQ]$ ]] && (( stop_requested == 0 )); then
+        if (( TERMINAL_UI_ACTIVE == 1 )); then
+          autonomy_render_stopping "正在调用正式 stop 服务"
+        fi
         if ! call_race_service stop; then
           return 1
         fi
@@ -1759,10 +2142,16 @@ monitor_autonomy_run() {
 
     case "${RUNTIME_STATE}" in
       FINISHED)
+        if (( TERMINAL_UI_ACTIVE == 1 )); then
+          autonomy_render_stopping "已确认 Hall 零速并退出自动模式"
+        fi
         ok "车辆已确认停止并退出自动模式"
         return 0
         ;;
       FAULT)
+        if (( TERMINAL_UI_ACTIVE == 1 )); then
+          autonomy_render_stopping "FAULT；正在请求并确认安全停止"
+        fi
         if (( fault_reported == 0 )); then
           fail "自动驾驶进入 FAULT：${RUNTIME_REASON}"
           call_race_service stop || true
@@ -1774,6 +2163,13 @@ monitor_autonomy_run() {
         fi
         ;;
     esac
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      if (( stop_requested == 1 )); then
+        autonomy_render_stopping "stop 已请求；等待正式停止确认"
+      elif [[ "${RUNTIME_STATE}" != "FAULT" ]]; then
+        autonomy_render_running
+      fi
+    fi
   done
 
   fail "自动驾驶运行图在确认停车前退出"
@@ -1806,18 +2202,25 @@ start_autonomy() {
       -v profile="${AUTONOMY_PROFILE_MAX_SPEED}" \
       'BEGIN {printf "%.3f", route < profile ? route : profile}'
   )"
+  AUTONOMY_EFFECTIVE_SPEED="${effective_speed}"
+  terminal_ui_begin
 
-  printf '\n'
-  printf '场景：%s\n' "${AUTONOMY_MAP_ID}"
-  printf '地图：%s\n' "${AUTONOMY_MAP_PATH}"
-  printf '路线：%s\n' "${AUTONOMY_COURSE_PATH}"
-  printf '地图/运行航向补偿：%.1f°（合同一致）\n' \
-    "${AUTONOMY_HEADING_OFFSET_DEG}"
-  printf '运行方案：%s\n' "${AUTONOMY_PROFILE_NAME}"
-  printf '路线最高目标速度：%.3f m/s\n' "${AUTONOMY_ROUTE_MAX_SPEED}"
-  printf '实际速度上限：%s m/s\n' "${effective_speed}"
-  printf '资产校验：PASS\n'
-  printf '选择 7 已授权本次打开底盘控制串口；READY 前不会开始自动驾驶。\n'
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "资产已校验；正在检查设备路径"
+    autonomy_render_preparing
+  else
+    printf '\n'
+    printf '场景：%s\n' "${AUTONOMY_MAP_ID}"
+    printf '地图：%s\n' "${AUTONOMY_MAP_PATH}"
+    printf '路线：%s\n' "${AUTONOMY_COURSE_PATH}"
+    printf '地图/运行航向补偿：%.1f°（合同一致）\n' \
+      "${AUTONOMY_HEADING_OFFSET_DEG}"
+    printf '运行方案：%s\n' "${AUTONOMY_PROFILE_NAME}"
+    printf '路线最高目标速度：%.3f m/s\n' "${AUTONOMY_ROUTE_MAX_SPEED}"
+    printf '实际速度上限：%s m/s\n' "${effective_speed}"
+    printf '资产校验：PASS\n'
+    printf '选择 7 已授权本次打开底盘控制串口；READY 前不会开始自动驾驶。\n'
+  fi
 
   if ! device_available "底盘" "${CHASSIS_DEVICE}" \
     || ! device_available "IMU" "${IMU_DEVICE}" \
@@ -1827,6 +2230,9 @@ start_autonomy() {
     return 1
   fi
   report_lidar_network
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_preparing
+  fi
 
   if ! start_launch \
     "autonomy-${AUTONOMY_MAP_ID}-${AUTONOMY_PROFILE_ID}" \
@@ -1847,6 +2253,10 @@ start_autonomy() {
     acknowledge_autonomy_failure "自动驾驶运行图启动失败"
     return 1
   fi
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "完整运行图已启动；正在等待 runtime 状态"
+    autonomy_render_preparing
+  fi
 
   if is_dry_run; then
     info "dry-run 完成：未打开设备、未启动节点、未调用自动驾驶服务"
@@ -1859,6 +2269,10 @@ start_autonomy() {
     stop_active
     return 1
   fi
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "runtime 状态订阅器已启动"
+    autonomy_render_preparing
+  fi
 
   local ready_result
   if wait_for_autonomy_ready; then
@@ -1869,6 +2283,9 @@ start_autonomy() {
   if (( ready_result != 0 )); then
     if (( ready_result == 2 )); then
       info "已取消自动驾驶准备"
+      if (( TERMINAL_UI_ACTIVE == 1 )); then
+        autonomy_render_stopping "已取消；正在回收运行图"
+      fi
       stop_active
       return 0
     fi
@@ -1878,12 +2295,16 @@ start_autonomy() {
     return 1
   fi
 
-  printf '\n'
-  printf '定位：READY\n'
-  printf '差分：READY\n'
-  printf 'Planning：READY\n'
-  printf '底盘反馈：READY\n'
-  printf '[S] 开始自动驾驶  [Q] 取消\n'
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_ready
+  else
+    printf '\n'
+    printf '定位：READY\n'
+    printf '差分：READY\n'
+    printf 'Planning：READY\n'
+    printf '底盘反馈：READY\n'
+    printf '[S] 开始自动驾驶  [Q] 取消\n'
+  fi
 
   local decision_result
   if wait_for_autonomy_start_decision; then
@@ -1894,6 +2315,9 @@ start_autonomy() {
   if (( decision_result != 0 )); then
     if (( decision_result == 2 )); then
       info "已取消自动驾驶"
+      if (( TERMINAL_UI_ACTIVE == 1 )); then
+        autonomy_render_stopping "已取消；正在回收运行图"
+      fi
       stop_active
       return 0
     fi
@@ -1903,6 +2327,9 @@ start_autonomy() {
     return 1
   fi
 
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_start_confirmation "正在调用正式 start 服务"
+  fi
   if ! call_race_service start; then
     acknowledge_autonomy_failure \
       "自动驾驶开始请求未执行；启动日志：${ACTIVE_LOG}"
@@ -1910,6 +2337,9 @@ start_autonomy() {
     return 1
   fi
   ok "已接受本次自动驾驶开始请求"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_start_confirmation "start 已接受；等待 runtime 进入 ACTIVE"
+  fi
 
   local run_result
   if monitor_autonomy_run; then
@@ -1920,18 +2350,36 @@ start_autonomy() {
   if (( run_result != 0 )); then
     acknowledge_autonomy_failure \
       "自动驾驶运行未正常完成；启动日志：${ACTIVE_LOG}"
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      autonomy_render_stopping "故障已确认；正在回收运行图"
+    fi
+    stop_active
+    return "${run_result}"
+  fi
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_stopping "运行完成；正在停止并回收完整运行图"
   fi
   stop_active
-  return "${run_result}"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_complete
+    wait_for_q_acknowledgement "按 Q 返回主菜单。"
+  fi
+  return 0
 }
 
 run_and_report() {
   local label="$1"
   shift
   if "$@"; then
+    terminal_ui_end
     verbose_ok "${label} 完成"
   else
-    fail "${label} 未通过"
+    local used_terminal_ui="${TERMINAL_UI_ACTIVE}"
+    terminal_ui_end
+    if (( used_terminal_ui == 0 )); then
+      fail "${label} 未通过"
+    fi
+    return 0
   fi
 }
 
