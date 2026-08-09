@@ -1,0 +1,87 @@
+{
+  "build_role": "Dense road-surface trajectory independently extracted from the real downhill PCD and then independently reproduced by the CarMaker RD5",
+  "centerline_source_kind": "validated_source_trajectory",
+  "effective_route_length_m": 10651.823376,
+  "endpoint_inset_m": 0.766554,
+  "format_version": 2,
+  "holdout_endpoint_alignment": {
+    "end_3d_m": 0.3605272674981833,
+    "end_xy_m": 0.2022854769168591,
+    "start_3d_m": 0.3903330503169529,
+    "start_xy_m": 0.12426212974317523,
+    "tolerance_m": 1.0
+  },
+  "holdout_progress_semantics": "authoritative CarMaker distance is linearly normalised only as a time-cutoff coordinate; holdout XYZ coordinates are not changed",
+  "holdout_role": "Full dynamic CarMaker traversal whose RoadEval evidence proves the same RD5 is continuously driveable",
+  "inputs": {
+    "centerline_source_report": {
+      "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/scene/downhill_road_surface_0000_10666_report.json",
+      "sha256": "3db3e449a76205ebc852554a319dc0536620800e960a0b49877dff4e183920f5"
+    },
+    "holdout_route_progress": {
+      "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/physical_reference/route_progress.csv",
+      "sha256": "a435a25dac30f7034cc96915f360a37c6c0aaeb507d771c74f9cd7a3faf00396"
+    },
+    "holdout_vehicle_state": {
+      "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/physical_reference/vehicle_state.csv",
+      "sha256": "a79cdae8f5dc966ab0234bca76b460d69251429e3367478a45f9acafad248c79"
+    },
+    "physical_drivability_report": {
+      "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/physical_reference/physical_reference_score_v2.json",
+      "sha256": "25f63db1d05f36283732e1c577927725bb728a81fad80a40c5d2b06c067ee61d"
+    },
+    "road_geometry_report": {
+      "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/physical_reference/rd5_centerline_geometry_report.json",
+      "sha256": "08cb2db891a222b96ff1d99b598cd57aec3c5f9c86fe1c47f1118c548bf38617"
+    },
+    "road_samples": {
+      "path": "SimProject_TianmenRace/docs/evidence/tm99_baseline_v1/scene/downhill_road_surface_0000_10666.csv",
+      "sha256": "4a531e16b8ae334c5d5cc1a7e7e80f0d95c805b84d5f755fabc43bd04ba5df15"
+    }
+  },
+  "longitudinal_endpoint_contract": {
+    "carmaker_reference_to_base_link_m": 0.863,
+    "frame_id": "base_link",
+    "front_overhang_m": 0.88,
+    "minimum_margin_m": 0.2,
+    "outer_skin_length_m": 4.28,
+    "outer_skin_m": [
+      0.0,
+      0.9,
+      0.2,
+      4.28,
+      -0.9,
+      1.49
+    ],
+    "rear_overhang_m": 0.863,
+    "vehicle_file": "SimProject_TianmenRace/Data/Vehicle/AutoracerCollection_TM99_MappingPandar64PrimaryMeasuredRoadReferenced",
+    "vehicle_file_sha256": "158a5af5e4580fb2059b7bb06f1773c9138c0437a1b0a915c0c358c26eb51f3b",
+    "vehicle_forward_extent_m": 3.417,
+    "vehicle_info_file": "SimProject_TianmenRace/Data/Config/AutoracerRaceVehicleInfo.param.yaml",
+    "vehicle_info_file_sha256": "0600cc82188e10b0cce4520215baa0eeb3f23b3a83c1e1ceaafeb9293084943d",
+    "vehicle_name": "AutoracerCollection_TM99_MappingPandar64PrimaryMeasuredRoadReferenced",
+    "vehicle_rear_extent_m": 0.863,
+    "wheel_base_m": 2.537
+  },
+  "prepared": {
+    "build_rows": 35928,
+    "full_holdout_path_length_m": 10614.099114881637,
+    "holdout_progress_rows": 2666,
+    "holdout_rows": 72963,
+    "selected_holdout_path_length_m": 10614.099114881637
+  },
+  "requested_endpoint_insets_m": {
+    "end": 13.064831,
+    "start": 0.766554
+  },
+  "route_length_m": 10665.654761,
+  "selected_endpoint_insets_m": {
+    "end": 13.064830999999685,
+    "start": 0.766554
+  },
+  "selected_source_interval_m": [
+    0.766554,
+    10652.58993
+  ],
+  "status": "PASS"
+}

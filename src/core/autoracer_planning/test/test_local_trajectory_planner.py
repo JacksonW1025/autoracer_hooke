@@ -10,6 +10,7 @@ from autoracer_planning.local_trajectory_planner import (
     build_local_from_prepared,
     prepare_global_trajectory,
     progress_search_forward_distance,
+    dynamic_horizon_distance,
     sanitize_points,
     select_progress_index,
     source_stamp_is_fresh,
@@ -111,6 +112,31 @@ def test_progress_search_window_scales_with_speed_without_relaxing_pose_gate():
         config,
         progress_search_forward_distance(40.0, config),
     ) is None
+
+
+def test_dynamic_horizon_keeps_explicit_lateral_preview_when_stopping_is_shorter():
+    config = LocalPlannerConfig(
+        lookahead_distance_m=170.0,
+        max_decel_mps2=-4.0,
+        command_latency_sec=0.24,
+        stopping_margin_m=5.0,
+    )
+
+    assert dynamic_horizon_distance(22.0, config) == 170.0
+
+    prepared = prepare_global_trajectory(
+        _trajectory([(float(x), 0.0, 22.0, 0.0) for x in range(250)])
+    )
+    local, nearest, includes_goal = build_local_from_prepared(
+        prepared,
+        ego_pose=_pose(10.0, 0.0),
+        current_speed_mps=22.0,
+        config=config,
+    )
+
+    assert nearest == 10
+    assert includes_goal is False
+    assert local.points[-1].pose.position.x >= 180.0
 
 
 def test_progress_tracking_uses_strict_height_only_for_initial_layer_selection():

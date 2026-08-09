@@ -1,0 +1,112 @@
+{
+  "checks": {
+    "combined_acceleration_bounded": true,
+    "discrete_lateral_jerk_bounded": true,
+    "geometry_fields_byte_equal": true,
+    "lateral_acceleration_bounded": true,
+    "longitudinal_acceleration_bounded": true,
+    "longitudinal_jerk_bounded": true,
+    "speed_bounded": true,
+    "speed_zones_bounded": true,
+    "steering_angle_bounded": true,
+    "steering_rate_bounded": true,
+    "terminal_stop_preserved": true
+  },
+  "constraints": {
+    "ideal_time_sec": 805.07464220948,
+    "longitudinal_optimizer": {
+      "algorithm": "scipy_highs_squared_speed_linear_program_v1",
+      "combined_acceleration_constraint": true,
+      "conservative_time_source": "incoming_speed_caps",
+      "constraint_rows": 85214,
+      "objective_value": -1545.7387646294455,
+      "solver_iterations": 22851,
+      "solver_message": "Optimization terminated successfully.",
+      "solver_status": 0
+    },
+    "max_accel_mps2": 4.0,
+    "max_combined_accel_mps2": 7.5,
+    "max_curvature_gradient_lateral_jerk_mps3": 10.0,
+    "max_decel_mps2": -4.0,
+    "max_discrete_lateral_jerk_mps3": 18.0,
+    "max_lateral_accel_mps2": 5.0,
+    "max_longitudinal_jerk_mps3": 8.0,
+    "max_steering_angle_rad": 0.605,
+    "max_steering_rate_radps": 0.72,
+    "mode": "competition_vehicle_feasible",
+    "non_binding_ceiling_mps": 100.0,
+    "speed_zones": [
+      {
+        "maximum_speed_mps": 11.0,
+        "route_progress_end_m": 248.3,
+        "route_progress_start_m": 0.0
+      },
+      {
+        "maximum_speed_mps": 8.6,
+        "route_progress_end_m": 342.4,
+        "route_progress_start_m": 248.3
+      },
+      {
+        "maximum_speed_mps": 11.0,
+        "route_progress_end_m": 433.3,
+        "route_progress_start_m": 342.4
+      },
+      {
+        "maximum_speed_mps": 3.2,
+        "route_progress_end_m": 1150.3,
+        "route_progress_start_m": 1113.5
+      },
+      {
+        "maximum_speed_mps": 10.0,
+        "route_progress_end_m": 1355.0,
+        "route_progress_start_m": 1325.0
+      },
+      {
+        "maximum_speed_mps": 16.0,
+        "route_progress_end_m": 9373.0,
+        "route_progress_start_m": 9261.0
+      },
+      {
+        "maximum_speed_mps": 15.5,
+        "route_progress_end_m": 9624.0,
+        "route_progress_start_m": 9442.0
+      },
+      {
+        "maximum_speed_mps": 11.5,
+        "route_progress_end_m": 10041.0,
+        "route_progress_start_m": 9998.0
+      }
+    ],
+    "wheel_base_m": 2.537
+  },
+  "derived": {
+    "path": "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_competition_v55_v12geometry_terminal_heading/course.csv",
+    "row_count": 21305,
+    "sha256": "c5d4c0c0981a5c34810789f3a5d955916d889155b51ff878f199e2c8f897a8af"
+  },
+  "geometry_fields_byte_equal": true,
+  "metrics": {
+    "combined_acceleration_max_mps2": 6.403124237432919,
+    "discrete_lateral_jerk_max_mps3": 11.606308707401048,
+    "discrete_longitudinal_jerk_max_mps3": 7.999981535545489,
+    "ideal_time_sec": 805.07464220948,
+    "lateral_acceleration_max_mps2": 5.000000000000004,
+    "longitudinal_acceleration_max_mps2": 4.000000000000311,
+    "longitudinal_acceleration_min_mps2": -4.000000000000161,
+    "required_steering_angle_max_rad": 0.5380362484879976,
+    "required_steering_rate_max_radps": 0.72,
+    "steering_rate_limited_segment_count": 82,
+    "target_speed_max_mps": 24.722806946834343
+  },
+  "preserved_assets": {
+    "input_provenance.json": "07f6972ea28078c7c0fa3e96a945586c261401ead2eee11754e93d10f496d99f",
+    "road_extents.csv": "3a0689fc0e2b8d28ca1ab1fc0dc8590106008964a38821e4e5145cf5741018e2"
+  },
+  "schema_version": 1,
+  "source": {
+    "manifest_sha256": "f76aac060f69256da3d8169b829ff14c51af23dcb755d1d6457bc5feeb28e07b",
+    "path": "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_competition_v53_v12geometry_lat500/course.csv",
+    "sha256": "c09a8048638c8ed80721d96e1824082358c404477b8014614bf3f81a547e6aab"
+  },
+  "status": "PASS"
+}

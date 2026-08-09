@@ -1,0 +1,49 @@
+{
+  "checks": {
+    "geometry_fields_byte_equal": true,
+    "lateral_acceleration_bounded": true,
+    "longitudinal_acceleration_bounded": true,
+    "speed_bounded": true,
+    "steering_angle_bounded": true,
+    "steering_rate_bounded": true,
+    "terminal_stop_preserved": true
+  },
+  "constraints": {
+    "ideal_time_sec": 1566.0600688259947,
+    "max_accel_mps2": 0.8,
+    "max_decel_mps2": -1.5,
+    "max_lateral_accel_mps2": 1.0,
+    "max_steering_angle_rad": 0.605,
+    "max_steering_rate_radps": 0.6283185307179586,
+    "mode": "competition_vehicle_feasible",
+    "non_binding_ceiling_mps": 100.0,
+    "wheel_base_m": 2.537
+  },
+  "derived": {
+    "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_competition_v12_lat100_rate0628/course.csv",
+    "row_count": 21305,
+    "sha256": "b1583ed6247300b1336711b0f1946786d60daec64e018ea6e375ca9dd44ebd06"
+  },
+  "geometry_fields_byte_equal": true,
+  "metrics": {
+    "ideal_time_sec": 1566.0600688259947,
+    "lateral_acceleration_max_mps2": 1.0000000000000002,
+    "longitudinal_acceleration_max_mps2": 0.8000000000000851,
+    "longitudinal_acceleration_min_mps2": -1.500000000000073,
+    "required_steering_angle_max_rad": 0.5380362484879976,
+    "required_steering_rate_max_radps": 0.6283185307179587,
+    "steering_rate_limited_segment_count": 30,
+    "target_speed_max_mps": 17.48861578038416
+  },
+  "preserved_assets": {
+    "input_provenance.json": "07f6972ea28078c7c0fa3e96a945586c261401ead2eee11754e93d10f496d99f",
+    "road_extents.csv": "3a0689fc0e2b8d28ca1ab1fc0dc8590106008964a38821e4e5145cf5741018e2"
+  },
+  "schema_version": 1,
+  "source": {
+    "manifest_sha256": "60a724780d83ec7d369e178212aabd39fa843b47d2dcfe8ecd47e7f1f3ce996c",
+    "path": "autoracer_hooke/courses/tm99_downhill_full_0000_10650_race_safe_inset_v9_vehicle_scale_speed_envelope/course.csv",
+    "sha256": "93a8a6df536c65e3cdd15cf2e29e9e40bef231fa6e24c1f98f150f677a0acb2e"
+  },
+  "status": "PASS"
+}

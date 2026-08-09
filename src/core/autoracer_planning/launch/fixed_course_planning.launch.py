@@ -12,6 +12,7 @@ def generate_launch_description():
     max_speed_mps = LaunchConfiguration("max_speed_mps")
     max_accel_mps2 = LaunchConfiguration("max_accel_mps2")
     max_decel_mps2 = LaunchConfiguration("max_decel_mps2")
+    lookahead_distance_m = LaunchConfiguration("lookahead_distance_m")
     command_latency_sec = LaunchConfiguration("command_latency_sec")
     stopping_margin_m = LaunchConfiguration("stopping_margin_m")
 
@@ -23,6 +24,7 @@ def generate_launch_description():
             DeclareLaunchArgument("max_speed_mps", default_value="100.0"),
             DeclareLaunchArgument("max_accel_mps2", default_value="0.8"),
             DeclareLaunchArgument("max_decel_mps2", default_value="-1.5"),
+            DeclareLaunchArgument("lookahead_distance_m", default_value="40.0"),
             DeclareLaunchArgument("command_latency_sec", default_value="0.2"),
             DeclareLaunchArgument("stopping_margin_m", default_value="5.0"),
             SetParameter(
@@ -56,7 +58,9 @@ def generate_launch_description():
                         "trajectory_topic": "/planning/trajectory",
                         "route_state_topic": "/planning/route_state",
                         "publish_rate_hz": 10.0,
-                        "lookahead_distance_m": 40.0,
+                        "lookahead_distance_m": ParameterValue(
+                            lookahead_distance_m, value_type=float
+                        ),
                         "backward_distance_m": 2.0,
                         "max_speed_mps": ParameterValue(max_speed_mps, value_type=float),
                         "max_accel_mps2": ParameterValue(
