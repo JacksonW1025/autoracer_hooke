@@ -1,0 +1,6 @@
+diff --git a/src/vendor/nmea_navsat_driver/package.xml b/src/vendor/nmea_navsat_driver/package.xml
+--- a/src/vendor/nmea_navsat_driver/package.xml
++++ b/src/vendor/nmea_navsat_driver/package.xml
+@@ -27 +27 @@
+-    <exec_depend>python3-transforms3d</exec_depend>
++    <exec_depend>tf_transformations</exec_depend>

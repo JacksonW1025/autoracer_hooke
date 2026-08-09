@@ -71,6 +71,7 @@ def test_shared_race_exposes_platform_parameter_contract():
         "max_speed_mps",
         "max_accel_mps2",
         "max_decel_mps2",
+        "departure_speed_mps",
         "command_latency_sec",
         "stopping_margin_m",
     ):
@@ -79,8 +80,15 @@ def test_shared_race_exposes_platform_parameter_contract():
     for argument in (
         "max_accel_mps2",
         "max_decel_mps2",
+        "departure_speed_mps",
         "command_latency_sec",
         "stopping_margin_m",
     ):
         assert f'LaunchConfiguration("{argument}")' in planning_source
         assert f'LaunchConfiguration("{argument}")' in planner_source
+
+    for source in (race_source, planning_source, planner_source):
+        assert (
+            'DeclareLaunchArgument("departure_speed_mps", default_value="0.1")'
+            in source
+        )

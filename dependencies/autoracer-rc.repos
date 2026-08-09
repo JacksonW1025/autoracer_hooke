@@ -57,16 +57,6 @@ repositories:
     url: https://github.com/autowarefoundation/autoware_launch.git
     version: 0f3946af9c5ec1cba491681b6927c6fcf577ed25
 
-  vendor/nebula:
-    type: git
-    url: https://github.com/tier4/nebula.git
-    version: c3845a943964d19821fe635bd0e365129203e5ff
-
-  vendor/sync_tooling_msgs:
-    type: git
-    url: https://github.com/tier4/sync_tooling_msgs.git
-    version: 3fb181bffa38f35ffff4d54ada2a7e19afffe9b2
-
   vendor/lslidar_ros2:
     type: git
     url: https://github.com/Lslidar/Lslidar_ROS2_driver.git

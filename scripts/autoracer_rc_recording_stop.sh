@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-MAPPING_ROOT="/home/wheeltec/Desktop/work/rc-mapping"
+PRODUCT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WORKSPACE_ROOT="$(dirname "${PRODUCT_ROOT}")"
+MAPPING_ROOT="${RC_MAPPING_ROOT:-${WORKSPACE_ROOT}/rc-mapping}"
 RUNTIME_ROOT="${MAPPING_ROOT}/.runtime"
 ACTIVE_ROOT="${RUNTIME_ROOT}/active"
 STOP_LOCK="${RUNTIME_ROOT}/stop.lock"
@@ -170,6 +172,9 @@ stop_named_process() {
 
   local pgid
   IFS= read -r pgid <"${ACTIVE_ROOT}/${prefix}_pgid"
+  # Humble launch does not forward an interactive SIGINT because it expects
+  # the terminal to have signalled the whole foreground group.  The recorder
+  # created this audited PGID with setsid, so address that owned group once.
   printf '正在以 SIGINT 停止 %s 生产进程组 %s...\n' "${prefix}" "${pgid}"
   kill -INT -- "-${pgid}" 2>/dev/null || true
   local wait_result

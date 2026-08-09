@@ -3,8 +3,27 @@ set -euo pipefail
 
 PRODUCT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR_WS="${AUTORACER_VENDOR_WS:-${PRODUCT_ROOT}/vendor_ws}"
-PACKAGE_MANIFEST="${PRODUCT_ROOT}/dependencies/vendor-packages.tsv"
 
+profile="full"
+case "${1:-}" in
+  "") ;;
+  --rc) profile="rc" ;;
+  *)
+    echo "Usage: $0 [--rc]" >&2
+    exit 2
+    ;;
+esac
+[[ $# -le 1 ]] || {
+  echo "Usage: $0 [--rc]" >&2
+  exit 2
+}
+
+PACKAGE_MANIFEST="${PRODUCT_ROOT}/dependencies/vendor-packages.tsv"
+if [[ "${profile}" == "rc" ]]; then
+  PACKAGE_MANIFEST="${PRODUCT_ROOT}/dependencies/vendor-packages-rc.tsv"
+fi
+
+export PYTHONNOUSERSITE=1
 AUTORACER_SOURCE_VENDOR_SETUP=false
 AUTORACER_SOURCE_PRODUCT_SETUP=false
 # shellcheck source=scripts/ros_env.sh

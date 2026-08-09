@@ -19,6 +19,7 @@ def generate_launch_description():
     max_speed_mps = LaunchConfiguration("max_speed_mps")
     max_accel_mps2 = LaunchConfiguration("max_accel_mps2")
     max_decel_mps2 = LaunchConfiguration("max_decel_mps2")
+    departure_speed_mps = LaunchConfiguration("departure_speed_mps")
     command_latency_sec = LaunchConfiguration("command_latency_sec")
     stopping_margin_m = LaunchConfiguration("stopping_margin_m")
     vehicle_info_param_file = LaunchConfiguration("vehicle_info_param_file")
@@ -39,6 +40,7 @@ def generate_launch_description():
             DeclareLaunchArgument("max_speed_mps", default_value="100.0"),
             DeclareLaunchArgument("max_accel_mps2", default_value="0.8"),
             DeclareLaunchArgument("max_decel_mps2", default_value="-1.5"),
+            DeclareLaunchArgument("departure_speed_mps", default_value="0.1"),
             DeclareLaunchArgument("command_latency_sec", default_value="0.2"),
             DeclareLaunchArgument("stopping_margin_m", default_value="5.0"),
             DeclareLaunchArgument("vehicle_info_param_file"),
@@ -86,6 +88,7 @@ def generate_launch_description():
                     "max_speed_mps": max_speed_mps,
                     "max_accel_mps2": max_accel_mps2,
                     "max_decel_mps2": max_decel_mps2,
+                    "departure_speed_mps": departure_speed_mps,
                     "command_latency_sec": command_latency_sec,
                     "stopping_margin_m": stopping_margin_m,
                 }.items(),

@@ -1,3 +1,9 @@
 # Current G90 USB serial bridge: WCH CH343, VID:PID 1a86:55d4,
 # unique receiver serial 5AA6079369. Keep system ownership and permissions.
 SUBSYSTEM=="tty", KERNEL=="ttyCH343USB*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d4", ATTRS{serial}=="5AA6079369", SYMLINK+="serial/by-id/usb-1a86_USB_Single_Serial_5AA6079369-if00"
+
+# Current G90 correction port (COM2): WCH CH340, VID:PID 1a86:7523.
+# The bridge exposes no usable unique serial. The RC system has exactly one
+# such bridge, so identify its device type without binding a physical USB port.
+# Keep system ownership and permissions unchanged.
+SUBSYSTEM=="tty", KERNEL=="ttyUSB*", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", SYMLINK+="autoracer_g90_com2"

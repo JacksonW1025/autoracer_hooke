@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -36,6 +37,18 @@ G90_ADAPTER_SOURCE = (
 G90_PARSER_SOURCE = (
     RC_ROOT / "autoracer_rc_adapter" / "autoracer_rc_adapter" / "nmea_gnss.py"
 ).read_text(encoding="utf-8")
+G90_NTRIP_RELAY_SOURCE = (
+    RC_ROOT
+    / "autoracer_rc_adapter"
+    / "autoracer_rc_adapter"
+    / "g90_ntrip_relay_node.py"
+).read_text(encoding="utf-8")
+ADAPTER_PACKAGE_SOURCE = (
+    RC_ROOT / "autoracer_rc_adapter" / "package.xml"
+).read_text(encoding="utf-8")
+ADAPTER_CMAKE_SOURCE = (
+    RC_ROOT / "autoracer_rc_adapter" / "CMakeLists.txt"
+).read_text(encoding="utf-8")
 G90_CONFIG_PATH = PACKAGE_ROOT / "config" / "rc" / "g90.param.yaml"
 DEPENDENCY_ROOT = REPOSITORY_ROOT / "dependencies"
 RC_REPOSITORIES_PATH = DEPENDENCY_ROOT / "autoracer-rc.repos"
@@ -45,11 +58,18 @@ LOCK_PATH = DEPENDENCY_ROOT / "versions.lock.yaml"
 LIDAR_SHUTDOWN_PATCH_PATH = (
     DEPENDENCY_ROOT / "patches" / "lslidar_ros2_clean_shutdown.patch"
 )
+NMEA_RUNTIME_PATCH_PATH = (
+    DEPENDENCY_ROOT / "patches" / "nmea_navsat_driver_tf_transformations.patch"
+)
 LAUNCHER_PATCH_PATH = (
     DEPENDENCY_ROOT / "patches" / "tier4_localization_launch_gnss_enabled.patch"
 )
 G90_UDEV_PATH = PACKAGE_ROOT / "udev" / "99-autoracer-rc-g90.rules"
 IMPORT_SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "import_dependencies.sh"
+BUILD_SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "build.sh"
+BUILD_VENDOR_SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "build_vendor.sh"
+BUILD_PRODUCT_SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "build_product.sh"
+INSTALL_ROSDEPS_SCRIPT_PATH = REPOSITORY_ROOT / "scripts" / "install_rosdeps.sh"
 RC_ENTRY_PATH = REPOSITORY_ROOT / "scripts" / "autoracer_rc.sh"
 RC_ENTRY_SOURCE = RC_ENTRY_PATH.read_text(encoding="utf-8")
 RUNTIME_STATE_WATCH_PATH = (
@@ -72,6 +92,33 @@ def _yaml(path):
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def _bash_function(source, name, following_name):
+    start = source.index(f"{name}()")
+    end = source.index(f"{following_name}()", start)
+    return source[start:end]
+
+
+def _shell_fit(function_source, function_name, text, columns):
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            function_source + f'\n{function_name} "$1" "$2"',
+            "bash",
+            text,
+            str(columns),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout
+
+
+def _dashboard_width(text):
+    return sum(1 if ord(character) <= 127 else 2 for character in text)
+
+
 def test_rc_sensing_terminates_at_platform_independent_topics():
     assert '"/sensing/lidar/concatenated/pointcloud"' in SENSING_SOURCE
     assert '"/sensing/imu/imu_data"' in SENSING_SOURCE
@@ -79,6 +126,15 @@ def test_rc_sensing_terminates_at_platform_independent_topics():
     assert '"/sensing/gnss/pose_with_covariance"' in SENSING_SOURCE
     assert '"/sensing/gnss/fixed"' in SENSING_SOURCE
     assert 'package="autoracer_rc_adapter"' in SENSING_SOURCE
+
+
+def test_rc_entry_uses_distro_managed_python_environment():
+    python_isolation = "export PYTHONNOUSERSITE=1"
+    ros_environment = 'source "${PRODUCT_ROOT}/scripts/ros_env.sh"'
+    assert python_isolation in RC_ENTRY_SOURCE
+    assert RC_ENTRY_SOURCE.index(python_isolation) < RC_ENTRY_SOURCE.index(
+        ros_environment
+    )
 
 
 def test_g90_uses_pinned_upstream_transport_without_vendor_example_workspace():
@@ -95,7 +151,7 @@ def test_g90_uses_pinned_upstream_transport_without_vendor_example_workspace():
     assert "wheeltec_gps" not in repositories
 
 
-def test_rc_dependency_profile_excludes_only_hooke2_fixposition_packages():
+def test_rc_dependency_profile_excludes_hooke2_and_unused_rc_packages():
     full_packages = {
         line.split("\t", 1)[0]
         for line in FULL_PACKAGES_PATH.read_text(encoding="utf-8").splitlines()
@@ -106,7 +162,7 @@ def test_rc_dependency_profile_excludes_only_hooke2_fixposition_packages():
         for line in RC_PACKAGES_PATH.read_text(encoding="utf-8").splitlines()
         if line
     }
-    excluded = {
+    hooke2_only = {
         "fixposition_driver_lib",
         "fixposition_driver_msgs",
         "fixposition_driver_ros2",
@@ -114,13 +170,31 @@ def test_rc_dependency_profile_excludes_only_hooke2_fixposition_packages():
         "fpsdk_ros2",
         "rtcm_msgs",
     }
+    rc_unused = {
+        "nebula_core_common",
+        "nebula_core_decoders",
+        "nebula_core_hw_interfaces",
+        "nebula_core_ros",
+        "nebula_hesai",
+        "nebula_hesai_common",
+        "nebula_hesai_decoders",
+        "nebula_hesai_hw_interfaces",
+        "nebula_msgs",
+        "pandar_msgs",
+        "sync_tooling_msgs",
+        "tier4_api_msgs",
+        "tier4_debug_msgs",
+    }
+    excluded = hooke2_only | rc_unused
     assert len(full_packages) == 105
-    assert len(rc_packages) == 99
+    assert len(rc_packages) == 86
     assert full_packages - rc_packages == excluded
     assert not rc_packages - full_packages
 
     rc_repositories = _yaml(RC_REPOSITORIES_PATH)["repositories"]
     assert "whale_components" not in rc_repositories
+    assert "vendor/nebula" not in rc_repositories
+    assert "vendor/sync_tooling_msgs" not in rc_repositories
     launcher = rc_repositories["autoware/launcher"]
     assert launcher["url"] == (
         "https://github.com/autowarefoundation/autoware_launch.git"
@@ -128,13 +202,37 @@ def test_rc_dependency_profile_excludes_only_hooke2_fixposition_packages():
     assert launcher["version"] == "0f3946af9c5ec1cba491681b6927c6fcf577ed25"
 
     rc_profile = _yaml(LOCK_PATH)["profiles"]["rc"]
-    assert rc_profile["package_count"] == 99
+    assert rc_profile["package_count"] == 86
     assert set(rc_profile["excluded_packages"]) == excluded
 
     import_script = IMPORT_SCRIPT_PATH.read_text(encoding="utf-8")
     assert "--network-rc" in import_script
     assert "--verify-only-rc" in import_script
     assert 'vcs import --shallow "${temporary_checkout}/src"' in import_script
+
+    build_script = BUILD_SCRIPT_PATH.read_text(encoding="utf-8")
+    build_vendor_script = BUILD_VENDOR_SCRIPT_PATH.read_text(encoding="utf-8")
+    build_product_script = BUILD_PRODUCT_SCRIPT_PATH.read_text(encoding="utf-8")
+    install_rosdeps_script = INSTALL_ROSDEPS_SCRIPT_PATH.read_text(encoding="utf-8")
+    assert '"${PRODUCT_ROOT}/scripts/import_dependencies.sh" --verify-only-rc' in (
+        build_script
+    )
+    assert '"${PRODUCT_ROOT}/scripts/build_vendor.sh" --rc' in build_script
+    assert '"${PRODUCT_ROOT}/scripts/build_product.sh" --rc' in build_script
+    assert "vendor-packages-rc.tsv" in build_vendor_script
+    assert "--base-paths src/core src/platform/rc" in build_product_script
+    assert "export PYTHONNOUSERSITE=1" in build_vendor_script
+    assert "export PYTHONNOUSERSITE=1" in build_product_script
+    assert "autoracer_hooke2_bringup" not in build_product_script.split(
+        'if [[ "${profile}" == "rc" ]]', 1
+    )[1].split("else", 1)[0]
+    assert '"${ROOT_DIR}/src/platform/rc"' in install_rosdeps_script
+    assert "rosdep db >/dev/null" in install_rosdeps_script
+    assert "autoware_ar_tag_based_localizer" in install_rosdeps_script
+    assert "eagleye_rt" in install_rosdeps_script
+    assert "yabloc_common" in install_rosdeps_script
+    assert "yabloc_particle_filter" in install_rosdeps_script
+    assert "--dependency-types test" in install_rosdeps_script
 
 
 def test_locked_vendor_patches_preserve_launcher_and_clean_lidar_shutdown():
@@ -144,6 +242,10 @@ def test_locked_vendor_patches_preserve_launcher_and_clean_lidar_shutdown():
     ]
     assert (
         "dependencies/patches/tier4_localization_launch_gnss_enabled.patch"
+        in lock["patches"]
+    )
+    assert (
+        "dependencies/patches/nmea_navsat_driver_tf_transformations.patch"
         in lock["patches"]
     )
 
@@ -164,6 +266,14 @@ def test_locked_vendor_patches_preserve_launcher_and_clean_lidar_shutdown():
         in launcher_patch
     )
 
+    nmea_runtime_patch = NMEA_RUNTIME_PATCH_PATH.read_text(encoding="utf-8")
+    assert "-    <exec_depend>python3-transforms3d</exec_depend>" in (
+        nmea_runtime_patch
+    )
+    assert "+    <exec_depend>tf_transformations</exec_depend>" in (
+        nmea_runtime_patch
+    )
+
 
 def test_g90_udev_identity_is_unique_and_does_not_change_access_policy():
     rule = G90_UDEV_PATH.read_text(encoding="utf-8")
@@ -176,6 +286,13 @@ def test_g90_udev_identity_is_unique_and_does_not_change_access_policy():
         "5AA6079369-if00",
     ):
         assert token in rule
+    for token in (
+        'KERNEL=="ttyUSB*"',
+        'ATTRS{idProduct}=="7523"',
+        'SYMLINK+="autoracer_g90_com2"',
+    ):
+        assert token in rule
+    assert "ID_PATH" not in rule
     assert "MODE=" not in rule
     assert "GROUP=" not in rule
 
@@ -195,13 +312,13 @@ def test_g90_platform_boundary_matches_fixposition_normalized_outputs():
     assert "/fixposition/" not in SENSING_SOURCE + G90_ADAPTER_SOURCE
 
 
-def test_g90_formal_pose_uses_the_field_calibrated_heading_contract():
+def test_g90_formal_pose_uses_the_published_map_heading_contract():
     params = _yaml(G90_CONFIG_PATH)["/g90/g90_nmea_adapter"]["ros__parameters"]
     assert params["frame_id"] == "gnss_link"
     assert params["base_frame"] == "base_link"
     assert params["enable_localization_output"] is True
     assert params["allow_statusless_hdt"] is False
-    assert params["heading_mount_offset_deg"] == 73.0
+    assert params["heading_mount_offset_deg"] == 90.0
     assert params["yaw_stddev_deg"] == 10.0
     for reason in (
         "localization_output_disabled",
@@ -234,6 +351,59 @@ def test_g90_launch_is_opt_in_and_requires_discovered_usb_identity():
         assert unstable_name not in SENSING_SOURCE
 
 
+def test_g90_corrections_are_project_owned_private_and_launch_scoped():
+    for token in (
+        'executable="g90_ntrip_relay"',
+        'DeclareLaunchArgument(\n                "launch_g90_corrections"',
+        'default_value="/dev/autoracer_g90_com2"',
+        '"config_file": ParameterValue(',
+        'condition=IfCondition(launch_g90_corrections)',
+    ):
+        assert token in SENSING_SOURCE
+    assert 'default_value="false"' in SENSING_SOURCE
+    assert '"launch_g90_corrections": "true"' in RACE_LAUNCH_SOURCE
+    assert '"g90_ntrip_config_file": g90_ntrip_config_file' in RACE_LAUNCH_SOURCE
+
+    assert "<exec_depend>ntrip_client</exec_depend>" in ADAPTER_PACKAGE_SOURCE
+    assert "<exec_depend>python3-serial</exec_depend>" in ADAPTER_PACKAGE_SOURCE
+    assert "scripts/g90_ntrip_relay" in ADAPTER_CMAKE_SOURCE
+    assert "test/test_g90_ntrip_relay_node.py" in ADAPTER_CMAKE_SOURCE
+
+    for token in (
+        "mode must be exactly 0600",
+        "NTRIP credentials are expired",
+        "G90-COM2",
+        "rtcm_fresh",
+        "serial_open",
+        "caster_connected",
+        "client.send_nmea(sentence)",
+        "self._serial.write(raw_packet)",
+    ):
+        assert token in G90_NTRIP_RELAY_SOURCE
+    for forbidden in (
+        'declare_parameter("username"',
+        'declare_parameter("password"',
+        "subprocess",
+        "str2str",
+        "systemctl",
+    ):
+        assert forbidden not in G90_NTRIP_RELAY_SOURCE
+
+    for token in (
+        'G90_COM2_DEVICE="${RC_G90_COM2_DEVICE:-/dev/autoracer_g90_com2}"',
+        "validate_g90_correction_inputs",
+        "read_g90_correction_snapshot",
+        'ros2 topic echo --no-daemon "/diagnostics"',
+        "level = ord(level)",
+        "observe_g90_corrections false",
+        'launch_g90_corrections:="${launch_g90_corrections}"',
+        'g90_ntrip_config_file:="${G90_NTRIP_CONFIG_FILE}"',
+    ):
+        assert token in RC_ENTRY_SOURCE
+    assert "systemctl" not in RC_ENTRY_SOURCE
+    assert "str2str" not in RC_ENTRY_SOURCE
+
+
 def test_single_rc_entry_uses_real_devices_and_owned_process_cleanup():
     for token in (
         "test_lidar",
@@ -250,6 +420,7 @@ def test_single_rc_entry_uses_real_devices_and_owned_process_cleanup():
         "/g90/raw/nmea_sentence",
         "/vehicle/status/velocity_status",
         "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AA6079369-if00",
+        "/dev/autoracer_g90_com2",
         "ros2 topic hz",
         "setsid",
         'kill -INT -- "-${pid}"',
@@ -290,6 +461,10 @@ def test_single_rc_entry_uses_real_devices_and_owned_process_cleanup():
     ):
         assert forbidden not in RC_ENTRY_SOURCE
 
+    assert RC_ENTRY_SOURCE.index('kill -INT -- "-${pid}"') < RC_ENTRY_SOURCE.index(
+        'kill -TERM -- "-${pid}"'
+    )
+
     all_devices_start = RC_ENTRY_SOURCE.index("test_all_devices()")
     all_devices_end = RC_ENTRY_SOURCE.index("record_mapping()")
     all_devices = RC_ENTRY_SOURCE[all_devices_start:all_devices_end]
@@ -310,6 +485,16 @@ def test_mapping_recording_is_manual_unlimited_fixed_or_float_and_sensor_only():
         MAPPING_PREFLIGHT_PATH,
     ):
         assert path.stat().st_mode & 0o100
+
+    for source in (MAPPING_RECORDING_SOURCE, MAPPING_STOP_SOURCE):
+        assert "/home/wheeltec/Desktop/work" not in source
+        assert 'MAPPING_ROOT="${RC_MAPPING_ROOT:-${WORKSPACE_ROOT}/rc-mapping}"' in (
+            source
+        )
+    assert 'LIDAR_INTERFACE="${RC_LIDAR_INTERFACE:-}"' in MAPPING_RECORDING_SOURCE
+    assert "discover_lidar_interface()" in MAPPING_RECORDING_SOURCE
+    assert '"root": os.environ["PRODUCT_ROOT"]' in MAPPING_RECORDING_SOURCE
+    assert "enP8p1s0" not in MAPPING_RECORDING_SOURCE
 
     for token in (
         'MAPPING_RECORDING_HELPER="${PRODUCT_ROOT}/scripts/autoracer_rc_recording.sh"',
@@ -355,6 +540,8 @@ def test_mapping_recording_is_manual_unlimited_fixed_or_float_and_sensor_only():
         '"starts_chassis": False',
         '"starts_control_chain": False',
         '"sends_vehicle_commands": False',
+        "launch_g90_corrections:=true",
+        '"transport": "project-owned NTRIP relay; credentials excluded"',
     ):
         assert token in MAPPING_RECORDING_SOURCE
 
@@ -365,7 +552,34 @@ def test_mapping_recording_is_manual_unlimited_fixed_or_float_and_sensor_only():
     )
     assert ready < start_choice < recorder_start
 
-    assert "WINDOW_SECONDS = 10.0" in MAPPING_PREFLIGHT_SOURCE
+    assert "WINDOW_SECONDS = 5.0" in MAPPING_PREFLIGHT_SOURCE
+    assert "READINESS_STABILITY_SECONDS = 0.0" in MAPPING_PREFLIGHT_SOURCE
+    for token in (
+        "DiagnosticArray",
+        'DIAGNOSTICS_TOPIC = "/diagnostics"',
+        'status.hardware_id != "G90-COM2"',
+        "diagnostic_level(status.level)",
+        '(b"\\x01", 1)',
+        "g90_com2_ready",
+        "os.get_terminal_size(sys.stdin.fileno()).columns",
+        "display_width",
+        "render_status_rows",
+        "changed_status_items",
+        "readiness_summary",
+        "status_items",
+        "status_snapshot",
+        "[设备预检",
+        "[质量窗口]",
+        "所有必需输入已同时在线；不再增加稳定等待",
+    ):
+        assert token in MAPPING_PREFLIGHT_SOURCE
+    assert 'f"设备：LiDAR {lidar} ｜' not in MAPPING_PREFLIGHT_SOURCE
+    assert '"  等待条件：" + "；".join(blockers)' not in MAPPING_PREFLIGHT_SOURCE
+    assert "next_window_report" not in MAPPING_PREFLIGHT_SOURCE
+    assert (
+        '"${PREFLIGHT_COMMAND[@]}" 2>&1 | tee '
+        '"${SESSION_DIR}/logs/preflight.log"'
+    ) in MAPPING_RECORDING_SOURCE
     assert (
         'MINIMUM_RATE_HZ = {"lidar": 18.0, "imu": 90.0, '
         '"GGA": 9.5, "GST": 9.5, "THS": 9.5}'
@@ -386,8 +600,13 @@ def test_mapping_recording_is_manual_unlimited_fixed_or_float_and_sensor_only():
         "stop_manifest.json",
         '"preflight_accepted"',
         "an exact audited override limited to lidar_rate/lidar_maximum_gap",
+        'kill -INT -- "-${pgid}"',
+        'kill -TERM -- "-${pgid}"',
     ):
         assert token in MAPPING_STOP_SOURCE
+    assert MAPPING_STOP_SOURCE.index('kill -INT -- "-${pgid}"') < (
+        MAPPING_STOP_SOURCE.index('kill -TERM -- "-${pgid}"')
+    )
 
     recording_contract = (
         MAPPING_RECORDING_SOURCE
@@ -421,6 +640,123 @@ def test_mapping_recording_is_manual_unlimited_fixed_or_float_and_sensor_only():
         "/tf",
         "/diagnostics",
     }
+    recording_qos = _yaml(MAPPING_QOS_PATH)
+    assert (
+        recording_qos["/sensing/lidar/raw/pointcloud"]["reliability"]
+        == "reliable"
+    )
+    assert "def subscription_ready(self)" in MAPPING_PREFLIGHT_SOURCE
+    assert "while not lidar_probe.subscription_ready()" in MAPPING_PREFLIGHT_SOURCE
+
+
+def test_mapping_and_autonomy_dashboards_are_fixed_screen_and_width_aware():
+    for source, prefix in (
+        (MAPPING_RECORDING_SOURCE, "mapping_dashboard"),
+        (RC_ENTRY_SOURCE, "terminal_ui"),
+    ):
+        assert "\\033[?1049h" in source
+        assert "\\033[?25l" in source
+        assert "\\033[?25h" in source
+        assert "\\033[?1049l" in source
+        assert "\\033[J" in source
+        assert "stty size </dev/tty" in source
+        assert f"{prefix}_fit()" in source
+        assert f"{prefix}_draw()" in source
+
+    mapping_fit = _bash_function(
+        MAPPING_RECORDING_SOURCE,
+        "mapping_dashboard_fit",
+        "mapping_dashboard_draw",
+    )
+    autonomy_fit = _bash_function(
+        RC_ENTRY_SOURCE,
+        "terminal_ui_fit",
+        "terminal_ui_draw",
+    )
+    sample = "状态        这是一条很长的真实故障原因 / rc-map-id-with-long-name"
+    for width in (20, 40, 60):
+        for function_source, function_name in (
+            (mapping_fit, "mapping_dashboard_fit"),
+            (autonomy_fit, "terminal_ui_fit"),
+        ):
+            rendered = _shell_fit(function_source, function_name, sample, width)
+            assert _dashboard_width(rendered) <= width
+            assert rendered.endswith("…")
+
+    for stage in (1, 3, 4, 5, 6):
+        assert f"阶段 {stage}/6" in MAPPING_RECORDING_SOURCE
+    assert "stage_number=2" in MAPPING_PREFLIGHT_SOURCE
+    assert 'stage_name="固定质量窗口"' in MAPPING_PREFLIGHT_SOURCE
+    assert 'DASHBOARD_FD_ENV = "RC_MAPPING_DASHBOARD_FD"' in (
+        MAPPING_PREFLIGHT_SOURCE
+    )
+    assert "class TerminalDashboard" in MAPPING_PREFLIGHT_SOURCE
+    assert '"\\x1b[H" + "\\n".join(frame) + "\\x1b[J"' in (
+        MAPPING_PREFLIGHT_SOURCE
+    )
+    assert "render_dashboard_status_rows" in MAPPING_PREFLIGHT_SOURCE
+    assert "self-test dashboard changed its fixed row count" in (
+        MAPPING_PREFLIGHT_SOURCE
+    )
+    assert "for columns in (20, 40, 60, 80, 120)" in MAPPING_PREFLIGHT_SOURCE
+    assert (
+        '"${PREFLIGHT_COMMAND[@]}" >"${SESSION_DIR}/logs/preflight.log" 2>&1'
+        in MAPPING_RECORDING_SOURCE
+    )
+    assert '"${SESSION_DIR}/logs/stop_console.log"' in MAPPING_RECORDING_SOURCE
+
+    mapping_failure = _bash_function(
+        MAPPING_RECORDING_SOURCE, "fail", "validate_text"
+    )
+    assert mapping_failure.index("mapping_dashboard_render_failure") < (
+        mapping_failure.index("mapping_dashboard_wait_for_q")
+    )
+    mapping_finalize = MAPPING_RECORDING_SOURCE[
+        MAPPING_RECORDING_SOURCE.index("finalize_recording()"):
+        MAPPING_RECORDING_SOURCE.index('RECORDING_STARTED_EPOCH="$(date +%s)"')
+    ]
+    assert mapping_finalize.index("mapping_dashboard_render_result") < (
+        mapping_finalize.index("mapping_dashboard_wait_for_q")
+    )
+
+    for stage in range(1, 7):
+        assert f"阶段 {stage}/6" in RC_ENTRY_SOURCE
+    for renderer in (
+        "autonomy_render_preparing",
+        "autonomy_render_ready",
+        "autonomy_render_start_confirmation",
+        "autonomy_render_running",
+        "autonomy_render_stopping",
+        "autonomy_render_complete",
+        "autonomy_render_failure",
+    ):
+        assert f"{renderer}()" in RC_ENTRY_SOURCE
+    assert "runtime 快照未提供数值，不猜测" in RC_ENTRY_SOURCE
+    autonomy_renderers = RC_ENTRY_SOURCE[
+        RC_ENTRY_SOURCE.index("autonomy_render_preparing()"):
+        RC_ENTRY_SOURCE.index("wait_for_q_acknowledgement()")
+    ]
+    assert "｜" not in autonomy_renderers
+    assert "ARRIVED / FINISHED" not in autonomy_renderers
+    assert "当前快照未区分到达或人工停车" in autonomy_renderers
+
+    acknowledgement = _bash_function(
+        RC_ENTRY_SOURCE,
+        "acknowledge_autonomy_failure",
+        "wait_for_autonomy_ready",
+    )
+    assert acknowledgement.index("autonomy_render_failure") < (
+        acknowledgement.index("wait_for_q_acknowledgement")
+    )
+    autonomy_start = RC_ENTRY_SOURCE[
+        RC_ENTRY_SOURCE.index("start_autonomy()"):
+        RC_ENTRY_SOURCE.index("run_and_report()")
+    ]
+    success_page = autonomy_start.index("autonomy_render_complete")
+    assert autonomy_start.rindex("stop_active", 0, success_page) < success_page
+    assert success_page < autonomy_start.index(
+        "wait_for_q_acknowledgement", success_page
+    )
 
 
 def test_automatic_driving_entry_uses_the_user_approved_low_speed_profile():
@@ -444,10 +780,13 @@ def test_automatic_driving_entry_uses_the_user_approved_low_speed_profile():
         'DeclareLaunchArgument("localization_map_path")',
         'DeclareLaunchArgument("course_path")',
         'DeclareLaunchArgument("max_speed_mps")',
+        '"departure_speed_mps": "0.3"',
         '"launch_lidar": "true"',
         '"launch_imu": "true"',
         '"launch_g90": "true"',
         '"launch_g90_driver": "true"',
+        '"launch_g90_corrections": "true"',
+        '"g90_param_file": g90_param_file',
         '"telemetry_only": "false"',
         '"use_sim_time": "false"',
         '"system_run_mode": "online"',
@@ -484,6 +823,8 @@ def test_automatic_driving_entry_uses_the_user_approved_low_speed_profile():
         "没有可用于自动驾驶的正式地图",
         "没有获批的自动驾驶运行方案",
         "USER_APPROVED_LOW_SPEED_VALIDATION",
+        "地图航向补偿与 G90 运行参数不一致",
+        'g90_param_file:="${G90_PARAM_FILE}"',
     ):
         assert token in RC_ENTRY_SOURCE
 
@@ -502,6 +843,22 @@ def test_automatic_driving_entry_uses_the_user_approved_low_speed_profile():
     ready_contract = RC_ENTRY_SOURCE[ready_start:ready_end]
     assert "deadline" not in ready_contract
     assert "不设超时，按 Q 取消" in ready_contract
+
+    decision_start = ready_end
+    decision_end = RC_ENTRY_SOURCE.index("call_race_service()")
+    decision_contract = RC_ENTRY_SOURCE[decision_start:decision_end]
+    assert "local start_requested=0" in decision_contract
+    assert "start_requested=1" in decision_contract
+    assert "已收到开始请求；正在进行最终状态确认，按 Q 取消。" in decision_contract
+    assert "最终差分确认：等待新的 G90 差分诊断" in decision_contract
+    assert "当前状态不是 READY，未执行开始请求" not in decision_contract
+    assert decision_contract.index("s|S)") < decision_contract.index("start_requested=1")
+    assert decision_contract.index("start_requested=1") < decision_contract.index(
+        "read_g90_correction_snapshot 2"
+    )
+    assert decision_contract.index("read_g90_correction_snapshot 2") < (
+        decision_contract.index("return 0")
+    )
 
     runtime_state_start = RC_ENTRY_SOURCE.index("runtime_state_json()")
     runtime_state_end = RC_ENTRY_SOURCE.index("read_runtime_snapshot()")
@@ -586,14 +943,14 @@ def test_rc_entry_counts_real_g90_sentences_and_separates_link_from_position():
         "G90_POSITION_READY=1",
         "observe_g90_fix_sample()",
         'timeout "${TOPIC_WAIT_SEC}s"',
-        "ros2 topic echo /g90/fix --once",
+        "ros2 topic echo --no-daemon /g90/fix --once",
         "frame_id: gnss_link",
-        "设备链路与 NMEA/适配链",
+        "COM1/COM2 与 NMEA/适配链",
         "定位未就绪",
     ):
         assert token in probe
     assert "sentence:.*\\\\$" not in probe
-    assert probe.count("ros2 topic echo /g90/fix --once") == 1
+    assert probe.count("ros2 topic echo --no-daemon /g90/fix --once") == 1
     for field in (
         "header",
         "status",

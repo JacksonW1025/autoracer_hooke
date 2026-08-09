@@ -22,7 +22,7 @@ autoracer_hooke/
   scripts/                         导入、构建、环境和硬件诊断脚本
   src/core/                        平台无关的定位、规划、控制和运行管理
   src/platform/hooke2/             Hooke2 CAN、车辆接口、消息和实车启动
-  vendor_ws/                       99 个第三方 ROS 包的可再生 underlay（Git 忽略）
+  vendor_ws/                       第三方 ROS 包的可再生 underlay（Git 忽略）
 ```
 
 `src/core` 不依赖 CarMaker 或 Hooke2 私有实现。仿真和实车共用同一套定位、规划、
@@ -52,8 +52,39 @@ source ./scripts/ros_env.sh
 ./scripts/import_dependencies.sh --network
 ```
 
-`dependencies/versions.lock.yaml` 固定上游提交；
-`dependencies/patches/vehicle_cmd_gate_volatile_commands.patch` 是唯一产品所需上游补丁。
+`dependencies/versions.lock.yaml` 固定上游提交，并以其中的 `patches` 列表作为
+当前产品所需上游补丁的唯一清单。
+
+Jetson Orin 的 RC 正式依赖 profile 只导入当前运行闭包中的 86 个包，不构建
+Hooke2/Fixposition 或未使用的 Nebula 驱动：
+
+```bash
+cd /path/to/autoracer_hooke
+./scripts/import_dependencies.sh --network-rc
+./scripts/install_rosdeps.sh --rc
+./scripts/build.sh --rc
+source ./scripts/ros_env.sh
+```
+
+`build.sh --rc` 仍会先核对锁定的 86 包源码集合；不会在现场启动时重新导入、
+安装依赖或构建。`install_rosdeps.sh --rc` 会尝试更新 rosdep 索引；网络不可达时，
+只有现有本地缓存仍能正常读取才会继续。
+
+RC G90 使用两个串口：COM1 的稳定 `by-id` 路径提供正式 NMEA，COM2 的
+`/dev/autoracer_g90_com2` 接收差分。把
+`src/platform/rc/autoracer_rc_bringup/udev/99-autoracer-rc-g90.rules`
+安装到 `/etc/udev/rules.d/` 后重新加载 udev；COM2 规则只匹配当前唯一的
+`1a86:7523` CH340，不绑定 USB 物理插口，也不修改系统设备权限。
+
+NTRIP 凭据只保存在运行用户的
+`~/.config/autoracer-rc/g90-ntrip.env`，文件权限必须严格为 `0600`。必填键为
+`NTRIP_USERNAME`、`NTRIP_PASSWORD`、`NTRIP_HOST`、`NTRIP_PORT`、
+`NTRIP_MOUNTPOINT` 和带 IANA 时区的 `NTRIP_EXPIRES_AT_LOCAL`。可保留已验证旧配置中的
+`G90_COM2_DEVICE`、`G90_COM2_RTKLIB_PORT`、`G90_COM2_BAUD` 元数据；正式节点不会
+执行或 source 这个文件。用户名、密码和认证串不会进入 ROS 参数、命令行或日志。
+
+G90 差分 relay 由 RC 正式 launch 管理，不安装或启用 systemd/`str2str` 常驻服务。
+菜单任务退出时，relay 与该任务的其他子进程一起被回收。
 
 ## 运行入口
 
@@ -66,6 +97,13 @@ source ./scripts/ros_env.sh
   ros2 launch autoracer_hooke2_bringup race.launch.py \
     localization_map_path:=/path/to/map \
     course_path:=/path/to/course
+  ```
+
+- RC 车：只使用统一入口，菜单 3/5 会随 G90 检查启动并停止差分 relay，菜单 6/7
+  使用同一条项目内链路：
+
+  ```bash
+  ./scripts/autoracer_rc.sh
   ```
 
 当前仿真资源为 `maps/urbanroad_route271_20260710` 和

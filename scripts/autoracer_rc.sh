@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Keep the ROS 2 Humble runtime on Ubuntu's distro-managed Python packages.
+export PYTHONNOUSERSITE=1
+
 PRODUCT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKSPACE_ROOT="$(dirname "${PRODUCT_ROOT}")"
 MAP_ASSETS_ROOT="${RC_MAP_ASSETS_ROOT:-${WORKSPACE_ROOT}/rc-map-assets}"
 MAPPING_RECORDING_HELPER="${PRODUCT_ROOT}/scripts/autoracer_rc_recording.sh"
 RUNTIME_STATE_WATCH_HELPER="${PRODUCT_ROOT}/scripts/autoracer_rc_runtime_state_watch.py"
 DRIVING_PROFILES_FILE="${RC_DRIVING_PROFILES_FILE:-${PRODUCT_ROOT}/src/platform/rc/autoracer_rc_bringup/config/rc/driving_profiles.yaml}"
+G90_PARAM_FILE="${RC_G90_PARAM_FILE:-${PRODUCT_ROOT}/src/platform/rc/autoracer_rc_bringup/config/rc/g90.param.yaml}"
 
 G90_DEVICE="${RC_G90_DEVICE:-/dev/serial/by-id/usb-1a86_USB_Single_Serial_5AA6079369-if00}"
+G90_COM2_DEVICE="${RC_G90_COM2_DEVICE:-/dev/autoracer_g90_com2}"
+G90_NTRIP_CONFIG_FILE="${RC_G90_NTRIP_CONFIG_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/autoracer-rc/g90-ntrip.env}"
 IMU_DEVICE="${RC_IMU_DEVICE:-/dev/serial/by-id/usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_0003-if00-port0}"
 CHASSIS_DEVICE="${RC_CHASSIS_DEVICE:-/dev/autoracer_rc_chassis}"
 LIDAR_IP="${RC_LIDAR_IP:-192.168.1.200}"
@@ -40,12 +46,22 @@ G90_QUALITY="unknown"
 G90_GST_STATE="未知"
 G90_THS_MODE="unknown"
 G90_POSITION_READY=0
+G90_CORRECTION_READY=0
+G90_CORRECTION_LEVEL="unknown"
+G90_CORRECTION_MESSAGE="未观测"
+G90_CORRECTION_WORKER_ALIVE="unknown"
+G90_CORRECTION_SERIAL_OPEN="unknown"
+G90_CORRECTION_CASTER_CONNECTED="unknown"
+G90_CORRECTION_RTCM_FRESH="unknown"
+G90_CORRECTION_CREDENTIAL_EXPIRED="unknown"
+G90_CORRECTION_LAST_ERROR="unknown"
 
 AUTONOMY_MAP_ID=""
 AUTONOMY_MAP_PATH=""
 AUTONOMY_COURSE_PATH=""
 AUTONOMY_COURSE_DIR=""
 AUTONOMY_PROJECTOR=""
+AUTONOMY_HEADING_OFFSET_DEG=""
 AUTONOMY_ROUTE_MAX_SPEED=""
 AUTONOMY_ROUTE_POINTS=""
 AUTONOMY_ROUTE_LENGTH=""
@@ -65,19 +81,148 @@ RUNTIME_CONTROL_MODE="null"
 RUNTIME_GEAR="null"
 RUNTIME_ENGAGED=0
 
+TERMINAL_UI_ACTIVE=0
+TERMINAL_UI_NOTICE=""
+TERMINAL_UI_LAST_FAILURE=""
+AUTONOMY_EFFECTIVE_SPEED=""
+AUTONOMY_RUN_STARTED_EPOCH=0
+
+terminal_ui_note() {
+  local level="$1"
+  shift
+  TERMINAL_UI_NOTICE="$*"
+  if [[ "${level}" == "FAIL" ]]; then
+    TERMINAL_UI_LAST_FAILURE="$*"
+  fi
+  if [[ -n "${SESSION_ROOT}" && -d "${SESSION_ROOT}" ]]; then
+    printf '[%s] %s\n' "${level}" "$*" \
+      >>"${SESSION_ROOT}/operator.log" 2>/dev/null || true
+  fi
+}
+
+terminal_ui_begin() {
+  if (( TERMINAL_UI_ACTIVE == 1 )) \
+    || [[ ! -t 0 || ! -t 1 || "${TERM:-dumb}" == "dumb" ]] \
+    || (( VERBOSE == 1 )) \
+    || is_dry_run
+  then
+    return 0
+  fi
+  if ! { exec 3>/dev/tty; } 2>/dev/null; then
+    return 0
+  fi
+  TERMINAL_UI_ACTIVE=1
+  printf '\033[?1049h\033[?25l\033[H\033[2J' >&3
+}
+
+terminal_ui_end() {
+  if (( TERMINAL_UI_ACTIVE == 0 )); then
+    return 0
+  fi
+  printf '\033[?25h\033[?1049l' >&3 2>/dev/null || true
+  exec 3>&-
+  TERMINAL_UI_ACTIVE=0
+}
+
+terminal_ui_columns() {
+  local dimensions=""
+  local columns=""
+  dimensions="$(stty size </dev/tty 2>/dev/null || true)"
+  columns="${dimensions##* }"
+  if [[ ! "${columns}" =~ ^[0-9]+$ ]]; then
+    columns=80
+  fi
+  ((columns < 4)) && columns=4
+  printf '%s\n' "${columns}"
+}
+
+terminal_ui_fit() {
+  local text="$1"
+  local maximum_width="$2"
+  local width=0
+  local index character code character_width
+  for ((index = 0; index < ${#text}; index += 1)); do
+    character="${text:index:1}"
+    printf -v code '%d' "'${character}"
+    if ((code <= 127)); then
+      character_width=1
+    else
+      character_width=2
+    fi
+    width=$((width + character_width))
+  done
+  if ((width <= maximum_width)); then
+    printf '%s' "${text}"
+    return 0
+  fi
+
+  local output=""
+  local output_width=0
+  local content_limit=$((maximum_width - 2))
+  ((content_limit < 0)) && content_limit=0
+  for ((index = 0; index < ${#text}; index += 1)); do
+    character="${text:index:1}"
+    printf -v code '%d' "'${character}"
+    if ((code <= 127)); then
+      character_width=1
+    else
+      character_width=2
+    fi
+    if ((output_width + character_width > content_limit)); then
+      break
+    fi
+    output+="${character}"
+    output_width=$((output_width + character_width))
+  done
+  printf '%s…' "${output}"
+}
+
+terminal_ui_draw() {
+  (( TERMINAL_UI_ACTIVE == 1 )) || return 0
+  local columns line line_number=0
+  local line_count=$#
+  columns="$(terminal_ui_columns)"
+  columns=$((columns - 1))
+  printf '\033[H' >&3
+  for line in "$@"; do
+    line_number=$((line_number + 1))
+    terminal_ui_fit "${line}" "${columns}" >&3
+    if ((line_number < line_count)); then
+      printf '\n' >&3
+    fi
+  done
+  printf '\033[J' >&3
+}
+
 info() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "$*"
+    return 0
+  fi
   printf '[INFO] %s\n' "$*"
 }
 
 ok() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note OK "$*"
+    return 0
+  fi
   printf '[ OK ] %s\n' "$*"
 }
 
 warn() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note WARN "$*"
+    return 0
+  fi
   printf '[WARN] %s\n' "$*" >&2
 }
 
 fail() {
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note FAIL "$*"
+    return 0
+  fi
   printf '[FAIL] %s\n' "$*" >&2
 }
 
@@ -147,6 +292,62 @@ device_available() {
   verbose_ok "${label} 设备：${path} -> $(readlink -f "${path}")"
 }
 
+validate_g90_correction_inputs() {
+  if is_dry_run; then
+    return 0
+  fi
+
+  device_available "G90 COM2" "${G90_COM2_DEVICE}" || return 1
+  if [[ ! -f "${G90_NTRIP_CONFIG_FILE}" || -L "${G90_NTRIP_CONFIG_FILE}" ]]; then
+    fail "G90 差分配置必须是普通文件：${G90_NTRIP_CONFIG_FILE}"
+    return 1
+  fi
+
+  local config_uid config_mode
+  config_uid="$(stat -Lc '%u' "${G90_NTRIP_CONFIG_FILE}" 2>/dev/null || true)"
+  config_mode="$(stat -Lc '%a' "${G90_NTRIP_CONFIG_FILE}" 2>/dev/null || true)"
+  if [[ "${config_uid}" != "$(id -u)" || "${config_mode}" != "600" ]]; then
+    fail "G90 差分配置必须由当前用户持有且权限严格为 0600"
+    return 1
+  fi
+
+  if command -v fuser >/dev/null 2>&1 \
+    && fuser "$(readlink -f "${G90_COM2_DEVICE}")" >/dev/null 2>&1
+  then
+    fail "G90 COM2 已被其他进程占用：${G90_COM2_DEVICE}"
+    return 1
+  fi
+
+  ensure_environment
+  local validation_error
+  if ! validation_error="$(
+    python3 - \
+      "${G90_NTRIP_CONFIG_FILE}" "${G90_COM2_DEVICE}" <<'PY' 2>&1
+from pathlib import Path
+import sys
+
+from autoracer_rc_adapter.g90_ntrip_relay_node import (
+    NtripConfigError,
+    load_ntrip_config,
+)
+
+try:
+    load_ntrip_config(
+        Path(sys.argv[1]),
+        serial_device=sys.argv[2],
+        serial_baud=115200,
+    )
+except NtripConfigError as error:
+    print(error)
+    raise SystemExit(1)
+PY
+  )"; then
+    fail "G90 差分配置无效：${validation_error}"
+    return 1
+  fi
+  verbose_ok "G90 COM2 与私有差分配置检查通过"
+}
+
 report_lidar_network() {
   local route
   if is_dry_run; then
@@ -198,7 +399,9 @@ start_launch() {
   sleep 1
   if ! kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; then
     fail "${label} 启动后立即退出"
-    tail -n 40 "${ACTIVE_LOG}" >&2 || true
+    if (( TERMINAL_UI_ACTIVE == 0 )); then
+      tail -n 40 "${ACTIVE_LOG}" >&2 || true
+    fi
     wait "${ACTIVE_PID}" 2>/dev/null || true
     ACTIVE_PID=""
     ACTIVE_LABEL=""
@@ -229,7 +432,9 @@ start_runtime_state_watch() {
   sleep 1
   if ! kill -0 "${RUNTIME_STATE_WATCH_PID}" >/dev/null 2>&1; then
     fail "runtime 状态订阅器启动后立即退出"
-    tail -n 40 "${RUNTIME_STATE_WATCH_LOG}" >&2 || true
+    if (( TERMINAL_UI_ACTIVE == 0 )); then
+      tail -n 40 "${RUNTIME_STATE_WATCH_LOG}" >&2 || true
+    fi
     wait "${RUNTIME_STATE_WATCH_PID}" 2>/dev/null || true
     RUNTIME_STATE_WATCH_PID=""
     return 1
@@ -242,6 +447,8 @@ stop_runtime_state_watch() {
   fi
 
   local pid="${RUNTIME_STATE_WATCH_PID}"
+  # Every helper is started in its own session, so this addresses only the
+  # process group owned by this entry.
   kill -INT -- "-${pid}" >/dev/null 2>&1 || kill -INT "${pid}" >/dev/null 2>&1 || true
 
   local attempt
@@ -278,6 +485,9 @@ stop_active() {
   local pid="${ACTIVE_PID}"
   local label="${ACTIVE_LABEL}"
   verbose_info "停止：${label}"
+  # Humble launch treats an interactive SIGINT as a terminal foreground-group
+  # signal and therefore does not forward it to children.  start_launch gives
+  # every task its own session, so signal that owned group exactly once.
   kill -INT -- "-${pid}" >/dev/null 2>&1 || kill -INT "${pid}" >/dev/null 2>&1 || true
 
   local attempt
@@ -312,6 +522,7 @@ stop_active() {
 
 on_exit() {
   stop_active
+  terminal_ui_end
   if [[ -n "${SESSION_ROOT}" ]]; then
     info "运行日志保留在 ${SESSION_ROOT}"
   fi
@@ -368,7 +579,7 @@ observe_field() {
   LAST_FIELD_OUTPUT=""
   output="$(
     timeout "${SAMPLE_TIMEOUT_SEC}s" \
-      ros2 topic echo "${topic}" --once --field "${field}" 2>&1 || true
+      ros2 topic echo --no-daemon "${topic}" --once --field "${field}" 2>&1 || true
   )"
   if [[ -z "${output}" ]] || grep -Eq \
     'Could not determine|Unknown topic|Traceback|usage:' <<<"${output}"
@@ -391,7 +602,7 @@ observe_positive_field() {
   LAST_VALUE=""
   output="$(
     timeout "${SAMPLE_TIMEOUT_SEC}s" \
-      ros2 topic echo "${topic}" --once --field "${field}" 2>&1 || true
+      ros2 topic echo --no-daemon "${topic}" --once --field "${field}" 2>&1 || true
   )"
   value="$(awk '/^[[:space:]]*[0-9]+([.][0-9]+)?[[:space:]]*$/ {print $1; exit}' <<<"${output}")"
   if [[ -z "${value}" ]] || ! awk -v value="${value}" 'BEGIN {exit !(value > 0)}'; then
@@ -402,11 +613,114 @@ observe_positive_field() {
   verbose_ok "${topic}.${field}=${value}"
 }
 
+read_g90_correction_snapshot() {
+  local wait_sec="${1:-${TOPIC_WAIT_SEC}}"
+  G90_CORRECTION_READY=0
+  G90_CORRECTION_LEVEL="unknown"
+  G90_CORRECTION_MESSAGE="未观测"
+  G90_CORRECTION_WORKER_ALIVE="unknown"
+  G90_CORRECTION_SERIAL_OPEN="unknown"
+  G90_CORRECTION_CASTER_CONNECTED="unknown"
+  G90_CORRECTION_RTCM_FRESH="unknown"
+  G90_CORRECTION_CREDENTIAL_EXPIRED="unknown"
+  G90_CORRECTION_LAST_ERROR="unknown"
+
+  ensure_session_root
+  local capture="${SESSION_ROOT}/${TASK_INDEX}-g90-correction-diagnostic.yaml"
+  if ! timeout "${wait_sec}s" \
+    ros2 topic echo --no-daemon "/diagnostics" diagnostic_msgs/msg/DiagnosticArray \
+      --filter "any(item.hardware_id == 'G90-COM2' for item in m.status)" \
+      --once >"${capture}" 2>/dev/null
+  then
+    return 1
+  fi
+
+  local parsed
+  if ! parsed="$(python3 - "${capture}" <<'PY'
+from pathlib import Path
+import sys
+
+import yaml
+
+documents = yaml.safe_load_all(Path(sys.argv[1]).read_text(encoding="utf-8"))
+target = None
+for document in documents:
+    if not isinstance(document, dict):
+        continue
+    for status in document.get("status") or []:
+        if status.get("hardware_id") == "G90-COM2":
+            target = status
+if target is None:
+    raise SystemExit(1)
+values = {
+    str(item.get("key")): str(item.get("value"))
+    for item in target.get("values") or []
+}
+level = target.get("level", "unknown")
+if isinstance(level, str) and len(level) == 1:
+    level = ord(level)
+fields = (
+    str(level),
+    str(target.get("message", "unknown")),
+    values.get("worker_alive", "unknown"),
+    values.get("serial_open", "unknown"),
+    values.get("caster_connected", "unknown"),
+    values.get("rtcm_fresh", "unknown"),
+    values.get("credential_expired", "unknown"),
+    values.get("last_error", "unknown"),
+)
+print("\t".join(value.replace("\t", " ").replace("\n", " ") for value in fields))
+PY
+  )"; then
+    return 1
+  fi
+
+  IFS=$'\t' read -r \
+    G90_CORRECTION_LEVEL G90_CORRECTION_MESSAGE \
+    G90_CORRECTION_WORKER_ALIVE G90_CORRECTION_SERIAL_OPEN \
+    G90_CORRECTION_CASTER_CONNECTED G90_CORRECTION_RTCM_FRESH \
+    G90_CORRECTION_CREDENTIAL_EXPIRED G90_CORRECTION_LAST_ERROR <<<"${parsed}"
+  if [[ "${G90_CORRECTION_WORKER_ALIVE}" == "true" \
+    && "${G90_CORRECTION_SERIAL_OPEN}" == "true" \
+    && "${G90_CORRECTION_CASTER_CONNECTED}" == "true" \
+    && "${G90_CORRECTION_RTCM_FRESH}" == "true" \
+    && "${G90_CORRECTION_CREDENTIAL_EXPIRED}" == "false" ]]
+  then
+    G90_CORRECTION_READY=1
+  fi
+}
+
+observe_g90_corrections() {
+  local require_fresh="${1:-false}"
+  if ! read_g90_correction_snapshot; then
+    fail "没有收到项目内 G90 差分节点的 diagnostics"
+    return 1
+  fi
+  if [[ "${G90_CORRECTION_CREDENTIAL_EXPIRED}" == "true" \
+    || "${G90_CORRECTION_WORKER_ALIVE}" != "true" \
+    || "${G90_CORRECTION_SERIAL_OPEN}" != "true" ]]
+  then
+    fail "G90 差分物理链路失败：${G90_CORRECTION_MESSAGE}（${G90_CORRECTION_LAST_ERROR}）"
+    return 1
+  fi
+  if (( G90_CORRECTION_READY == 1 )); then
+    ok "G90 差分：COM2、CORS 和新鲜 RTCM 正常"
+    return 0
+  fi
+  if [[ "${require_fresh}" == "true" ]]; then
+    fail "G90 差分尚未就绪：${G90_CORRECTION_MESSAGE}"
+    return 1
+  fi
+  warn "G90 差分物理串口正常；${G90_CORRECTION_MESSAGE}。室内检查允许继续。"
+  return 0
+}
+
 launch_sensing() {
   local label="$1"
   local launch_lidar="$2"
   local launch_imu="$3"
   local launch_g90="$4"
+  local launch_g90_corrections="${5:-false}"
   start_launch \
     "${label}" \
     ros2 launch autoracer_rc_bringup sensing.launch.py \
@@ -415,8 +729,12 @@ launch_sensing() {
     launch_imu:="${launch_imu}" \
     launch_g90:="${launch_g90}" \
     launch_g90_driver:="${launch_g90}" \
+    launch_g90_corrections:="${launch_g90_corrections}" \
     imu_device:="${IMU_DEVICE}" \
-    g90_device:="${G90_DEVICE}"
+    g90_device:="${G90_DEVICE}" \
+    g90_com2_device:="${G90_COM2_DEVICE}" \
+    g90_ntrip_config_file:="${G90_NTRIP_CONFIG_FILE}" \
+    g90_param_file:="${G90_PARAM_FILE}"
 }
 
 finish_test() {
@@ -549,7 +867,7 @@ latest_nmea_sentence() {
 observe_g90_nmea() {
   local capture="${SESSION_ROOT}/${TASK_INDEX}-g90-nmea.txt"
   timeout "${OBSERVE_SEC}s" \
-    ros2 topic echo /g90/raw/nmea_sentence >"${capture}" 2>&1 || true
+    ros2 topic echo --no-daemon /g90/raw/nmea_sentence >"${capture}" 2>&1 || true
 
   G90_GGA_COUNT="$(nmea_sentence_count "${capture}" GGA)"
   G90_GST_COUNT="$(nmea_sentence_count "${capture}" GST)"
@@ -642,7 +960,7 @@ observe_g90_nmea() {
 observe_g90_fix_sample() {
   local capture="${SESSION_ROOT}/${TASK_INDEX}-g90-fix.txt"
   timeout "${TOPIC_WAIT_SEC}s" \
-    ros2 topic echo /g90/fix --once >"${capture}" 2>&1 || true
+    ros2 topic echo --no-daemon /g90/fix --once >"${capture}" 2>&1 || true
 
   local required_pattern
   for required_pattern in \
@@ -671,9 +989,11 @@ test_g90() {
   local result=0
   local fix_rate="unknown"
   G90_POSITION_READY=0
+  G90_CORRECTION_READY=0
   info "正在检查 G90 数据..."
   device_available "G90" "${G90_DEVICE}" || return 1
-  if ! launch_sensing "G90-test" false false true; then
+  validate_g90_correction_inputs || return 1
+  if ! launch_sensing "G90-test" false false true true; then
     return 1
   fi
   if is_dry_run; then
@@ -689,13 +1009,14 @@ test_g90() {
     result=1
   fi
   observe_g90_fix_sample || result=1
+  observe_g90_corrections false || result=1
   finish_test "${result}" || return 1
 
   if (( G90_POSITION_READY == 1 )); then
-    ok "G90：NMEA/适配链 ${fix_rate} Hz，接收机数据有效（$(g90_state_name "${G90_QUALITY}")，GST完整，THS=A）"
+    ok "G90：NMEA/适配链 ${fix_rate} Hz，接收机数据有效（$(g90_state_name "${G90_QUALITY}")，GST完整，THS=A）；差分状态：${G90_CORRECTION_MESSAGE}"
   else
     warn \
-      "G90：设备链路与 NMEA/适配链 ${fix_rate} Hz 正常；定位未就绪（quality=${G90_QUALITY}，GST${G90_GST_STATE}，THS=${G90_THS_MODE}）"
+      "G90：COM1/COM2 与 NMEA/适配链 ${fix_rate} Hz 正常；定位未就绪（quality=${G90_QUALITY}，GST${G90_GST_STATE}，THS=${G90_THS_MODE}）；差分状态：${G90_CORRECTION_MESSAGE}"
   fi
   return 0
 }
@@ -853,7 +1174,7 @@ record_mapping() {
 }
 
 discover_autonomy_assets() {
-  python3 - "${MAP_ASSETS_ROOT}" "${VERBOSE}" <<'PY'
+  python3 - "${MAP_ASSETS_ROOT}" "${VERBOSE}" "${G90_PARAM_FILE}" <<'PY'
 import csv
 import json
 import math
@@ -865,6 +1186,7 @@ import yaml
 
 root = Path(sys.argv[1])
 verbose = sys.argv[2] == "1"
+g90_param_path = Path(sys.argv[3])
 supported_projectors = {
     "LocalCartesian",
     "LocalCartesianUTM",
@@ -878,8 +1200,21 @@ def rejected(map_id, reason):
         print(f"[INFO] 自动驾驶资产跳过 {map_id}：{reason}", file=sys.stderr)
 
 
+def runtime_heading_offset_deg(path):
+    try:
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        parameters = document["/g90/g90_nmea_adapter"]["ros__parameters"]
+        value = float(parameters["heading_mount_offset_deg"])
+    except (OSError, KeyError, TypeError, ValueError) as error:
+        raise SystemExit(f"G90 运行参数无有效航向补偿：{path}: {error}") from error
+    if not math.isfinite(value):
+        raise SystemExit(f"G90 运行参数航向补偿不是有限值：{path}")
+    return value
+
+
 if not root.is_dir():
     raise SystemExit(f"地图资产根目录不存在：{root}")
+runtime_heading_offset = runtime_heading_offset_deg(g90_param_path)
 
 for map_path in sorted(root.iterdir()):
     if not map_path.is_dir() or map_path.name == "courses":
@@ -913,6 +1248,9 @@ for map_path in sorted(root.iterdir()):
         release_manifest = json.loads(
             release_manifest_path.read_text(encoding="utf-8")
         )
+        input_contract = json.loads(
+            (map_path / "input_contract.json").read_text(encoding="utf-8")
+        )
         if projector not in supported_projectors:
             rejected(map_id, f"projector={projector or 'missing'}")
             continue
@@ -933,6 +1271,24 @@ for map_path in sorted(root.iterdir()):
             or release_manifest.get("publication_status") != "PUBLISHED"
         ):
             rejected(map_id, "地图未发布、release manifest 未通过或 map_id 不一致")
+            continue
+        if (
+            input_contract.get("map_id") != map_id
+            or input_contract.get("publication_status") != "PUBLISHED"
+        ):
+            rejected(map_id, "input contract 未发布或 map_id 不一致")
+            continue
+        heading_contract = input_contract.get("projector", {}).get("heading", {})
+        asset_heading_offset = float(heading_contract.get("mount_offset_deg"))
+        if not math.isfinite(asset_heading_offset):
+            rejected(map_id, "地图航向补偿不是有限值")
+            continue
+        if abs(asset_heading_offset - runtime_heading_offset) > 1.0e-6:
+            rejected(
+                map_id,
+                "地图航向补偿与 G90 运行参数不一致："
+                f"map={asset_heading_offset:.1f}°, runtime={runtime_heading_offset:.1f}°",
+            )
             continue
 
         route_max_speed = float(
@@ -970,6 +1326,7 @@ for map_path in sorted(root.iterdir()):
         str(map_path),
         str(course_path),
         projector,
+        f"{asset_heading_offset:.6f}",
         f"{route_max_speed:.6f}",
         str(route_points),
         f"{route_length:.6f}",
@@ -984,7 +1341,9 @@ validate_autonomy_asset() {
   python3 - \
     "${map_path}" \
     "${course_path}" \
-    "${PRODUCT_ROOT}/src/core/autoracer_planning" <<'PY'
+    "${PRODUCT_ROOT}/src/core/autoracer_planning" \
+    "${G90_PARAM_FILE}" <<'PY'
+import json
 import math
 from pathlib import Path
 import sys
@@ -995,6 +1354,7 @@ import yaml
 map_path = Path(sys.argv[1])
 course_path = Path(sys.argv[2])
 sys.path.insert(0, sys.argv[3])
+g90_param_path = Path(sys.argv[4])
 
 from autoracer_planning.fixed_course import (  # noqa: E402
     load_course_asset,
@@ -1015,6 +1375,35 @@ projector = str(projector_document.get("projector_type", ""))
 if projector not in supported_projectors:
     raise SystemExit(f"地图投影不能用于 G90 自动驾驶：{projector or 'missing'}")
 
+input_contract = json.loads(
+    (map_path / "input_contract.json").read_text(encoding="utf-8")
+)
+if (
+    input_contract.get("map_id") != map_path.name
+    or input_contract.get("publication_status") != "PUBLISHED"
+):
+    raise SystemExit("地图 input contract 未发布或 map_id 不一致")
+asset_heading_offset = float(
+    input_contract.get("projector", {})
+    .get("heading", {})
+    .get("mount_offset_deg")
+)
+g90_document = yaml.safe_load(g90_param_path.read_text(encoding="utf-8"))
+runtime_heading_offset = float(
+    g90_document["/g90/g90_nmea_adapter"]["ros__parameters"][
+        "heading_mount_offset_deg"
+    ]
+)
+if not math.isfinite(asset_heading_offset) or not math.isfinite(
+    runtime_heading_offset
+):
+    raise SystemExit("地图或 G90 运行航向补偿不是有限值")
+if abs(asset_heading_offset - runtime_heading_offset) > 1.0e-6:
+    raise SystemExit(
+        "地图航向补偿与 G90 运行参数不一致："
+        f"map={asset_heading_offset:.1f}°, runtime={runtime_heading_offset:.1f}°"
+    )
+
 manifest, samples = load_course_asset(course_path.parent)
 validate_course_map_contract(manifest, map_path)
 if len(samples) < 2:
@@ -1034,6 +1423,7 @@ print(
     "\t".join(
         (
             projector,
+            f"{asset_heading_offset:.6f}",
             f"{route_max_speed:.6f}",
             str(len(samples)),
             f"{route_length:.6f}",
@@ -1149,12 +1539,13 @@ select_autonomy_asset() {
   elif (( INTERACTIVE == 1 )); then
     printf '可用场景与地图：\n'
     for index in "${!records[@]}"; do
-      local map_id map_path course_path projector route_speed points length
+      local map_id map_path course_path projector heading_offset route_speed points length
       IFS=$'\t' read -r \
-        map_id map_path course_path projector route_speed points length \
+        map_id map_path course_path projector heading_offset route_speed points length \
         <<<"${records[index]}"
-      printf '  %d. %s（%s，%s 点，%.1f m）\n' \
-        "$((index + 1))" "${map_id}" "${projector}" "${points}" "${length}"
+      printf '  %d. %s（%s，航向 %.1f°，%s 点，%.1f m）\n' \
+        "$((index + 1))" "${map_id}" "${projector}" "${heading_offset}" \
+        "${points}" "${length}"
     done
     local choice
     read -r -p '请选择地图：' choice || return 1
@@ -1171,8 +1562,9 @@ select_autonomy_asset() {
 
   IFS=$'\t' read -r \
     AUTONOMY_MAP_ID AUTONOMY_MAP_PATH AUTONOMY_COURSE_PATH \
-    AUTONOMY_PROJECTOR AUTONOMY_ROUTE_MAX_SPEED AUTONOMY_ROUTE_POINTS \
-    AUTONOMY_ROUTE_LENGTH <<<"${selected}"
+    AUTONOMY_PROJECTOR AUTONOMY_HEADING_OFFSET_DEG \
+    AUTONOMY_ROUTE_MAX_SPEED AUTONOMY_ROUTE_POINTS AUTONOMY_ROUTE_LENGTH \
+    <<<"${selected}"
   AUTONOMY_COURSE_DIR="${AUTONOMY_COURSE_PATH%/course.csv}"
   if [[ "${AUTONOMY_COURSE_DIR}" == "${AUTONOMY_COURSE_PATH}" ]]; then
     fail "正式路线必须以 course.csv 结尾：${AUTONOMY_COURSE_PATH}"
@@ -1188,8 +1580,9 @@ select_autonomy_asset() {
     return 1
   fi
   IFS=$'\t' read -r \
-    AUTONOMY_PROJECTOR AUTONOMY_ROUTE_MAX_SPEED AUTONOMY_ROUTE_POINTS \
-    AUTONOMY_ROUTE_LENGTH <<<"${validation}"
+    AUTONOMY_PROJECTOR AUTONOMY_HEADING_OFFSET_DEG \
+    AUTONOMY_ROUTE_MAX_SPEED AUTONOMY_ROUTE_POINTS AUTONOMY_ROUTE_LENGTH \
+    <<<"${validation}"
   ok "资产校验通过：${AUTONOMY_MAP_ID}"
 }
 
@@ -1295,10 +1688,223 @@ PY
     RUNTIME_CONTROL_MODE RUNTIME_GEAR RUNTIME_ENGAGED <<<"${parsed}"
 }
 
+autonomy_control_mode_label() {
+  case "${RUNTIME_CONTROL_MODE}" in
+    1) printf 'AUTO (1)' ;;
+    4) printf 'MANUAL (4)' ;;
+    0) printf 'UNKNOWN (0)' ;;
+    null|'') printf '未报告' ;;
+    *) printf '原始值 %s' "${RUNTIME_CONTROL_MODE}" ;;
+  esac
+}
+
+autonomy_gear_label() {
+  case "${RUNTIME_GEAR}" in
+    1) printf 'PARK (1)' ;;
+    2) printf 'REVERSE (2)' ;;
+    4) printf 'DRIVE (4)' ;;
+    22) printf 'NEUTRAL (22)' ;;
+    null|'') printf '未报告' ;;
+    *) printf '原始值 %s' "${RUNTIME_GEAR}" ;;
+  esac
+}
+
+autonomy_boolean_label() {
+  if (( $1 == 1 )); then
+    printf '是'
+  else
+    printf '否'
+  fi
+}
+
+autonomy_elapsed() {
+  local now total
+  now="$(date +%s)"
+  total=$((now - AUTONOMY_RUN_STARTED_EPOCH))
+  ((total < 0)) && total=0
+  printf '%02d:%02d:%02d' \
+    "$((total / 3600))" "$(((total % 3600) / 60))" "$((total % 60))"
+}
+
+autonomy_render_preparing() {
+  local graph_state="尚未启动"
+  local correction_state="检查中"
+  local runtime_state="等待状态订阅"
+  local detail="${TERMINAL_UI_NOTICE:-正在准备完整运行图}"
+  if [[ -n "${ACTIVE_PID}" ]] && kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; then
+    graph_state="运行中"
+  fi
+  if (( G90_CORRECTION_READY == 1 )); then
+    correction_state="READY"
+  elif [[ "${G90_CORRECTION_MESSAGE}" != "未观测" ]]; then
+    correction_state="${G90_CORRECTION_MESSAGE}"
+  fi
+  if [[ -n "${RUNTIME_STATE}" ]]; then
+    runtime_state="${RUNTIME_STATE} / ${RUNTIME_REASON}"
+  fi
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 1/6    系统准备" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "地图/路线   PASS / ${AUTONOMY_ROUTE_LENGTH} m" \
+    "运行方案    ${AUTONOMY_PROFILE_NAME}" \
+    "速度上限    ${AUTONOMY_EFFECTIVE_SPEED} m/s" \
+    "完整运行图  ${graph_state}" \
+    "G90 差分    ${correction_state}" \
+    "Runtime     ${runtime_state}" \
+    "定位        检查中（由正式 runtime 门控）" \
+    "Planning    检查中（由正式 runtime 门控）" \
+    "底盘反馈    检查中（由正式 runtime 门控）" \
+    "控制输出    禁止（READY 前）" \
+    "" \
+    "状态        ${detail}" \
+    "" \
+    "                                      [Q] 取消"
+}
+
+autonomy_render_ready() {
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 2/6    READY" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "地图/路线   PASS / ${AUTONOMY_ROUTE_LENGTH} m" \
+    "航向补偿    ${AUTONOMY_HEADING_OFFSET_DEG}°（合同一致）" \
+    "运行方案    ${AUTONOMY_PROFILE_NAME}" \
+    "速度上限    ${AUTONOMY_EFFECTIVE_SPEED} m/s" \
+    "定位        READY" \
+    "G90 差分    READY" \
+    "Planning    READY" \
+    "底盘反馈    READY" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "控制输出    禁止，等待 S" \
+    "" \
+    "                    [S] 开始自动驾驶    [Q] 取消"
+}
+
+autonomy_render_start_confirmation() {
+  local status="$1"
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 3/6    开始确认" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "开始输入    已收到 S" \
+    "资产        PASS" \
+    "定位        $([[ ${RUNTIME_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "G90 差分    $([[ ${G90_CORRECTION_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "Planning    $([[ ${RUNTIME_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "底盘反馈    $([[ ${RUNTIME_READY} == 1 ]] && printf READY || printf 复核中)" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "控制输出    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "" \
+    "状态        ${status}" \
+    "" \
+    "                                      [Q] 取消"
+}
+
+autonomy_render_running() {
+  local route_state="READY 已确认；当前快照无数值进度"
+  if [[ "${RUNTIME_STATE}" == "FINISHED" ]]; then
+    route_state="Runtime FINISHED；未区分到达或人工停车"
+  fi
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 4/6    自动驾驶运行中" \
+    "" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "运行时间    $(autonomy_elapsed)" \
+    "Runtime     ${RUNTIME_STATE:-等待状态} / ${RUNTIME_REASON:-未报告}" \
+    "路线状态    ${route_state}" \
+    "定位        READY（由 runtime 持续门控）" \
+    "Planning    READY（由 runtime 持续门控）" \
+    "控制使能    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "已接管      $(autonomy_boolean_label "${RUNTIME_ENGAGED}")" \
+    "速度        runtime 快照未提供数值，不猜测" \
+    "" \
+    "                         [Q] 请求正常停车"
+}
+
+autonomy_render_stopping() {
+  local status="$1"
+  local stopped_state="等待正式 runtime 确认"
+  local state_line="正在等待安全停止；不会自动重试"
+  if [[ "${RUNTIME_STATE}" == "FINISHED" ]] \
+    || { [[ "${RUNTIME_STATE}" == "FAULT" ]] && runtime_fault_is_stopped; }
+  then
+    stopped_state="已由正式 runtime 确认"
+    state_line="安全停止已确认；正在完成退出或清理"
+  fi
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 5/6    停车与退出自动模式" \
+    "" \
+    "Runtime     ${RUNTIME_STATE:-等待状态} / ${RUNTIME_REASON:-未报告}" \
+    "停止请求    ${status}" \
+    "控制使能    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "已接管      $(autonomy_boolean_label "${RUNTIME_ENGAGED}")" \
+    "Hall 零速   ${stopped_state}" \
+    "" \
+    "状态        ${state_line}"
+}
+
+autonomy_render_complete() {
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "阶段 6/6    完成" \
+    "" \
+    "安全退出    PASS" \
+    "场景        ${AUTONOMY_MAP_ID}" \
+    "Runtime     ${RUNTIME_STATE} / ${RUNTIME_REASON}" \
+    "路线到达    当前快照未区分到达或人工停车" \
+    "车辆停止    已由正式 runtime 确认" \
+    "自动模式    已退出" \
+    "运行图      已停止并回收" \
+    "" \
+    "日志目录    ${SESSION_ROOT}" \
+    "" \
+    "                              [Q] 返回主菜单"
+}
+
+autonomy_render_failure() {
+  local conclusion="$1"
+  local detail="$2"
+  terminal_ui_draw \
+    "Autoracer RC — 菜单 7：固定路线运行" \
+    "" \
+    "结果        FAIL" \
+    "故障结论    ${conclusion}" \
+    "真实原因    ${detail}" \
+    "" \
+    "Runtime     ${RUNTIME_STATE:-未取得}" \
+    "控制使能    $(autonomy_boolean_label "${RUNTIME_CONTROL_ENABLED}")" \
+    "控制模式    $(autonomy_control_mode_label)" \
+    "档位        $(autonomy_gear_label)" \
+    "日志目录    ${SESSION_ROOT:-尚未创建}" \
+    "" \
+    "故障结论已经固定，不会自动重试。" \
+    "                              [Q] 确认并清理"
+}
+
 wait_for_q_acknowledgement() {
   local prompt="$1"
   local key=""
-  printf '%s\n' "${prompt}"
+  if (( TERMINAL_UI_ACTIVE == 0 )); then
+    printf '%s\n' "${prompt}"
+  fi
   while true; do
     key=""
     if ! IFS= read -r -s -n 1 key; then
@@ -1313,7 +1919,13 @@ wait_for_q_acknowledgement() {
 
 acknowledge_autonomy_failure() {
   local conclusion="$1"
-  fail "${conclusion}"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    local detail="${TERMINAL_UI_LAST_FAILURE:-${RUNTIME_REASON:-未取得具体原因}}"
+    terminal_ui_note FAIL "${conclusion}"
+    autonomy_render_failure "${conclusion}" "${detail}"
+  else
+    fail "${conclusion}"
+  fi
   if is_dry_run || [[ ! -t 0 ]]; then
     return 0
   fi
@@ -1322,8 +1934,14 @@ acknowledge_autonomy_failure() {
 
 wait_for_autonomy_ready() {
   local last_reason=""
+  local last_correction_message=""
   local key=""
-  info "完整运行图正在准备；不设超时，按 Q 取消。"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "完整运行图正在准备；不设超时"
+    autonomy_render_preparing
+  else
+    info "完整运行图正在准备；不设超时，按 Q 取消。"
+  fi
 
   while kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; do
     key=""
@@ -1333,18 +1951,38 @@ wait_for_autonomy_ready() {
       esac
     fi
 
+    if read_g90_correction_snapshot 2; then
+      if [[ "${G90_CORRECTION_CREDENTIAL_EXPIRED}" == "true" \
+        || "${G90_CORRECTION_WORKER_ALIVE}" != "true" \
+        || "${G90_CORRECTION_SERIAL_OPEN}" != "true" ]]
+      then
+        fail "准备阶段 G90 差分物理链路失败：${G90_CORRECTION_MESSAGE}"
+        return 1
+      fi
+      if [[ "${G90_CORRECTION_MESSAGE}" != "${last_correction_message}" ]]; then
+        info "差分准备状态：${G90_CORRECTION_MESSAGE}"
+        last_correction_message="${G90_CORRECTION_MESSAGE}"
+      fi
+    fi
+
     if read_runtime_snapshot; then
       if [[ "${RUNTIME_STATE}" == "FAULT" ]]; then
         fail "准备阶段进入 FAULT：${RUNTIME_REASON}"
         return 1
       fi
-      if (( RUNTIME_READY == 1 )) && [[ "${RUNTIME_STATE}" == "IDLE" ]]; then
+      if (( RUNTIME_READY == 1 )) \
+        && (( G90_CORRECTION_READY == 1 )) \
+        && [[ "${RUNTIME_STATE}" == "IDLE" ]]
+      then
         return 0
       fi
       if [[ "${RUNTIME_REASON}" != "${last_reason}" ]]; then
         info "准备状态：${RUNTIME_REASON}"
         last_reason="${RUNTIME_REASON}"
       fi
+    fi
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      autonomy_render_preparing
     fi
   done
 
@@ -1354,8 +1992,14 @@ wait_for_autonomy_ready() {
 
 wait_for_autonomy_start_decision() {
   local key=""
+  local start_requested=0
   local last_status="${RUNTIME_STATE}:${RUNTIME_READY}:${RUNTIME_REASON}"
   local current_status=""
+  local last_correction_message=""
+
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_ready
+  fi
 
   while kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; do
     key=""
@@ -1363,12 +2007,13 @@ wait_for_autonomy_start_decision() {
       case "${key}" in
         q|Q) return 2 ;;
         s|S)
-          if read_runtime_snapshot \
-            && (( RUNTIME_READY == 1 )) \
-            && [[ "${RUNTIME_STATE}" == "IDLE" ]]; then
-            return 0
+          if (( start_requested == 0 )); then
+            start_requested=1
+            info "已收到开始请求；正在进行最终状态确认，按 Q 取消。"
+            if (( TERMINAL_UI_ACTIVE == 1 )); then
+              autonomy_render_start_confirmation "正在进行最终 runtime 与差分确认"
+            fi
           fi
-          warn "当前状态不是 READY，未执行开始请求；继续等待或按 Q 取消"
           ;;
       esac
     fi
@@ -1386,6 +2031,42 @@ wait_for_autonomy_start_decision() {
           info "等待开始状态：NOT_READY / ${RUNTIME_STATE} / ${RUNTIME_REASON}"
         fi
         last_status="${current_status}"
+      fi
+
+      if (( start_requested == 1 )) \
+        && (( RUNTIME_READY == 1 )) \
+        && [[ "${RUNTIME_STATE}" == "IDLE" ]]
+      then
+        if read_g90_correction_snapshot 2; then
+          if [[ "${G90_CORRECTION_CREDENTIAL_EXPIRED}" == "true" \
+            || "${G90_CORRECTION_WORKER_ALIVE}" != "true" \
+            || "${G90_CORRECTION_SERIAL_OPEN}" != "true" ]]
+          then
+            fail "最终确认时 G90 差分物理链路失败：${G90_CORRECTION_MESSAGE}"
+            return 1
+          fi
+          if [[ "${G90_CORRECTION_MESSAGE}" != "${last_correction_message}" ]]; then
+            info "最终差分确认：${G90_CORRECTION_MESSAGE}"
+            last_correction_message="${G90_CORRECTION_MESSAGE}"
+          fi
+          if (( G90_CORRECTION_READY == 1 )) \
+            && read_runtime_snapshot \
+            && (( RUNTIME_READY == 1 )) \
+            && [[ "${RUNTIME_STATE}" == "IDLE" ]]
+          then
+            return 0
+          fi
+        elif [[ "${last_correction_message}" != "等待新的 G90 差分诊断" ]]; then
+          info "最终差分确认：等待新的 G90 差分诊断"
+          last_correction_message="等待新的 G90 差分诊断"
+        fi
+      fi
+    fi
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      if (( start_requested == 1 )); then
+        autonomy_render_start_confirmation "正在进行最终 runtime 与差分确认"
+      else
+        autonomy_render_ready
       fi
     fi
   done
@@ -1428,11 +2109,19 @@ monitor_autonomy_run() {
   local stop_requested=0
   local fault_reported=0
 
-  info "自动驾驶运行中；按 Q 请求正常停车。"
+  AUTONOMY_RUN_STARTED_EPOCH="$(date +%s)"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_running
+  else
+    info "自动驾驶运行中；按 Q 请求正常停车。"
+  fi
   while kill -0 "${ACTIVE_PID}" >/dev/null 2>&1; do
     key=""
     if IFS= read -r -s -n 1 -t 0.2 key; then
       if [[ "${key}" =~ ^[qQ]$ ]] && (( stop_requested == 0 )); then
+        if (( TERMINAL_UI_ACTIVE == 1 )); then
+          autonomy_render_stopping "正在调用正式 stop 服务"
+        fi
         if ! call_race_service stop; then
           return 1
         fi
@@ -1453,10 +2142,16 @@ monitor_autonomy_run() {
 
     case "${RUNTIME_STATE}" in
       FINISHED)
+        if (( TERMINAL_UI_ACTIVE == 1 )); then
+          autonomy_render_stopping "已确认 Hall 零速并退出自动模式"
+        fi
         ok "车辆已确认停止并退出自动模式"
         return 0
         ;;
       FAULT)
+        if (( TERMINAL_UI_ACTIVE == 1 )); then
+          autonomy_render_stopping "FAULT；正在请求并确认安全停止"
+        fi
         if (( fault_reported == 0 )); then
           fail "自动驾驶进入 FAULT：${RUNTIME_REASON}"
           call_race_service stop || true
@@ -1468,6 +2163,13 @@ monitor_autonomy_run() {
         fi
         ;;
     esac
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      if (( stop_requested == 1 )); then
+        autonomy_render_stopping "stop 已请求；等待正式停止确认"
+      elif [[ "${RUNTIME_STATE}" != "FAULT" ]]; then
+        autonomy_render_running
+      fi
+    fi
   done
 
   fail "自动驾驶运行图在确认停车前退出"
@@ -1500,24 +2202,37 @@ start_autonomy() {
       -v profile="${AUTONOMY_PROFILE_MAX_SPEED}" \
       'BEGIN {printf "%.3f", route < profile ? route : profile}'
   )"
+  AUTONOMY_EFFECTIVE_SPEED="${effective_speed}"
+  terminal_ui_begin
 
-  printf '\n'
-  printf '场景：%s\n' "${AUTONOMY_MAP_ID}"
-  printf '地图：%s\n' "${AUTONOMY_MAP_PATH}"
-  printf '路线：%s\n' "${AUTONOMY_COURSE_PATH}"
-  printf '运行方案：%s\n' "${AUTONOMY_PROFILE_NAME}"
-  printf '路线最高目标速度：%.3f m/s\n' "${AUTONOMY_ROUTE_MAX_SPEED}"
-  printf '实际速度上限：%s m/s\n' "${effective_speed}"
-  printf '资产校验：PASS\n'
-  printf '选择 7 已授权本次打开底盘控制串口；READY 前不会开始自动驾驶。\n'
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "资产已校验；正在检查设备路径"
+    autonomy_render_preparing
+  else
+    printf '\n'
+    printf '场景：%s\n' "${AUTONOMY_MAP_ID}"
+    printf '地图：%s\n' "${AUTONOMY_MAP_PATH}"
+    printf '路线：%s\n' "${AUTONOMY_COURSE_PATH}"
+    printf '地图/运行航向补偿：%.1f°（合同一致）\n' \
+      "${AUTONOMY_HEADING_OFFSET_DEG}"
+    printf '运行方案：%s\n' "${AUTONOMY_PROFILE_NAME}"
+    printf '路线最高目标速度：%.3f m/s\n' "${AUTONOMY_ROUTE_MAX_SPEED}"
+    printf '实际速度上限：%s m/s\n' "${effective_speed}"
+    printf '资产校验：PASS\n'
+    printf '选择 7 已授权本次打开底盘控制串口；READY 前不会开始自动驾驶。\n'
+  fi
 
   if ! device_available "底盘" "${CHASSIS_DEVICE}" \
     || ! device_available "IMU" "${IMU_DEVICE}" \
-    || ! device_available "G90" "${G90_DEVICE}"; then
+    || ! device_available "G90" "${G90_DEVICE}" \
+    || ! validate_g90_correction_inputs; then
     acknowledge_autonomy_failure "自动驾驶设备路径检查未通过"
     return 1
   fi
   report_lidar_network
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_preparing
+  fi
 
   if ! start_launch \
     "autonomy-${AUTONOMY_MAP_ID}-${AUTONOMY_PROFILE_ID}" \
@@ -1531,9 +2246,16 @@ start_autonomy() {
     stopping_margin_m:="${AUTONOMY_PROFILE_STOPPING_MARGIN}" \
     chassis_serial_port:="${CHASSIS_DEVICE}" \
     imu_device:="${IMU_DEVICE}" \
-    g90_device:="${G90_DEVICE}"; then
+    g90_device:="${G90_DEVICE}" \
+    g90_com2_device:="${G90_COM2_DEVICE}" \
+    g90_ntrip_config_file:="${G90_NTRIP_CONFIG_FILE}" \
+    g90_param_file:="${G90_PARAM_FILE}"; then
     acknowledge_autonomy_failure "自动驾驶运行图启动失败"
     return 1
+  fi
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "完整运行图已启动；正在等待 runtime 状态"
+    autonomy_render_preparing
   fi
 
   if is_dry_run; then
@@ -1547,6 +2269,10 @@ start_autonomy() {
     stop_active
     return 1
   fi
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    terminal_ui_note INFO "runtime 状态订阅器已启动"
+    autonomy_render_preparing
+  fi
 
   local ready_result
   if wait_for_autonomy_ready; then
@@ -1557,6 +2283,9 @@ start_autonomy() {
   if (( ready_result != 0 )); then
     if (( ready_result == 2 )); then
       info "已取消自动驾驶准备"
+      if (( TERMINAL_UI_ACTIVE == 1 )); then
+        autonomy_render_stopping "已取消；正在回收运行图"
+      fi
       stop_active
       return 0
     fi
@@ -1566,11 +2295,16 @@ start_autonomy() {
     return 1
   fi
 
-  printf '\n'
-  printf '定位：READY\n'
-  printf 'Planning：READY\n'
-  printf '底盘反馈：READY\n'
-  printf '[S] 开始自动驾驶  [Q] 取消\n'
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_ready
+  else
+    printf '\n'
+    printf '定位：READY\n'
+    printf '差分：READY\n'
+    printf 'Planning：READY\n'
+    printf '底盘反馈：READY\n'
+    printf '[S] 开始自动驾驶  [Q] 取消\n'
+  fi
 
   local decision_result
   if wait_for_autonomy_start_decision; then
@@ -1581,6 +2315,9 @@ start_autonomy() {
   if (( decision_result != 0 )); then
     if (( decision_result == 2 )); then
       info "已取消自动驾驶"
+      if (( TERMINAL_UI_ACTIVE == 1 )); then
+        autonomy_render_stopping "已取消；正在回收运行图"
+      fi
       stop_active
       return 0
     fi
@@ -1590,6 +2327,9 @@ start_autonomy() {
     return 1
   fi
 
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_start_confirmation "正在调用正式 start 服务"
+  fi
   if ! call_race_service start; then
     acknowledge_autonomy_failure \
       "自动驾驶开始请求未执行；启动日志：${ACTIVE_LOG}"
@@ -1597,6 +2337,9 @@ start_autonomy() {
     return 1
   fi
   ok "已接受本次自动驾驶开始请求"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_start_confirmation "start 已接受；等待 runtime 进入 ACTIVE"
+  fi
 
   local run_result
   if monitor_autonomy_run; then
@@ -1607,18 +2350,36 @@ start_autonomy() {
   if (( run_result != 0 )); then
     acknowledge_autonomy_failure \
       "自动驾驶运行未正常完成；启动日志：${ACTIVE_LOG}"
+    if (( TERMINAL_UI_ACTIVE == 1 )); then
+      autonomy_render_stopping "故障已确认；正在回收运行图"
+    fi
+    stop_active
+    return "${run_result}"
+  fi
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_stopping "运行完成；正在停止并回收完整运行图"
   fi
   stop_active
-  return "${run_result}"
+  if (( TERMINAL_UI_ACTIVE == 1 )); then
+    autonomy_render_complete
+    wait_for_q_acknowledgement "按 Q 返回主菜单。"
+  fi
+  return 0
 }
 
 run_and_report() {
   local label="$1"
   shift
   if "$@"; then
+    terminal_ui_end
     verbose_ok "${label} 完成"
   else
-    fail "${label} 未通过"
+    local used_terminal_ui="${TERMINAL_UI_ACTIVE}"
+    terminal_ui_end
+    if (( used_terminal_ui == 0 )); then
+      fail "${label} 未通过"
+    fi
+    return 0
   fi
 }
 
@@ -1683,7 +2444,8 @@ launch commands, topic types, field samples, and raw G90 NMEA observations.
 Set RC_DRY_RUN=1 to print commands without opening devices.
 
 Environment overrides:
-  RC_G90_DEVICE, RC_IMU_DEVICE, RC_CHASSIS_DEVICE, RC_LIDAR_IP
+  RC_G90_DEVICE, RC_G90_COM2_DEVICE, RC_G90_NTRIP_CONFIG_FILE, RC_G90_PARAM_FILE
+  RC_IMU_DEVICE, RC_CHASSIS_DEVICE, RC_LIDAR_IP
   RC_MAP_ID, RC_MAP_ASSETS_ROOT, RC_OBSERVE_SEC, RC_RATE_WAIT_SEC
   RC_MAPPING_SITE, RC_MAPPING_LABEL, RC_MAPPING_OPERATOR
   RC_MAPPING_ALLOW_DEGRADED_LIDAR=1
