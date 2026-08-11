@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="11" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:19" name="AllTests">
+  <testsuite name="Measurement" tests="11" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:19">
+    <testcase name="pose_measurement_matrix" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="position_only_pose_measurement_requires_explicit_enable_and_marker" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="height_only_pose_measurement_requires_all_component_markers" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="position_only_pose_measurement_matrix_excludes_yaw" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="twist_measurement_matrix" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="dynamic_measurement_matrices_preserve_six_state_contract" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="gnss_bias_is_only_present_in_position_only_measurement" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="pose_measurement_covariance" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="position_only_pose_measurement_covariance_excludes_yaw" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="position_only_innovation_covariance_includes_state_and_receiver_uncertainty" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+    <testcase name="twist_measurement_covariance" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.Measurement" />
+  </testsuite>
+</testsuites>

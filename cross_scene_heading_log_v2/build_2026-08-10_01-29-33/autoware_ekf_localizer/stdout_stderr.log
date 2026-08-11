@@ -1,0 +1,171 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found autoware_cmake: 1.1.0 (/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/install/autoware_cmake/share/autoware_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Override CMake install command with custom implementation using symlinks instead of copying resources
+-- Found TinyXML2: /usr/lib/x86_64-linux-gnu/libtinyxml2.so  
+-- Found rosidl_generator_c: 3.1.7 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+-- Found rosidl_adapter: 3.1.7 (/opt/ros/humble/share/rosidl_adapter/cmake)
+-- Found rosidl_generator_cpp: 3.1.7 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+-- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+-- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+-- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+-- Found rmw_fastrtps_cpp: 6.2.8 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+-- Found FastRTPS: /opt/ros/humble/include  
+-- Using RMW implementation 'rmw_fastrtps_cpp' as default
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+-- Found Eigen3: TRUE (found version "3.4.0") 
+-- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+-- Found ament_lint_auto: 0.12.14 (/opt/ros/humble/share/ament_lint_auto/cmake)
+-- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+-- Found PythonInterp: /usr/bin/python3 (found suitable version "3.10.12", minimum required is "3.6") 
+-- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython3.10.so (found suitable version "3.10.12", minimum required is "3.5") 
+-- Using PYTHON_EXECUTABLE: /usr/bin/python3
+-- Using PYTHON_INCLUDE_DIRS: /usr/include/python3.10
+-- Using PYTHON_LIBRARIES: /usr/lib/x86_64-linux-gnu/libpython3.10.so
+-- Found PythonExtra: .so  
+-- Setting executor non-default value SingleThreadedExecutor
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+-- Added test 'copyright' to check source files copyright and LICENSE
+-- Added test 'cppcheck' to perform static code analysis on C / C++ code
+-- Configured cppcheck include dirs: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/include
+-- Configured cppcheck exclude dirs and/or files: 
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+[  2%] Building CXX object CMakeFiles/autoware_ekf_localizer_node.dir/rclcpp_components/node_main_autoware_ekf_localizer_node.cpp.o
+[ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/mahalanobis.cpp.o
+[ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/diagnostics.cpp.o
+[ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/covariance.cpp.o
+[ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/measurement.cpp.o
+[ 21%] Building CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o
+[ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/ekf_module.cpp.o
+[ 21%] Building CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o
+[ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/ekf_localizer.cpp.o
+[ 24%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/state_transition.cpp.o
+[ 26%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/warning_message.cpp.o
+[ 29%] Linking CXX static library libgtest_main.a
+[ 29%] Built target gtest_main
+[ 31%] Linking CXX executable autoware_ekf_localizer_node
+[ 34%] Linking CXX static library libgtest.a
+[ 34%] Built target autoware_ekf_localizer_node
+[ 34%] Built target gtest
+[ 36%] Linking CXX shared library libautoware_ekf_localizer.so
+[ 36%] Built target autoware_ekf_localizer
+[ 39%] Building CXX object CMakeFiles/test_mahalanobis.dir/test/test_mahalanobis.cpp.o
+[ 41%] Building CXX object CMakeFiles/test_numeric.dir/test/test_numeric.cpp.o
+[ 43%] Building CXX object CMakeFiles/test_simple_1d_filter.dir/test/test_simple_1d_filter.cpp.o
+[ 46%] Building CXX object CMakeFiles/test_covariance.dir/test/test_covariance.cpp.o
+[ 51%] Building CXX object CMakeFiles/test_gnss_correction.dir/test/test_gnss_correction.cpp.o
+[ 51%] Building CXX object CMakeFiles/test_position_only_innovation_monitor.dir/test/test_position_only_innovation_monitor.cpp.o
+[ 53%] Building CXX object CMakeFiles/test_measurement.dir/test/test_measurement.cpp.o
+[ 56%] Building CXX object CMakeFiles/test_state_transition.dir/test/test_state_transition.cpp.o
+[ 60%] Building CXX object CMakeFiles/test_diagnostics.dir/test/test_diagnostics.cpp.o
+[ 63%] Building CXX object CMakeFiles/test_warning_message.dir/test/test_warning_message.cpp.o
+[ 63%] Building CXX object CMakeFiles/test_gnss_bias_state.dir/test/test_gnss_bias_state.cpp.o
+[ 65%] Building CXX object CMakeFiles/test_string.dir/test/test_string.cpp.o
+[ 68%] Building CXX object CMakeFiles/test_aged_object_queue.dir/test/test_aged_object_queue.cpp.o
+[ 70%] Linking CXX executable test_string
+[ 73%] Linking CXX executable test_diagnostics
+[ 75%] Linking CXX executable test_aged_object_queue
+[ 78%] Linking CXX executable test_covariance
+[ 80%] Linking CXX executable test_numeric
+[ 82%] Linking CXX executable test_position_only_innovation_monitor
+[ 85%] Linking CXX executable test_mahalanobis
+[ 87%] Linking CXX executable test_gnss_bias_state
+[ 90%] Linking CXX executable test_state_transition
+[ 92%] Linking CXX executable test_measurement
+[ 92%] Built target test_diagnostics
+[ 92%] Built target test_string
+[ 92%] Built target test_aged_object_queue
+[ 92%] Built target test_covariance
+[ 92%] Built target test_mahalanobis
+[ 95%] Linking CXX executable test_gnss_correction
+[ 95%] Built target test_numeric
+[ 95%] Built target test_position_only_innovation_monitor
+[ 97%] Linking CXX executable test_warning_message
+[ 97%] Built target test_gnss_bias_state
+[ 97%] Built target test_state_transition
+[ 97%] Built target test_measurement
+[100%] Linking CXX executable test_simple_1d_filter
+[100%] Built target test_gnss_correction
+[100%] Built target test_warning_message
+[100%] Built target test_simple_1d_filter
+-- Install configuration: ""
+-- Execute custom install script
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/lib/autoware_ekf_localizer/autoware_ekf_localizer_node
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/environment/library_path.sh
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/environment/library_path.dsv
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/lib/libautoware_ekf_localizer.so
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/config/ekf_localizer.param.yaml
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/config/ekf_localizer.param.yaml.orig
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/launch/ekf_localizer.launch.xml
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/package_run_dependencies/autoware_ekf_localizer
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/parent_prefix_path/autoware_ekf_localizer
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/environment/ament_prefix_path.sh
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/environment/ament_prefix_path.dsv
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/environment/path.sh
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/environment/path.dsv
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/local_setup.bash
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/local_setup.sh
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/local_setup.zsh
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/local_setup.dsv
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/package.dsv
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/packages/autoware_ekf_localizer
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/rclcpp_components/autoware_ekf_localizer
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/cmake/ament_cmake_export_dependencies-extras.cmake
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/cmake/ament_cmake_export_include_directories-extras.cmake
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/cmake/ament_cmake_export_libraries-extras.cmake
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/cmake/autoware_ekf_localizerConfig.cmake
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/cmake/autoware_ekf_localizerConfig-version.cmake
+-- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_ekf_localizer/package.xml
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/measurement.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/numeric.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/position_only_innovation_monitor.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/covariance.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/state_index.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/warning.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/ekf_module.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/string.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/gnss_correction.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/hyper_parameters.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/state_transition.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/aged_object_queue.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/warning_message.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/ekf_localizer.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/mahalanobis.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/matrix_types.hpp
+-- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/include/autoware/ekf_localizer/diagnostics.hpp

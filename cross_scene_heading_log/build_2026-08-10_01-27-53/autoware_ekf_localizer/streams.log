@@ -1,0 +1,398 @@
+[0.038s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer -DBUILD_TESTING=ON -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install
+[0.216s] -- The C compiler identification is GNU 11.2.0
+[0.360s] -- The CXX compiler identification is GNU 11.4.0
+[0.382s] -- Detecting C compiler ABI info
+[0.636s] -- Detecting C compiler ABI info - done
+[0.649s] -- Check for working C compiler: /opt/anaconda3/bin/cc - skipped
+[0.649s] -- Detecting C compile features
+[0.650s] -- Detecting C compile features - done
+[0.656s] -- Detecting CXX compiler ABI info
+[0.925s] -- Detecting CXX compiler ABI info - done
+[0.939s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.939s] -- Detecting CXX compile features
+[0.940s] -- Detecting CXX compile features - done
+[0.971s] -- Found autoware_cmake: 1.1.0 (/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/install/autoware_cmake/share/autoware_cmake/cmake)
+[1.533s] -- Found Python3: /opt/anaconda3/bin/python3 (found version "3.13.5") found components: Interpreter 
+[1.639s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[1.988s] -- Found TinyXML2: /usr/lib/x86_64-linux-gnu/libtinyxml2.so  
+[2.360s] -- Found rosidl_generator_c: 3.1.7 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[2.394s] -- Found rosidl_adapter: 3.1.7 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[2.431s] -- Found rosidl_generator_cpp: 3.1.7 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[2.476s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[2.538s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[2.727s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[2.748s] -- Found rmw_fastrtps_cpp: 6.2.8 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[3.183s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[3.292s] -- Found FastRTPS: /opt/ros/humble/include  
+[3.415s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[3.468s] -- Looking for pthread.h
+[3.732s] -- Looking for pthread.h - found
+[3.733s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[4.008s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[4.010s] -- Found Threads: TRUE  
+[4.685s] -- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+[4.686s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[4.686s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[5.033s] -- Found ament_lint_auto: 0.12.14 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[5.208s] -- Found python_cmake_module: 0.10.0 (/opt/ros/humble/share/python_cmake_module/cmake)
+[5.252s] -- Found PythonInterp: /opt/anaconda3/bin/python3 (found suitable version "3.13.5", minimum required is "3.6") 
+[5.263s] -- Found PythonLibs: /opt/anaconda3/lib/libpython3.13.so (found suitable version "3.13.5", minimum required is "3.5") 
+[5.264s] -- Using PYTHON_EXECUTABLE: /opt/anaconda3/bin/python3
+[5.264s] -- Using PYTHON_INCLUDE_DIRS: /opt/anaconda3/include/python3.13
+[5.264s] -- Using PYTHON_LIBRARIES: /opt/anaconda3/lib/libpython3.13.so
+[5.305s] -- Found PythonExtra: .so  
+[5.551s] -- Setting executor non-default value SingleThreadedExecutor
+[5.579s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[5.768s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[5.952s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.132s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.312s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.497s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.678s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[6.859s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[7.040s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[7.220s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[7.401s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[7.580s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[7.759s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[7.950s] -- Added test 'copyright' to check source files copyright and LICENSE
+[7.957s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[7.959s] -- Configured cppcheck include dirs: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/include
+[7.960s] -- Configured cppcheck exclude dirs and/or files: 
+[7.963s] -- Added test 'lint_cmake' to check CMake code style
+[7.966s] -- Added test 'xmllint' to check XML markup files
+[7.973s] -- Configuring done
+[8.058s] CMake Warning at /opt/ros/humble/share/ament_cmake_auto/cmake/ament_auto_add_library.cmake:66 (add_library):
+[8.058s]   Cannot generate a safe runtime search path for target
+[8.058s]   autoware_ekf_localizer because files in some directories may conflict with
+[8.058s]   libraries in implicit directories:
+[8.058s] 
+[8.059s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.059s]       /opt/anaconda3/lib
+[8.059s] 
+[8.059s]   Some of these libraries may not be found correctly.
+[8.059s] Call Stack (most recent call first):
+[8.059s]   CMakeLists.txt:16 (ament_auto_add_library)
+[8.059s] 
+[8.059s] 
+[8.114s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.114s]   Cannot generate a safe runtime search path for target
+[8.115s]   test_aged_object_queue because files in some directories may conflict with
+[8.115s]   libraries in implicit directories:
+[8.115s] 
+[8.115s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.115s]       /opt/anaconda3/lib
+[8.115s] 
+[8.115s]   Some of these libraries may not be found correctly.
+[8.115s] Call Stack (most recent call first):
+[8.115s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.115s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.115s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.115s]   CMakeLists.txt:59 (add_testcase)
+[8.115s] 
+[8.116s] 
+[8.166s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.166s]   Cannot generate a safe runtime search path for target test_covariance
+[8.166s]   because files in some directories may conflict with libraries in implicit
+[8.166s]   directories:
+[8.166s] 
+[8.166s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.167s]       /opt/anaconda3/lib
+[8.167s] 
+[8.167s]   Some of these libraries may not be found correctly.
+[8.167s] Call Stack (most recent call first):
+[8.167s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.167s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.167s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.167s]   CMakeLists.txt:59 (add_testcase)
+[8.167s] 
+[8.167s] 
+[8.218s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.218s]   Cannot generate a safe runtime search path for target test_diagnostics
+[8.218s]   because files in some directories may conflict with libraries in implicit
+[8.218s]   directories:
+[8.218s] 
+[8.219s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.219s]       /opt/anaconda3/lib
+[8.219s] 
+[8.219s]   Some of these libraries may not be found correctly.
+[8.219s] Call Stack (most recent call first):
+[8.219s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.219s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.219s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.219s]   CMakeLists.txt:59 (add_testcase)
+[8.219s] 
+[8.219s] 
+[8.270s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.270s]   Cannot generate a safe runtime search path for target test_gnss_bias_state
+[8.271s]   because files in some directories may conflict with libraries in implicit
+[8.271s]   directories:
+[8.271s] 
+[8.271s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.271s]       /opt/anaconda3/lib
+[8.271s] 
+[8.271s]   Some of these libraries may not be found correctly.
+[8.271s] Call Stack (most recent call first):
+[8.271s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.271s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.271s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.271s]   CMakeLists.txt:59 (add_testcase)
+[8.272s] 
+[8.272s] 
+[8.322s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.322s]   Cannot generate a safe runtime search path for target test_gnss_correction
+[8.322s]   because files in some directories may conflict with libraries in implicit
+[8.322s]   directories:
+[8.323s] 
+[8.323s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.323s]       /opt/anaconda3/lib
+[8.323s] 
+[8.323s]   Some of these libraries may not be found correctly.
+[8.323s] Call Stack (most recent call first):
+[8.323s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.323s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.323s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.323s]   CMakeLists.txt:59 (add_testcase)
+[8.323s] 
+[8.323s] 
+[8.375s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.375s]   Cannot generate a safe runtime search path for target test_mahalanobis
+[8.375s]   because files in some directories may conflict with libraries in implicit
+[8.375s]   directories:
+[8.375s] 
+[8.375s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.375s]       /opt/anaconda3/lib
+[8.375s] 
+[8.375s]   Some of these libraries may not be found correctly.
+[8.375s] Call Stack (most recent call first):
+[8.375s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.376s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.376s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.376s]   CMakeLists.txt:59 (add_testcase)
+[8.376s] 
+[8.376s] 
+[8.427s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.427s]   Cannot generate a safe runtime search path for target test_measurement
+[8.427s]   because files in some directories may conflict with libraries in implicit
+[8.427s]   directories:
+[8.427s] 
+[8.427s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.427s]       /opt/anaconda3/lib
+[8.427s] 
+[8.428s]   Some of these libraries may not be found correctly.
+[8.428s] Call Stack (most recent call first):
+[8.428s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.428s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.428s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.428s]   CMakeLists.txt:59 (add_testcase)
+[8.428s] 
+[8.428s] 
+[8.479s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.479s]   Cannot generate a safe runtime search path for target test_numeric because
+[8.479s]   files in some directories may conflict with libraries in implicit
+[8.479s]   directories:
+[8.479s] 
+[8.479s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.479s]       /opt/anaconda3/lib
+[8.479s] 
+[8.480s]   Some of these libraries may not be found correctly.
+[8.480s] Call Stack (most recent call first):
+[8.480s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.480s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.480s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.480s]   CMakeLists.txt:59 (add_testcase)
+[8.480s] 
+[8.480s] 
+[8.531s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.531s]   Cannot generate a safe runtime search path for target
+[8.531s]   test_position_only_innovation_monitor because files in some directories may
+[8.531s]   conflict with libraries in implicit directories:
+[8.531s] 
+[8.532s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.532s]       /opt/anaconda3/lib
+[8.532s] 
+[8.532s]   Some of these libraries may not be found correctly.
+[8.532s] Call Stack (most recent call first):
+[8.532s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.532s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.532s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.532s]   CMakeLists.txt:59 (add_testcase)
+[8.532s] 
+[8.532s] 
+[8.583s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.583s]   Cannot generate a safe runtime search path for target test_simple_1d_filter
+[8.583s]   because files in some directories may conflict with libraries in implicit
+[8.583s]   directories:
+[8.583s] 
+[8.584s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.584s]       /opt/anaconda3/lib
+[8.584s] 
+[8.584s]   Some of these libraries may not be found correctly.
+[8.584s] Call Stack (most recent call first):
+[8.584s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.584s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.584s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.584s]   CMakeLists.txt:59 (add_testcase)
+[8.584s] 
+[8.584s] 
+[8.635s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.635s]   Cannot generate a safe runtime search path for target test_state_transition
+[8.636s]   because files in some directories may conflict with libraries in implicit
+[8.636s]   directories:
+[8.636s] 
+[8.636s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.636s]       /opt/anaconda3/lib
+[8.636s] 
+[8.636s]   Some of these libraries may not be found correctly.
+[8.636s] Call Stack (most recent call first):
+[8.636s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.636s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.636s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.636s]   CMakeLists.txt:59 (add_testcase)
+[8.636s] 
+[8.637s] 
+[8.687s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.688s]   Cannot generate a safe runtime search path for target test_string because
+[8.688s]   files in some directories may conflict with libraries in implicit
+[8.688s]   directories:
+[8.688s] 
+[8.688s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.688s]       /opt/anaconda3/lib
+[8.688s] 
+[8.688s]   Some of these libraries may not be found correctly.
+[8.688s] Call Stack (most recent call first):
+[8.688s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.688s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.688s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.688s]   CMakeLists.txt:59 (add_testcase)
+[8.689s] 
+[8.689s] 
+[8.739s] CMake Warning at /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:50 (add_executable):
+[8.740s]   Cannot generate a safe runtime search path for target test_warning_message
+[8.740s]   because files in some directories may conflict with libraries in implicit
+[8.740s]   directories:
+[8.740s] 
+[8.740s]     runtime library [libglog.so.0] in /usr/lib/x86_64-linux-gnu may be hidden by files in:
+[8.740s]       /opt/anaconda3/lib
+[8.740s] 
+[8.740s]   Some of these libraries may not be found correctly.
+[8.740s] Call Stack (most recent call first):
+[8.740s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest_executable.cmake:37 (_ament_add_gtest_executable)
+[8.740s]   /opt/ros/humble/share/ament_cmake_gtest/cmake/ament_add_gtest.cmake:68 (ament_add_gtest_executable)
+[8.741s]   CMakeLists.txt:40 (ament_add_gtest)
+[8.741s]   CMakeLists.txt:59 (add_testcase)
+[8.741s] 
+[8.741s] 
+[8.745s] -- Generating done
+[8.798s] -- Build files have been written to: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer
+[8.822s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer -DBUILD_TESTING=ON -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install
+[8.826s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --build /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer -- -j512 -l512
+[9.041s] [  2%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/ekf_localizer.cpp.o
+[9.044s] [  7%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/covariance.cpp.o
+[9.044s] [  7%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/mahalanobis.cpp.o
+[9.044s] [  9%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/diagnostics.cpp.o
+[9.045s] [ 12%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/measurement.cpp.o
+[9.046s] [ 14%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/warning_message.cpp.o
+[9.047s] [ 17%] Building CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o
+[9.047s] [ 19%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/state_transition.cpp.o
+[9.048s] [ 21%] Building CXX object CMakeFiles/autoware_ekf_localizer.dir/src/ekf_module.cpp.o
+[9.053s] [ 24%] Building CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o
+[9.058s] [ 26%] Building CXX object CMakeFiles/autoware_ekf_localizer_node.dir/rclcpp_components/node_main_autoware_ekf_localizer_node.cpp.o
+[9.848s] [ 29%] Linking CXX static library libgtest_main.a
+[10.094s] [ 29%] Built target gtest_main
+[11.717s] [ 31%] Linking CXX static library libgtest.a
+[11.781s] [ 34%] Linking CXX executable autoware_ekf_localizer_node
+[11.988s] [ 34%] Built target autoware_ekf_localizer_node
+[11.990s] [ 34%] Built target gtest
+[24.795s] [ 36%] Linking CXX shared library libautoware_ekf_localizer.so
+[26.707s] [ 36%] Built target autoware_ekf_localizer
+[26.797s] [ 39%] Building CXX object CMakeFiles/test_covariance.dir/test/test_covariance.cpp.o
+[26.801s] [ 41%] Building CXX object CMakeFiles/test_mahalanobis.dir/test/test_mahalanobis.cpp.o
+[26.804s] [ 43%] Building CXX object CMakeFiles/test_string.dir/test/test_string.cpp.o
+[26.807s] [ 46%] Building CXX object CMakeFiles/test_diagnostics.dir/test/test_diagnostics.cpp.o
+[26.808s] [ 48%] Building CXX object CMakeFiles/test_numeric.dir/test/test_numeric.cpp.o
+[26.808s] [ 51%] Building CXX object CMakeFiles/test_state_transition.dir/test/test_state_transition.cpp.o
+[26.810s] [ 56%] Building CXX object CMakeFiles/test_position_only_innovation_monitor.dir/test/test_position_only_innovation_monitor.cpp.o
+[26.810s] [ 56%] Building CXX object CMakeFiles/test_gnss_correction.dir/test/test_gnss_correction.cpp.o
+[26.810s] [ 58%] Building CXX object CMakeFiles/test_gnss_bias_state.dir/test/test_gnss_bias_state.cpp.o
+[26.811s] [ 60%] Building CXX object CMakeFiles/test_measurement.dir/test/test_measurement.cpp.o
+[26.811s] [ 63%] Building CXX object CMakeFiles/test_aged_object_queue.dir/test/test_aged_object_queue.cpp.o
+[26.822s] [ 65%] Building CXX object CMakeFiles/test_warning_message.dir/test/test_warning_message.cpp.o
+[26.823s] [ 68%] Building CXX object CMakeFiles/test_simple_1d_filter.dir/test/test_simple_1d_filter.cpp.o
+[27.858s] [ 70%] Linking CXX executable test_string
+[28.024s] [ 73%] Linking CXX executable test_diagnostics
+[28.091s] [ 75%] Linking CXX executable test_aged_object_queue
+[28.301s] [ 78%] Linking CXX executable test_covariance
+[28.405s] [ 80%] Linking CXX executable test_numeric
+[28.465s] [ 82%] Linking CXX executable test_position_only_innovation_monitor
+[28.502s] [ 85%] Linking CXX executable test_mahalanobis
+[28.746s] [ 87%] Linking CXX executable test_gnss_bias_state
+[28.914s] [ 90%] Linking CXX executable test_state_transition
+[28.946s] [ 92%] Linking CXX executable test_measurement
+[29.072s] [ 92%] Built target test_diagnostics
+[29.181s] [ 92%] Built target test_string
+[29.322s] [ 92%] Built target test_covariance
+[29.396s] [ 92%] Built target test_aged_object_queue
+[29.534s] [ 92%] Built target test_mahalanobis
+[29.549s] [ 95%] Linking CXX executable test_gnss_correction
+[29.684s] [ 95%] Built target test_numeric
+[29.775s] [ 95%] Built target test_gnss_bias_state
+[29.779s] [ 95%] Built target test_position_only_innovation_monitor
+[29.823s] [ 97%] Linking CXX executable test_warning_message
+[30.012s] [ 97%] Built target test_state_transition
+[30.030s] [ 97%] Built target test_measurement
+[30.446s] [100%] Linking CXX executable test_simple_1d_filter
+[30.623s] [100%] Built target test_gnss_correction
+[30.834s] [100%] Built target test_warning_message
+[31.751s] [100%] Built target test_simple_1d_filter
+[31.794s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --build /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer -- -j512 -l512
+[31.797s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --install /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer
+[31.831s] -- Install configuration: ""
+[31.831s] -- Execute custom install script
+[31.832s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/lib/autoware_ekf_localizer/autoware_ekf_localizer_node
+[31.868s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/environment/library_path.sh
+[31.904s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/environment/library_path.dsv
+[31.926s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/lib/libautoware_ekf_localizer.so
+[31.961s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/config/ekf_localizer.param.yaml
+[31.983s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/config/ekf_localizer.param.yaml.orig
+[32.020s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/launch/ekf_localizer.launch.xml
+[32.041s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/ament_index/resource_index/package_run_dependencies/autoware_ekf_localizer
+[32.063s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/ament_index/resource_index/parent_prefix_path/autoware_ekf_localizer
+[32.100s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/environment/ament_prefix_path.sh
+[32.137s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/environment/ament_prefix_path.dsv
+[32.171s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/environment/path.sh
+[32.194s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/environment/path.dsv
+[32.216s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/local_setup.bash
+[32.252s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/local_setup.sh
+[32.286s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/local_setup.zsh
+[32.321s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/local_setup.dsv
+[32.343s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/package.dsv
+[32.378s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/ament_index/resource_index/packages/autoware_ekf_localizer
+[32.400s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/ament_index/resource_index/rclcpp_components/autoware_ekf_localizer
+[32.435s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/cmake/ament_cmake_export_dependencies-extras.cmake
+[32.470s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/cmake/ament_cmake_export_include_directories-extras.cmake
+[32.494s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/cmake/ament_cmake_export_libraries-extras.cmake
+[32.516s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/cmake/autoware_ekf_localizerConfig.cmake
+[32.553s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/cmake/autoware_ekf_localizerConfig-version.cmake
+[32.574s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/share/autoware_ekf_localizer/package.xml
+[32.608s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include
+[32.608s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware
+[32.608s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer
+[32.609s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/measurement.hpp
+[32.609s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/numeric.hpp
+[32.609s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/position_only_innovation_monitor.hpp
+[32.609s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/covariance.hpp
+[32.609s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/state_index.hpp
+[32.609s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/warning.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/ekf_module.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/string.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/gnss_correction.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/hyper_parameters.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/state_transition.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/aged_object_queue.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/warning_message.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/ekf_localizer.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/mahalanobis.hpp
+[32.610s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/matrix_types.hpp
+[32.611s] -- Installing: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install/include/autoware/ekf_localizer/diagnostics.hpp
+[32.614s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --install /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer

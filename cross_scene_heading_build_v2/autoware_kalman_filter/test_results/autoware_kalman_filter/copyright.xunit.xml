@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite
+  name="autoware_kalman_filter.copyright"
+  tests="6"
+  errors="0"
+  failures="0"
+  time="0.148"
+>
+  <testcase
+    name="include/autoware/kalman_filter/kalman_filter.hpp"
+    classname="autoware_kalman_filter.copyright"/>
+  <testcase
+    name="include/autoware/kalman_filter/time_delay_kalman_filter.hpp"
+    classname="autoware_kalman_filter.copyright"/>
+  <testcase
+    name="src/kalman_filter.cpp"
+    classname="autoware_kalman_filter.copyright"/>
+  <testcase
+    name="src/time_delay_kalman_filter.cpp"
+    classname="autoware_kalman_filter.copyright"/>
+  <testcase
+    name="test/test_kalman_filter.cpp"
+    classname="autoware_kalman_filter.copyright"/>
+  <testcase
+    name="test/test_time_delay_kalman_filter.cpp"
+    classname="autoware_kalman_filter.copyright"/>
+  <system-out>Checked files:
+* include/autoware/kalman_filter/kalman_filter.hpp
+* include/autoware/kalman_filter/time_delay_kalman_filter.hpp
+* src/kalman_filter.cpp
+* src/time_delay_kalman_filter.cpp
+* test/test_kalman_filter.cpp
+* test/test_time_delay_kalman_filter.cpp</system-out>
+</testsuite>

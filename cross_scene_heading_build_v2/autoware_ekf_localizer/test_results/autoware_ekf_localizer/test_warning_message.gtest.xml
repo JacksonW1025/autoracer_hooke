@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="5" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20" name="AllTests">
+  <testsuite name="pose_delay_step_warning_message" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.pose_delay_step_warning_message" />
+  </testsuite>
+  <testsuite name="twist_delay_step_warning_message" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.twist_delay_step_warning_message" />
+  </testsuite>
+  <testsuite name="pose_delay_time_warning_message" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.pose_delay_time_warning_message" />
+  </testsuite>
+  <testsuite name="twist_delay_time_warning_message" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.twist_delay_time_warning_message" />
+  </testsuite>
+  <testsuite name="mahalanobis_warning_message" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.mahalanobis_warning_message" />
+  </testsuite>
+</testsuites>

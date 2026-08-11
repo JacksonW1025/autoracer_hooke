@@ -90,6 +90,9 @@ def test_modifier_parameter_override_is_explicit_and_default_stays_formal():
     assert "ndt_scan_matcher_param_path = LaunchConfiguration(" in LAUNCH_SOURCE
     assert '"ndt_scan_matcher_param_path"' in LAUNCH_SOURCE
     assert '"ndt_scan_matcher.param.yaml"' in LAUNCH_SOURCE
+    assert '"CM_LOCALIZATION_NDT_PARAM_PATH"' in LAUNCH_SOURCE
+    assert "voxel_grid_downsample_filter_param_path = LaunchConfiguration(" in LAUNCH_SOURCE
+    assert '"CM_LOCALIZATION_VOXEL_GRID_PARAM_PATH"' in LAUNCH_SOURCE
 
 
 def test_ndt_regularization_remains_disabled():

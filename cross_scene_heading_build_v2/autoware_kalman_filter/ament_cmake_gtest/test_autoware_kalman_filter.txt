@@ -1,0 +1,47 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_autoware_kalman_filter --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml
+
+[==========] Running 14 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 6 tests from kalman_filter
+[ RUN      ] kalman_filter.kf
+[       OK ] kalman_filter.kf (2 ms)
+[ RUN      ] kalman_filter.repeated_precise_updates_preserve_covariance_invariants
+[       OK ] kalman_filter.repeated_precise_updates_preserve_covariance_invariants (2954 ms)
+[ RUN      ] kalman_filter.invalid_innovation_covariance_does_not_modify_filter
+[       OK ] kalman_filter.invalid_innovation_covariance_does_not_modify_filter (0 ms)
+[ RUN      ] kalman_filter.state_mask_blocks_cross_gain_and_preserves_covariance_invariants
+[       OK ] kalman_filter.state_mask_blocks_cross_gain_and_preserves_covariance_invariants (1 ms)
+[ RUN      ] kalman_filter.all_one_state_mask_matches_unmasked_update
+[       OK ] kalman_filter.all_one_state_mask_matches_unmasked_update (0 ms)
+[ RUN      ] kalman_filter.state_mask_can_decorrelate_selected_and_unselected_states
+[       OK ] kalman_filter.state_mask_can_decorrelate_selected_and_unselected_states (0 ms)
+[----------] 6 tests from kalman_filter (2957 ms total)
+
+[----------] 8 tests from time_delay_kalman_filter
+[ RUN      ] time_delay_kalman_filter.td_kf
+[       OK ] time_delay_kalman_filter.td_kf (1 ms)
+[ RUN      ] time_delay_kalman_filter.delayed_state_mask_shields_unselected_state_across_history
+[       OK ] time_delay_kalman_filter.delayed_state_mask_shields_unselected_state_across_history (0 ms)
+[ RUN      ] time_delay_kalman_filter.position_only_standard_update_conditions_correlated_motion_state
+[       OK ] time_delay_kalman_filter.position_only_standard_update_conditions_correlated_motion_state (0 ms)
+[ RUN      ] time_delay_kalman_filter.schmidt_position_update_can_condition_velocity_without_yaw
+[       OK ] time_delay_kalman_filter.schmidt_position_update_can_condition_velocity_without_yaw (1 ms)
+[ RUN      ] time_delay_kalman_filter.non_delayed_tail_reduces_dimension_and_tracks_current_value
+[       OK ] time_delay_kalman_filter.non_delayed_tail_reduces_dimension_and_tracks_current_value (3 ms)
+[ RUN      ] time_delay_kalman_filter.delayed_measurement_uses_delayed_vehicle_and_current_tail
+[       OK ] time_delay_kalman_filter.delayed_measurement_uses_delayed_vehicle_and_current_tail (1 ms)
+[ RUN      ] time_delay_kalman_filter.default_layout_remains_fully_delayed
+[       OK ] time_delay_kalman_filter.default_layout_remains_fully_delayed (0 ms)
+[ RUN      ] time_delay_kalman_filter.compact_tail_prediction_matches_explicit_transition
+[       OK ] time_delay_kalman_filter.compact_tail_prediction_matches_explicit_transition (0 ms)
+[----------] 8 tests from time_delay_kalman_filter (6 ms total)
+
+[----------] Global test environment tear-down
+[==========] 14 tests from 2 test suites ran. (2963 ms total)
+[  PASSED  ] 14 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml'

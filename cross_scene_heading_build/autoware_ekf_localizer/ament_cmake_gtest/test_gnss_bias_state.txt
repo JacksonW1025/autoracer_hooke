@@ -1,0 +1,9 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_bias_state --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml
+
+/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_bias_state: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+
+
+-- run_test.py: return code 1
+-- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml' with failed test
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml'

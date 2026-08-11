@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite
+  name="autoware_ekf_localizer.xmllint"
+  tests="2"
+  errors="0"
+  failures="0"
+  time="0.694"
+>
+  <testcase
+    name="package.xml"
+    classname="autoware_ekf_localizer.xmllint"/>
+  <testcase
+    name="launch/ekf_localizer.launch.xml"
+    classname="autoware_ekf_localizer.xmllint"/>
+  <system-out>Checked files:
+* package.xml
+* launch/ekf_localizer.launch.xml</system-out>
+</testsuite>

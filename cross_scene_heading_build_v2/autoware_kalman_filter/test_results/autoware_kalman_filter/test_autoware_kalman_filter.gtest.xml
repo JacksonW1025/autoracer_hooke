@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="14" failures="0" disabled="0" errors="0" time="2.963" timestamp="2026-08-10T01:33:36" name="AllTests">
+  <testsuite name="kalman_filter" tests="6" failures="0" disabled="0" errors="0" time="2.957" timestamp="2026-08-10T01:33:36">
+    <testcase name="kf" status="run" result="completed" time="0.002" timestamp="2026-08-10T01:33:36" classname="autoware_kalman_filter.kalman_filter" />
+    <testcase name="repeated_precise_updates_preserve_covariance_invariants" status="run" result="completed" time="2.954" timestamp="2026-08-10T01:33:36" classname="autoware_kalman_filter.kalman_filter" />
+    <testcase name="invalid_innovation_covariance_does_not_modify_filter" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.kalman_filter" />
+    <testcase name="state_mask_blocks_cross_gain_and_preserves_covariance_invariants" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.kalman_filter" />
+    <testcase name="all_one_state_mask_matches_unmasked_update" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.kalman_filter" />
+    <testcase name="state_mask_can_decorrelate_selected_and_unselected_states" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.kalman_filter" />
+  </testsuite>
+  <testsuite name="time_delay_kalman_filter" tests="8" failures="0" disabled="0" errors="0" time="0.006" timestamp="2026-08-10T01:33:39">
+    <testcase name="td_kf" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="delayed_state_mask_shields_unselected_state_across_history" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="position_only_standard_update_conditions_correlated_motion_state" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="schmidt_position_update_can_condition_velocity_without_yaw" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="non_delayed_tail_reduces_dimension_and_tracks_current_value" status="run" result="completed" time="0.003" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="delayed_measurement_uses_delayed_vehicle_and_current_tail" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="default_layout_remains_fully_delayed" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+    <testcase name="compact_tail_prediction_matches_explicit_transition" status="run" result="completed" time="0" timestamp="2026-08-10T01:33:39" classname="autoware_kalman_filter.time_delay_kalman_filter" />
+  </testsuite>
+</testsuites>

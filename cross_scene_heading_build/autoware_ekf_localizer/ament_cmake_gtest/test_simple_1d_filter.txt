@@ -1,0 +1,29 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_simple_1d_filter --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml
+
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 6 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 6 tests from Simple1DFilter
+[ RUN      ] Simple1DFilter.split_predict_and_correct_is_equivalent_to_legacy_update
+[       OK ] Simple1DFilter.split_predict_and_correct_is_equivalent_to_legacy_update (0 ms)
+[ RUN      ] Simple1DFilter.covariance_grows_on_every_predict_tick_without_measurement
+[       OK ] Simple1DFilter.covariance_grows_on_every_predict_tick_without_measurement (0 ms)
+[ RUN      ] Simple1DFilter.multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise
+[       OK ] Simple1DFilter.multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise (0 ms)
+[ RUN      ] Simple1DFilter.prediction_before_initialization_is_a_noop
+[       OK ] Simple1DFilter.prediction_before_initialization_is_a_noop (0 ms)
+[ RUN      ] Simple1DFilter.kinematic_prediction_moves_state_and_grows_covariance
+[       OK ] Simple1DFilter.kinematic_prediction_moves_state_and_grows_covariance (0 ms)
+[ RUN      ] Simple1DFilter.invalid_kinematic_prediction_is_a_noop
+[       OK ] Simple1DFilter.invalid_kinematic_prediction_is_a_noop (0 ms)
+[----------] 6 tests from Simple1DFilter (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 6 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml'

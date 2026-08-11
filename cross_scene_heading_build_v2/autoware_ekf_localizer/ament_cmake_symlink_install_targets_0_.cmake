@@ -1,0 +1,1 @@
+ament_cmake_symlink_install_targets("TARGET_FILES" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/autoware_ekf_localizer_node" "TARGETS" "autoware_ekf_localizer_node" "DESTINATION" "lib/autoware_ekf_localizer")

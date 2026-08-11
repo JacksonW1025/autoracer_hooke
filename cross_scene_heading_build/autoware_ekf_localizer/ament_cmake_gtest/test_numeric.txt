@@ -1,0 +1,21 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_numeric --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml
+
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from Numeric
+[ RUN      ] Numeric.has_nan
+[       OK ] Numeric.has_nan (0 ms)
+[ RUN      ] Numeric.has_inf
+[       OK ] Numeric.has_inf (0 ms)
+[----------] 2 tests from Numeric (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 2 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml'

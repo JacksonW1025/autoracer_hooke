@@ -1,0 +1,2 @@
+Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter': /usr/bin/ctest -C Release -D ExperimentalTest --no-compress-output -V --force-new-ctest-process
+Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter' returned '0': /usr/bin/ctest -C Release -D ExperimentalTest --no-compress-output -V --force-new-ctest-process

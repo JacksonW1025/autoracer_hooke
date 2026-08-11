@@ -1,0 +1,10 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter':
+ - /opt/ros/humble/bin/ament_xmllint --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/xmllint.xunit.xml
+
+File 'package.xml' is valid
+
+No problems found
+
+
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/xmllint.xunit.xml'

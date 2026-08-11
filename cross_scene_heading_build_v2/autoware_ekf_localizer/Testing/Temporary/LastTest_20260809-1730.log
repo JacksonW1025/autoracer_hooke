@@ -1,0 +1,714 @@
+Start testing: Aug 10 01:30 CST
+----------------------------------------------------------
+1/19 Testing: test_test_ekf_localizer_launch.py
+1/19 Test: test_test_ekf_localizer_launch.py
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/launch_test/test_test_ekf_localizer_launch.py.txt" "--command" "/usr/bin/python3" "-m" "launch_testing.launch_test" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_launch.py" "--junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml" "--package-name=autoware_ekf_localizer"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_test_ekf_localizer_launch.py" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /usr/bin/python3 -m launch_testing.launch_test /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_launch.py --junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml --package-name=autoware_ekf_localizer
+[INFO] [launch]: All log files can be found below /home/cqx/.ros/log/2026-08-10-01-30-16-244967-ubuntu-2204-4090-2413102
+[INFO] [launch]: Default logging verbosity is set to INFO
+test_node_link (autoware_ekf_localizer.TestEKFLocalizer) ... [INFO] [autoware_ekf_localizer_node-1]: process started with pid [2413136]
+[autoware_ekf_localizer_node-1] [WARN] [1786296616.514933814] [ekf_localizer]: Initial pose is not set. Provide initial pose to pose_initializer
+[INFO] [1786296616.540965808] [test_node]: Result of bool service: 
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.374s
+
+OK
+[INFO] [autoware_ekf_localizer_node-1]: sending signal 'SIGINT' to process[autoware_ekf_localizer_node-1]
+[autoware_ekf_localizer_node-1] [INFO] [1786296616.786632287] [rclcpp]: signal_handler(signum=2)
+[INFO] [autoware_ekf_localizer_node-1]: process has finished cleanly [pid 2413136]
+test_exit_code (autoware_ekf_localizer.TestProcessOutput) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml'
+<end of output>
+Test time =   1.29 sec
+----------------------------------------------------------
+Test Passed.
+"test_test_ekf_localizer_launch.py" end time: Aug 10 01:30 CST
+"test_test_ekf_localizer_launch.py" time elapsed: 00:00:01
+----------------------------------------------------------
+
+2/19 Testing: test_test_ekf_localizer_mahalanobis.py
+2/19 Test: test_test_ekf_localizer_mahalanobis.py
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/launch_test/test_test_ekf_localizer_mahalanobis.py.txt" "--command" "/usr/bin/python3" "-m" "launch_testing.launch_test" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_mahalanobis.py" "--junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml" "--package-name=autoware_ekf_localizer"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_test_ekf_localizer_mahalanobis.py" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /usr/bin/python3 -m launch_testing.launch_test /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_mahalanobis.py --junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml --package-name=autoware_ekf_localizer
+[INFO] [launch]: All log files can be found below /home/cqx/.ros/log/2026-08-10-01-30-17-538154-ubuntu-2204-4090-2413185
+[INFO] [launch]: Default logging verbosity is set to INFO
+test_node_link (autoware_ekf_localizer.TestEKFLocalizer) ... [INFO] [autoware_ekf_localizer_node-1]: process started with pid [2413230]
+[autoware_ekf_localizer_node-1] [WARN] [1786296617.809420067] [ekf_localizer]: The node is not activated. Provide initial pose to pose_initializer
+[INFO] [1786296618.110786723] [test_node]: Result of bool service: 
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.674s
+
+OK
+[INFO] [autoware_ekf_localizer_node-1]: sending signal 'SIGINT' to process[autoware_ekf_localizer_node-1]
+[autoware_ekf_localizer_node-1] [INFO] [1786296618.379785858] [rclcpp]: signal_handler(signum=2)
+[INFO] [autoware_ekf_localizer_node-1]: process has finished cleanly [pid 2413230]
+test_exit_code (autoware_ekf_localizer.TestProcessOutput) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml'
+<end of output>
+Test time =   1.60 sec
+----------------------------------------------------------
+Test Passed.
+"test_test_ekf_localizer_mahalanobis.py" end time: Aug 10 01:30 CST
+"test_test_ekf_localizer_mahalanobis.py" time elapsed: 00:00:01
+----------------------------------------------------------
+
+3/19 Testing: test_aged_object_queue
+3/19 Test: test_aged_object_queue
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_aged_object_queue.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_aged_object_queue" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_aged_object_queue" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_aged_object_queue --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 5 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 5 tests from AgedObjectQueue
+[ RUN      ] AgedObjectQueue.DiscardsObjectWhenAgeReachesMaximum
+[       OK ] AgedObjectQueue.DiscardsObjectWhenAgeReachesMaximum (0 ms)
+[ RUN      ] AgedObjectQueue.MultipleObjects
+[       OK ] AgedObjectQueue.MultipleObjects (0 ms)
+[ RUN      ] AgedObjectQueue.Empty
+[       OK ] AgedObjectQueue.Empty (0 ms)
+[ RUN      ] AgedObjectQueue.Clear
+[       OK ] AgedObjectQueue.Clear (0 ms)
+[ RUN      ] AgedObjectQueue.Back
+[       OK ] AgedObjectQueue.Back (0 ms)
+[----------] 5 tests from AgedObjectQueue (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 5 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml'
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"test_aged_object_queue" end time: Aug 10 01:30 CST
+"test_aged_object_queue" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/19 Testing: test_covariance
+4/19 Test: test_covariance
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_covariance.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_covariance" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_covariance" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_covariance --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 2 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from EKFCovarianceToPoseMessageCovariance
+[ RUN      ] EKFCovarianceToPoseMessageCovariance.SmokeTest
+[       OK ] EKFCovarianceToPoseMessageCovariance.SmokeTest (0 ms)
+[----------] 1 test from EKFCovarianceToPoseMessageCovariance (0 ms total)
+
+[----------] 1 test from EKFCovarianceToTwistMessageCovariance
+[ RUN      ] EKFCovarianceToTwistMessageCovariance.SmokeTest
+[       OK ] EKFCovarianceToTwistMessageCovariance.SmokeTest (0 ms)
+[----------] 1 test from EKFCovarianceToTwistMessageCovariance (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 2 test suites ran. (0 ms total)
+[  PASSED  ] 2 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml'
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"test_covariance" end time: Aug 10 01:30 CST
+"test_covariance" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/19 Testing: test_diagnostics
+5/19 Test: test_diagnostics
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_diagnostics.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_diagnostics" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_diagnostics" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_diagnostics --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 7 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 6 tests from TestEkfDiagnostics
+[ RUN      ] TestEkfDiagnostics.check_process_activated
+[       OK ] TestEkfDiagnostics.check_process_activated (0 ms)
+[ RUN      ] TestEkfDiagnostics.check_set_initialpose
+[       OK ] TestEkfDiagnostics.check_set_initialpose (0 ms)
+[ RUN      ] TestEkfDiagnostics.check_measurement_updated
+[       OK ] TestEkfDiagnostics.check_measurement_updated (0 ms)
+[ RUN      ] TestEkfDiagnostics.check_measurement_queue_size
+[       OK ] TestEkfDiagnostics.check_measurement_queue_size (0 ms)
+[ RUN      ] TestEkfDiagnostics.check_measurement_delay_gate
+[       OK ] TestEkfDiagnostics.check_measurement_delay_gate (0 ms)
+[ RUN      ] TestEkfDiagnostics.check_measurement_mahalanobis_gate
+[       OK ] TestEkfDiagnostics.check_measurement_mahalanobis_gate (0 ms)
+[----------] 6 tests from TestEkfDiagnostics (0 ms total)
+
+[----------] 1 test from TestLocalizationErrorMonitorDiagnostics
+[ RUN      ] TestLocalizationErrorMonitorDiagnostics.merge_diagnostic_status
+[       OK ] TestLocalizationErrorMonitorDiagnostics.merge_diagnostic_status (0 ms)
+[----------] 1 test from TestLocalizationErrorMonitorDiagnostics (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 2 test suites ran. (1 ms total)
+[  PASSED  ] 7 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml'
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"test_diagnostics" end time: Aug 10 01:30 CST
+"test_diagnostics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/19 Testing: test_gnss_bias_state
+6/19 Test: test_gnss_bias_state
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_gnss_bias_state.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_gnss_bias_state" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_gnss_bias_state" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_gnss_bias_state --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from GnssBiasState
+[ RUN      ] GnssBiasState.repeated_correlated_fix_is_separated_from_vehicle_position
+[       OK ] GnssBiasState.repeated_correlated_fix_is_separated_from_vehicle_position (25 ms)
+[ RUN      ] GnssBiasState.gnss_dropout_does_not_leave_bias_in_vehicle_output
+[       OK ] GnssBiasState.gnss_dropout_does_not_leave_bias_in_vehicle_output (21 ms)
+[----------] 2 tests from GnssBiasState (46 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (47 ms total)
+[  PASSED  ] 2 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml'
+<end of output>
+Test time =   0.18 sec
+----------------------------------------------------------
+Test Passed.
+"test_gnss_bias_state" end time: Aug 10 01:30 CST
+"test_gnss_bias_state" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/19 Testing: test_gnss_correction
+7/19 Test: test_gnss_correction
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_gnss_correction.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_gnss_correction" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_gnss_correction" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_gnss_correction --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 6 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 6 tests from GnssCorrection
+[ RUN      ] GnssCorrection.freshness_authority_has_frozen_boundaries
+[       OK ] GnssCorrection.freshness_authority_has_frozen_boundaries (0 ms)
+[ RUN      ] GnssCorrection.authority_limits_only_reacquisition
+[       OK ] GnssCorrection.authority_limits_only_reacquisition (0 ms)
+[ RUN      ] GnssCorrection.covariance_uses_receiver_floor_and_ndt_reference
+[       OK ] GnssCorrection.covariance_uses_receiver_floor_and_ndt_reference (0 ms)
+[ RUN      ] GnssCorrection.bias_only_update_cannot_move_local_motion_state
+[       OK ] GnssCorrection.bias_only_update_cannot_move_local_motion_state (0 ms)
+[ RUN      ] GnssCorrection.repeated_bias_only_updates_preserve_local_filter_numerically
+[       OK ] GnssCorrection.repeated_bias_only_updates_preserve_local_filter_numerically (10 ms)
+[ RUN      ] GnssCorrection.public_projection_changes_only_xy
+[       OK ] GnssCorrection.public_projection_changes_only_xy (0 ms)
+[----------] 6 tests from GnssCorrection (10 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 1 test suite ran. (10 ms total)
+[  PASSED  ] 6 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml'
+<end of output>
+Test time =   0.15 sec
+----------------------------------------------------------
+Test Passed.
+"test_gnss_correction" end time: Aug 10 01:30 CST
+"test_gnss_correction" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/19 Testing: test_mahalanobis
+8/19 Test: test_mahalanobis
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_mahalanobis.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_mahalanobis" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_mahalanobis" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_mahalanobis --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 2 tests from 2 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from squared_mahalanobis
+[ RUN      ] squared_mahalanobis.SmokeTest
+[       OK ] squared_mahalanobis.SmokeTest (1 ms)
+[----------] 1 test from squared_mahalanobis (1 ms total)
+
+[----------] 1 test from mahalanobis
+[ RUN      ] mahalanobis.SmokeTest
+[       OK ] mahalanobis.SmokeTest (0 ms)
+[----------] 1 test from mahalanobis (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 2 test suites ran. (1 ms total)
+[  PASSED  ] 2 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml'
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"test_mahalanobis" end time: Aug 10 01:30 CST
+"test_mahalanobis" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/19 Testing: test_measurement
+9/19 Test: test_measurement
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_measurement.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_measurement" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_measurement" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_measurement --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 11 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 11 tests from Measurement
+[ RUN      ] Measurement.pose_measurement_matrix
+[       OK ] Measurement.pose_measurement_matrix (0 ms)
+[ RUN      ] Measurement.position_only_pose_measurement_requires_explicit_enable_and_marker
+[       OK ] Measurement.position_only_pose_measurement_requires_explicit_enable_and_marker (0 ms)
+[ RUN      ] Measurement.height_only_pose_measurement_requires_all_component_markers
+[       OK ] Measurement.height_only_pose_measurement_requires_all_component_markers (0 ms)
+[ RUN      ] Measurement.position_only_pose_measurement_matrix_excludes_yaw
+[       OK ] Measurement.position_only_pose_measurement_matrix_excludes_yaw (0 ms)
+[ RUN      ] Measurement.twist_measurement_matrix
+[       OK ] Measurement.twist_measurement_matrix (0 ms)
+[ RUN      ] Measurement.dynamic_measurement_matrices_preserve_six_state_contract
+[       OK ] Measurement.dynamic_measurement_matrices_preserve_six_state_contract (0 ms)
+[ RUN      ] Measurement.gnss_bias_is_only_present_in_position_only_measurement
+[       OK ] Measurement.gnss_bias_is_only_present_in_position_only_measurement (0 ms)
+[ RUN      ] Measurement.pose_measurement_covariance
+[       OK ] Measurement.pose_measurement_covariance (0 ms)
+[ RUN      ] Measurement.position_only_pose_measurement_covariance_excludes_yaw
+[       OK ] Measurement.position_only_pose_measurement_covariance_excludes_yaw (0 ms)
+[ RUN      ] Measurement.position_only_innovation_covariance_includes_state_and_receiver_uncertainty
+[       OK ] Measurement.position_only_innovation_covariance_includes_state_and_receiver_uncertainty (1 ms)
+[ RUN      ] Measurement.twist_measurement_covariance
+[       OK ] Measurement.twist_measurement_covariance (0 ms)
+[----------] 11 tests from Measurement (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 11 tests from 1 test suite ran. (1 ms total)
+[  PASSED  ] 11 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml'
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"test_measurement" end time: Aug 10 01:30 CST
+"test_measurement" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/19 Testing: test_numeric
+10/19 Test: test_numeric
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_numeric.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_numeric" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_numeric" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_numeric --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from Numeric
+[ RUN      ] Numeric.has_nan
+[       OK ] Numeric.has_nan (0 ms)
+[ RUN      ] Numeric.has_inf
+[       OK ] Numeric.has_inf (0 ms)
+[----------] 2 tests from Numeric (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 2 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml'
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"test_numeric" end time: Aug 10 01:30 CST
+"test_numeric" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/19 Testing: test_position_only_innovation_monitor
+11/19 Test: test_position_only_innovation_monitor
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_position_only_innovation_monitor.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_position_only_innovation_monitor" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_position_only_innovation_monitor" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_position_only_innovation_monitor --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 8 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 8 tests from PositionOnlyInnovationMonitor
+[ RUN      ] PositionOnlyInnovationMonitor.disabled_is_strict_no_op
+[       OK ] PositionOnlyInnovationMonitor.disabled_is_strict_no_op (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.persistent_signed_innovation_latches_after_warmup
+[       OK ] PositionOnlyInnovationMonitor.persistent_signed_innovation_latches_after_warmup (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.alternating_zero_mean_sequence_does_not_latch
+[       OK ] PositionOnlyInnovationMonitor.alternating_zero_mean_sequence_does_not_latch (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.timestamp_gap_resets_unlatched_sequence
+[       OK ] PositionOnlyInnovationMonitor.timestamp_gap_resets_unlatched_sequence (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.repeated_smoothing_application_is_not_a_new_sample
+[       OK ] PositionOnlyInnovationMonitor.repeated_smoothing_application_is_not_a_new_sample (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.repeated_smoothing_application_preserves_latched_rejection
+[       OK ] PositionOnlyInnovationMonitor.repeated_smoothing_application_preserves_latched_rejection (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.latched_monitor_requires_consecutive_clean_recovery
+[       OK ] PositionOnlyInnovationMonitor.latched_monitor_requires_consecutive_clean_recovery (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.non_finite_input_fails_closed_when_enabled
+[       OK ] PositionOnlyInnovationMonitor.non_finite_input_fails_closed_when_enabled (0 ms)
+[----------] 8 tests from PositionOnlyInnovationMonitor (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 8 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml'
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"test_position_only_innovation_monitor" end time: Aug 10 01:30 CST
+"test_position_only_innovation_monitor" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/19 Testing: test_simple_1d_filter
+12/19 Test: test_simple_1d_filter
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_simple_1d_filter.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_simple_1d_filter" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_simple_1d_filter" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_simple_1d_filter --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 6 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 6 tests from Simple1DFilter
+[ RUN      ] Simple1DFilter.split_predict_and_correct_is_equivalent_to_legacy_update
+[       OK ] Simple1DFilter.split_predict_and_correct_is_equivalent_to_legacy_update (0 ms)
+[ RUN      ] Simple1DFilter.covariance_grows_on_every_predict_tick_without_measurement
+[       OK ] Simple1DFilter.covariance_grows_on_every_predict_tick_without_measurement (0 ms)
+[ RUN      ] Simple1DFilter.multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise
+[       OK ] Simple1DFilter.multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise (0 ms)
+[ RUN      ] Simple1DFilter.prediction_before_initialization_is_a_noop
+[       OK ] Simple1DFilter.prediction_before_initialization_is_a_noop (0 ms)
+[ RUN      ] Simple1DFilter.kinematic_prediction_moves_state_and_grows_covariance
+[       OK ] Simple1DFilter.kinematic_prediction_moves_state_and_grows_covariance (0 ms)
+[ RUN      ] Simple1DFilter.invalid_kinematic_prediction_is_a_noop
+[       OK ] Simple1DFilter.invalid_kinematic_prediction_is_a_noop (0 ms)
+[----------] 6 tests from Simple1DFilter (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 6 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml'
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"test_simple_1d_filter" end time: Aug 10 01:30 CST
+"test_simple_1d_filter" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/19 Testing: test_state_transition
+13/19 Test: test_state_transition
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_state_transition.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_state_transition" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_state_transition" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_state_transition --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 6 tests from 4 test suites.
+[----------] Global test environment set-up.
+[----------] 3 tests from StateTransition
+[ RUN      ] StateTransition.normalize_yaw
+[       OK ] StateTransition.normalize_yaw (0 ms)
+[ RUN      ] StateTransition.gnss_bias_extension_preserves_vehicle_model
+[       OK ] StateTransition.gnss_bias_extension_preserves_vehicle_model (1 ms)
+[ RUN      ] StateTransition.gnss_bias_process_keeps_requested_stationary_variance
+[       OK ] StateTransition.gnss_bias_process_keeps_requested_stationary_variance (0 ms)
+[----------] 3 tests from StateTransition (1 ms total)
+
+[----------] 1 test from predict_next_state
+[ RUN      ] predict_next_state.predict_next_state
+[       OK ] predict_next_state.predict_next_state (0 ms)
+[----------] 1 test from predict_next_state (0 ms total)
+
+[----------] 1 test from create_state_transition_matrix
+[ RUN      ] create_state_transition_matrix.NumericalApproximation
+[       OK ] create_state_transition_matrix.NumericalApproximation (0 ms)
+[----------] 1 test from create_state_transition_matrix (0 ms total)
+
+[----------] 1 test from process_noise_covariance
+[ RUN      ] process_noise_covariance.process_noise_covariance
+[       OK ] process_noise_covariance.process_noise_covariance (0 ms)
+[----------] 1 test from process_noise_covariance (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 4 test suites ran. (1 ms total)
+[  PASSED  ] 6 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml'
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"test_state_transition" end time: Aug 10 01:30 CST
+"test_state_transition" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/19 Testing: test_string
+14/19 Test: test_string
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_string.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_string" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_string" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_string --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from erase_leading_slash
+[ RUN      ] erase_leading_slash.SmokeTest
+[       OK ] erase_leading_slash.SmokeTest (0 ms)
+[----------] 1 test from erase_leading_slash (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml'
+<end of output>
+Test time =   0.11 sec
+----------------------------------------------------------
+Test Passed.
+"test_string" end time: Aug 10 01:30 CST
+"test_string" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/19 Testing: test_warning_message
+15/19 Test: test_warning_message
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cmake_gtest/test_warning_message.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_warning_message" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer
+"test_warning_message" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_warning_message --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 5 tests from 5 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from pose_delay_step_warning_message
+[ RUN      ] pose_delay_step_warning_message.SmokeTest
+[       OK ] pose_delay_step_warning_message.SmokeTest (0 ms)
+[----------] 1 test from pose_delay_step_warning_message (0 ms total)
+
+[----------] 1 test from twist_delay_step_warning_message
+[ RUN      ] twist_delay_step_warning_message.SmokeTest
+[       OK ] twist_delay_step_warning_message.SmokeTest (0 ms)
+[----------] 1 test from twist_delay_step_warning_message (0 ms total)
+
+[----------] 1 test from pose_delay_time_warning_message
+[ RUN      ] pose_delay_time_warning_message.SmokeTest
+[       OK ] pose_delay_time_warning_message.SmokeTest (0 ms)
+[----------] 1 test from pose_delay_time_warning_message (0 ms total)
+
+[----------] 1 test from twist_delay_time_warning_message
+[ RUN      ] twist_delay_time_warning_message.SmokeTest
+[       OK ] twist_delay_time_warning_message.SmokeTest (0 ms)
+[----------] 1 test from twist_delay_time_warning_message (0 ms total)
+
+[----------] 1 test from mahalanobis_warning_message
+[ RUN      ] mahalanobis_warning_message.SmokeTest
+[       OK ] mahalanobis_warning_message.SmokeTest (0 ms)
+[----------] 1 test from mahalanobis_warning_message (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 5 test suites ran. (0 ms total)
+[  PASSED  ] 5 tests.
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml'
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"test_warning_message" end time: Aug 10 01:30 CST
+"test_warning_message" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/19 Testing: copyright
+16/19 Test: copyright
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_copyright/copyright.txt" "--command" "/opt/ros/humble/bin/ament_copyright" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer
+"copyright" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+ - /opt/ros/humble/bin/ament_copyright --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml
+No problems found, checked 40 files
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml'
+<end of output>
+Test time =   1.20 sec
+----------------------------------------------------------
+Test Passed.
+"copyright" end time: Aug 10 01:30 CST
+"copyright" time elapsed: 00:00:01
+----------------------------------------------------------
+
+17/19 Testing: cppcheck
+17/19 Test: cppcheck
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_cppcheck/cppcheck.txt" "--command" "/opt/ros/humble/bin/ament_cppcheck" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml" "--include_dirs" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/include"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer
+"cppcheck" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+ - /opt/ros/humble/bin/ament_cppcheck --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml --include_dirs /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/include
+cppcheck 2.7 has known performance issues and therefore will not be used, set the AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS environment variable to override this.
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml'
+<end of output>
+Test time =   0.22 sec
+----------------------------------------------------------
+Test Passed.
+"cppcheck" end time: Aug 10 01:30 CST
+"cppcheck" time elapsed: 00:00:00
+----------------------------------------------------------
+
+18/19 Testing: lint_cmake
+18/19 Test: lint_cmake
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_lint_cmake/lint_cmake.txt" "--command" "/opt/ros/humble/bin/ament_lint_cmake" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer
+"lint_cmake" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+ - /opt/ros/humble/bin/ament_lint_cmake --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml
+
+No problems found
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml'
+<end of output>
+Test time =   0.20 sec
+----------------------------------------------------------
+Test Passed.
+"lint_cmake" end time: Aug 10 01:30 CST
+"lint_cmake" time elapsed: 00:00:00
+----------------------------------------------------------
+
+19/19 Testing: xmllint
+19/19 Test: xmllint
+Command: "/usr/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/ament_xmllint/xmllint.txt" "--command" "/opt/ros/humble/bin/ament_xmllint" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer
+"xmllint" start time: Aug 10 01:30 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+ - /opt/ros/humble/bin/ament_xmllint --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml
+File 'package.xml' is valid
+
+File 'launch/ekf_localizer.launch.xml' is valid
+
+No problems found
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml'
+<end of output>
+Test time =   0.91 sec
+----------------------------------------------------------
+Test Passed.
+"xmllint" end time: Aug 10 01:30 CST
+"xmllint" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Aug 10 01:30 CST
+
+copyright =   1.20 sec*proc
+
+cppcheck =   0.22 sec*proc
+
+gtest =   1.72 sec*proc
+
+launch_test =   2.88 sec*proc
+
+lint_cmake =   0.20 sec*proc
+
+linter =   2.53 sec*proc
+
+xmllint =   0.91 sec*proc
+

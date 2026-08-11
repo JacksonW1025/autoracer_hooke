@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="8" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:19" name="AllTests">
+  <testsuite name="PositionOnlyInnovationMonitor" tests="8" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:19">
+    <testcase name="disabled_is_strict_no_op" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="persistent_signed_innovation_latches_after_warmup" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="alternating_zero_mean_sequence_does_not_latch" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="timestamp_gap_resets_unlatched_sequence" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="repeated_smoothing_application_is_not_a_new_sample" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="repeated_smoothing_application_preserves_latched_rejection" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="latched_monitor_requires_consecutive_clean_recovery" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+    <testcase name="non_finite_input_fails_closed_when_enabled" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.PositionOnlyInnovationMonitor" />
+  </testsuite>
+</testsuites>

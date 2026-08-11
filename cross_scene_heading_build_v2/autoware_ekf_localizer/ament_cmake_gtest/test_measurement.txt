@@ -1,0 +1,39 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_measurement --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml
+
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 11 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 11 tests from Measurement
+[ RUN      ] Measurement.pose_measurement_matrix
+[       OK ] Measurement.pose_measurement_matrix (0 ms)
+[ RUN      ] Measurement.position_only_pose_measurement_requires_explicit_enable_and_marker
+[       OK ] Measurement.position_only_pose_measurement_requires_explicit_enable_and_marker (0 ms)
+[ RUN      ] Measurement.height_only_pose_measurement_requires_all_component_markers
+[       OK ] Measurement.height_only_pose_measurement_requires_all_component_markers (0 ms)
+[ RUN      ] Measurement.position_only_pose_measurement_matrix_excludes_yaw
+[       OK ] Measurement.position_only_pose_measurement_matrix_excludes_yaw (0 ms)
+[ RUN      ] Measurement.twist_measurement_matrix
+[       OK ] Measurement.twist_measurement_matrix (0 ms)
+[ RUN      ] Measurement.dynamic_measurement_matrices_preserve_six_state_contract
+[       OK ] Measurement.dynamic_measurement_matrices_preserve_six_state_contract (0 ms)
+[ RUN      ] Measurement.gnss_bias_is_only_present_in_position_only_measurement
+[       OK ] Measurement.gnss_bias_is_only_present_in_position_only_measurement (0 ms)
+[ RUN      ] Measurement.pose_measurement_covariance
+[       OK ] Measurement.pose_measurement_covariance (0 ms)
+[ RUN      ] Measurement.position_only_pose_measurement_covariance_excludes_yaw
+[       OK ] Measurement.position_only_pose_measurement_covariance_excludes_yaw (0 ms)
+[ RUN      ] Measurement.position_only_innovation_covariance_includes_state_and_receiver_uncertainty
+[       OK ] Measurement.position_only_innovation_covariance_includes_state_and_receiver_uncertainty (1 ms)
+[ RUN      ] Measurement.twist_measurement_covariance
+[       OK ] Measurement.twist_measurement_covariance (0 ms)
+[----------] 11 tests from Measurement (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 11 tests from 1 test suite ran. (1 ms total)
+[  PASSED  ] 11 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml'

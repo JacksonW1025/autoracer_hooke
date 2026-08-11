@@ -72,3 +72,5 @@ patches:
   - dependencies/patches/pose_covariance_modifier_latest_gnss_qos_v107_4.patch
   - dependencies/patches/pose_covariance_modifier_receiver_state_integrity_v108.patch
   - dependencies/patches/pose_covariance_modifier_source_specific_freshness_v110.patch
+  - dependencies/patches/ekf_simple_1d_slope_kinematic_prediction_v112.patch
+  - dependencies/patches/mpc_dynamic_prediction_coordinate.patch

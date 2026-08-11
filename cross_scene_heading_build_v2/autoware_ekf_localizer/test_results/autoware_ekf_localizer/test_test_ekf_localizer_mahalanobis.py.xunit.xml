@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<testsuites name="autoware_ekf_localizer.test_ekf_localizer_mahalanobis" tests="2" failures="0" errors="0" time="0.66"><testsuite name="autoware_ekf_localizer.test_ekf_localizer_mahalanobis.launch_tests" tests="2" failures="0" errors="0" skipped="0" time="0.66"><testcase classname="autoware_ekf_localizer.TestEKFLocalizer" name="test_node_link" time="0.66" /><testcase classname="autoware_ekf_localizer.TestProcessOutput" name="test_exit_code" time="0.0" /></testsuite></testsuites>

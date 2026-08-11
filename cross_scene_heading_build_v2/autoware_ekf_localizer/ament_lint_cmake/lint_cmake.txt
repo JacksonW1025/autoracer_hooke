@@ -1,0 +1,9 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+ - /opt/ros/humble/bin/ament_lint_cmake --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml
+
+
+No problems found
+
+
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml'

@@ -1,0 +1,92 @@
+[0.033s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/universe/localization/autoware_pose_covariance_modifier -DBUILD_TESTING=ON -DPython3_EXECUTABLE=/usr/bin/python3 -DPYTHON_EXECUTABLE=/usr/bin/python3 -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2
+[0.227s] -- The C compiler identification is GNU 11.4.0
+[0.360s] -- The CXX compiler identification is GNU 11.4.0
+[0.383s] -- Detecting C compiler ABI info
+[0.644s] -- Detecting C compiler ABI info - done
+[0.657s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.657s] -- Detecting C compile features
+[0.658s] -- Detecting C compile features - done
+[0.664s] -- Detecting CXX compiler ABI info
+[0.905s] -- Detecting CXX compiler ABI info - done
+[0.918s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.919s] -- Detecting CXX compile features
+[0.919s] -- Detecting CXX compile features - done
+[0.950s] -- Found autoware_cmake: 1.1.0 (/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/install/autoware_cmake/share/autoware_cmake/cmake)
+[1.295s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[1.389s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[1.736s] -- Found TinyXML2: /usr/lib/x86_64-linux-gnu/libtinyxml2.so  
+[2.012s] -- Found rosidl_generator_c: 3.1.7 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[2.045s] -- Found rosidl_adapter: 3.1.7 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[2.081s] -- Found rosidl_generator_cpp: 3.1.7 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[2.125s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[2.186s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[2.824s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[2.845s] -- Found rmw_fastrtps_cpp: 6.2.8 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[3.284s] -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+[3.388s] -- Found FastRTPS: /opt/ros/humble/include  
+[3.503s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[3.554s] -- Looking for pthread.h
+[3.799s] -- Looking for pthread.h - found
+[3.799s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[4.055s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[4.057s] -- Found Threads: TRUE  
+[4.367s] -- Found eigen3_cmake_module: 0.1.1 (/opt/ros/humble/share/eigen3_cmake_module/cmake)
+[4.368s] -- Found Eigen3: TRUE (found version "3.4.0") 
+[4.368s] -- Ensuring Eigen3 include directory is part of orocos-kdl CMake target
+[4.448s] -- Found ament_lint_auto: 0.12.14 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[4.540s] -- Found gtest sources under '/opt/ros/humble/src/gtest_vendor': C++ tests using 'Google Test' will be built
+[4.602s] -- Configuring done
+[4.694s] -- Generating done
+[4.696s] CMake Warning:
+[4.697s]   Manually-specified variables were not used by the project:
+[4.697s] 
+[4.697s]     PYTHON_EXECUTABLE
+[4.697s] 
+[4.697s] 
+[4.705s] -- Build files have been written to: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier
+[4.720s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/universe/localization/autoware_pose_covariance_modifier -DBUILD_TESTING=ON -DPython3_EXECUTABLE=/usr/bin/python3 -DPYTHON_EXECUTABLE=/usr/bin/python3 -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2
+[4.724s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --build /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier -- -j512 -l512
+[4.951s] [ 10%] Building CXX object gtest/CMakeFiles/gtest.dir/src/gtest-all.cc.o
+[4.957s] [ 20%] Building CXX object CMakeFiles/autoware_pose_covariance_modifier.dir/src/pose_covariance_modifier.cpp.o
+[4.962s] [ 40%] Building CXX object CMakeFiles/autoware_pose_covariance_modifier_node.dir/rclcpp_components/node_main_autoware_pose_covariance_modifier_node.cpp.o
+[4.962s] [ 40%] Building CXX object gtest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.o
+[5.752s] [ 50%] Linking CXX static library libgtest_main.a
+[6.003s] [ 50%] Built target gtest_main
+[7.641s] [ 60%] Linking CXX static library libgtest.a
+[7.682s] [ 70%] Linking CXX executable autoware_pose_covariance_modifier_node
+[7.879s] [ 70%] Built target autoware_pose_covariance_modifier_node
+[7.926s] [ 70%] Built target gtest
+[16.076s] [ 80%] Linking CXX shared library libautoware_pose_covariance_modifier.so
+[16.911s] [ 80%] Built target autoware_pose_covariance_modifier
+[17.019s] [ 90%] Building CXX object CMakeFiles/test_pose_covariance_modifier.dir/test/test_pose_covariance_modifier.cpp.o
+[25.904s] [100%] Linking CXX executable test_pose_covariance_modifier
+[26.848s] [100%] Built target test_pose_covariance_modifier
+[26.890s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --build /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier -- -j512 -l512
+[26.928s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --install /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier
+[26.961s] -- Install configuration: ""
+[26.962s] -- Execute custom install script
+[26.962s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/lib/autoware_pose_covariance_modifier/autoware_pose_covariance_modifier_node
+[26.997s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/environment/library_path.sh
+[27.033s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/environment/library_path.dsv
+[27.055s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/lib/libautoware_pose_covariance_modifier.so
+[27.076s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/config/pose_covariance_modifier.param.yaml
+[27.098s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/launch/pose_covariance_modifier.launch.xml
+[27.133s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/package_run_dependencies/autoware_pose_covariance_modifier
+[27.165s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/parent_prefix_path/autoware_pose_covariance_modifier
+[27.186s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/environment/ament_prefix_path.sh
+[27.207s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/environment/ament_prefix_path.dsv
+[27.243s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/environment/path.sh
+[27.279s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/environment/path.dsv
+[27.300s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/local_setup.bash
+[27.321s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/local_setup.sh
+[27.343s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/local_setup.zsh
+[27.365s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/local_setup.dsv
+[27.401s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/package.dsv
+[27.427s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/packages/autoware_pose_covariance_modifier
+[27.461s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/ament_index/resource_index/rclcpp_components/autoware_pose_covariance_modifier
+[27.484s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/cmake/ament_cmake_export_dependencies-extras.cmake
+[27.506s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/cmake/ament_cmake_export_libraries-extras.cmake
+[27.529s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/cmake/autoware_pose_covariance_modifierConfig.cmake
+[27.552s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/cmake/autoware_pose_covariance_modifierConfig-version.cmake
+[27.574s] -- Symlinking: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_merged_install_v2/share/autoware_pose_covariance_modifier/package.xml
+[27.599s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble /usr/bin/cmake --install /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier

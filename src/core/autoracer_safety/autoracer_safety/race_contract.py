@@ -38,6 +38,8 @@ class TimedInput:
     sequence: int = 0
     rejected_out_of_order: int = 0
     rejected_future: int = 0
+    last_future_offset_sec: float = 0.0
+    max_future_offset_sec: float = 0.0
     _lock: threading.RLock = dataclass_field(
         default_factory=threading.RLock, init=False, repr=False, compare=False
     )
@@ -52,6 +54,10 @@ class TimedInput:
                 return False
             if stamp_sec > receipt_sec + 0.05:
                 self.rejected_future += 1
+                self.last_future_offset_sec = stamp_sec - receipt_sec
+                self.max_future_offset_sec = max(
+                    self.max_future_offset_sec, self.last_future_offset_sec
+                )
                 return False
             # Publish the message reference last.  A concurrent freshness reader
             # can therefore see either the complete previous sample or the

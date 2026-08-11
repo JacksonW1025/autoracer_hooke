@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20260809-1729-Experimental"
+	Name="ubuntu-2204-4090"
+	Generator="ctest-3.22.1"
+	CompilerName="/usr/bin/c++"
+	CompilerVersion="11.4.0"
+	OSName="Linux"
+	Hostname="ubuntu-2204-4090"
+	OSRelease="6.8.0-85-generic"
+	OSVersion="#85~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep 19 16:18:59 UTC 2"
+	OSPlatform="x86_64"
+	Is64Bits="1"
+	VendorString="AuthenticAMD"
+	VendorID="Advanced Micro Devices"
+	FamilyID="25"
+	ModelID="160"
+	ProcessorCacheSize="1024"
+	NumberOfLogicalCPU="512"
+	NumberOfPhysicalCPU="256"
+	TotalVirtualMemory="976"
+	TotalPhysicalMemory="515435"
+	LogicalProcessorsPerPhysical="2"
+	ProcessorClockFrequency="1500"
+	>
+	<Testing>
+		<StartDateTime>Aug 10 01:29 CST</StartDateTime>
+		<StartTestTime>1786296550</StartTestTime>
+		<TestList>
+			<Test>./test_pose_covariance_modifier</Test>
+		</TestList>
+		<Test Status="failed">
+			<Name>test_pose_covariance_modifier</Name>
+			<Path>.</Path>
+			<FullName>./test_pose_covariance_modifier</FullName>
+			<FullCommandLine>/opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml" "--package-name" "autoware_pose_covariance_modifier" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/ament_cmake_gtest/test_pose_covariance_modifier.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml"</FullCommandLine>
+			<Results>
+				<NamedMeasurement type="text/string" name="Exit Code">
+					<Value>Failed</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Exit Value">
+					<Value>1</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="numeric/double" name="Execution Time">
+					<Value>0.12531</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="numeric/double" name="Processors">
+					<Value>1</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Completion Status">
+					<Value>Completed</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Command Line">
+					<Value>/opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml" "--package-name" "autoware_pose_covariance_modifier" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/ament_cmake_gtest/test_pose_covariance_modifier.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml"</Value>
+				</NamedMeasurement>
+				<NamedMeasurement type="text/string" name="Environment">
+					<Value>#CTEST_RESOURCE_GROUP_COUNT=</Value>
+				</NamedMeasurement>
+				<Measurement>
+					<Value>-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml
+/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+-- run_test.py: return code 1
+-- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml' with failed test
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml'
+</Value>
+				</Measurement>
+			</Results>
+			<Labels>
+				<Label>gtest</Label>
+			</Labels>
+		</Test>
+		<EndDateTime>Aug 10 01:29 CST</EndDateTime>
+		<EndTestTime>1786296550</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

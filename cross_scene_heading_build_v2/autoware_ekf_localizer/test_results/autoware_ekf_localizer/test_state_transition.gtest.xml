@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="6" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:20" name="AllTests">
+  <testsuite name="StateTransition" tests="3" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:20">
+    <testcase name="normalize_yaw" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.StateTransition" />
+    <testcase name="gnss_bias_extension_preserves_vehicle_model" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.StateTransition" />
+    <testcase name="gnss_bias_process_keeps_requested_stationary_variance" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.StateTransition" />
+  </testsuite>
+  <testsuite name="predict_next_state" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="predict_next_state" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.predict_next_state" />
+  </testsuite>
+  <testsuite name="create_state_transition_matrix" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="NumericalApproximation" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.create_state_transition_matrix" />
+  </testsuite>
+  <testsuite name="process_noise_covariance" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:20">
+    <testcase name="process_noise_covariance" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:20" classname="autoware_ekf_localizer.process_noise_covariance" />
+  </testsuite>
+</testsuites>

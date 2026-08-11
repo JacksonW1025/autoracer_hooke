@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="7" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:19" name="AllTests">
+  <testsuite name="TestEkfDiagnostics" tests="6" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:19">
+    <testcase name="check_process_activated" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestEkfDiagnostics" />
+    <testcase name="check_set_initialpose" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestEkfDiagnostics" />
+    <testcase name="check_measurement_updated" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestEkfDiagnostics" />
+    <testcase name="check_measurement_queue_size" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestEkfDiagnostics" />
+    <testcase name="check_measurement_delay_gate" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestEkfDiagnostics" />
+    <testcase name="check_measurement_mahalanobis_gate" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestEkfDiagnostics" />
+  </testsuite>
+  <testsuite name="TestLocalizationErrorMonitorDiagnostics" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:19">
+    <testcase name="merge_diagnostic_status" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.TestLocalizationErrorMonitorDiagnostics" />
+  </testsuite>
+</testsuites>

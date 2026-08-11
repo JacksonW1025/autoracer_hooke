@@ -1,0 +1,27 @@
+Start testing: Aug 10 01:29 CST
+----------------------------------------------------------
+1/1 Testing: test_pose_covariance_modifier
+1/1 Test: test_pose_covariance_modifier
+Command: "/opt/anaconda3/bin/python3" "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml" "--package-name" "autoware_pose_covariance_modifier" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/ament_cmake_gtest/test_pose_covariance_modifier.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml"
+Directory: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier
+"test_pose_covariance_modifier" start time: Aug 10 01:29 CST
+Output:
+----------------------------------------------------------
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml
+/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+-- run_test.py: return code 1
+-- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml' with failed test
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml'
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Failed.
+"test_pose_covariance_modifier" end time: Aug 10 01:29 CST
+"test_pose_covariance_modifier" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Aug 10 01:29 CST
+
+gtest =   0.13 sec*proc
+

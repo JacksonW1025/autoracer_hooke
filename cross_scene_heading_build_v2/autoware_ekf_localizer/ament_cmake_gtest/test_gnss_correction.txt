@@ -1,0 +1,29 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_gnss_correction --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml
+
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 6 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 6 tests from GnssCorrection
+[ RUN      ] GnssCorrection.freshness_authority_has_frozen_boundaries
+[       OK ] GnssCorrection.freshness_authority_has_frozen_boundaries (0 ms)
+[ RUN      ] GnssCorrection.authority_limits_only_reacquisition
+[       OK ] GnssCorrection.authority_limits_only_reacquisition (0 ms)
+[ RUN      ] GnssCorrection.covariance_uses_receiver_floor_and_ndt_reference
+[       OK ] GnssCorrection.covariance_uses_receiver_floor_and_ndt_reference (0 ms)
+[ RUN      ] GnssCorrection.bias_only_update_cannot_move_local_motion_state
+[       OK ] GnssCorrection.bias_only_update_cannot_move_local_motion_state (0 ms)
+[ RUN      ] GnssCorrection.repeated_bias_only_updates_preserve_local_filter_numerically
+[       OK ] GnssCorrection.repeated_bias_only_updates_preserve_local_filter_numerically (10 ms)
+[ RUN      ] GnssCorrection.public_projection_changes_only_xy
+[       OK ] GnssCorrection.public_projection_changes_only_xy (0 ms)
+[----------] 6 tests from GnssCorrection (10 ms total)
+
+[----------] Global test environment tear-down
+[==========] 6 tests from 1 test suite ran. (10 ms total)
+[  PASSED  ] 6 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml'

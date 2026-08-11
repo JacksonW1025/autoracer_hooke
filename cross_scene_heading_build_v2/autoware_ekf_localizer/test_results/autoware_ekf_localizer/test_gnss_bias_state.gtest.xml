@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="2" failures="0" disabled="0" errors="0" time="0.047" timestamp="2026-08-10T01:30:19" name="AllTests">
+  <testsuite name="GnssBiasState" tests="2" failures="0" disabled="0" errors="0" time="0.046" timestamp="2026-08-10T01:30:19">
+    <testcase name="repeated_correlated_fix_is_separated_from_vehicle_position" status="run" result="completed" time="0.025" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssBiasState" />
+    <testcase name="gnss_dropout_does_not_leave_bias_in_vehicle_output" status="run" result="completed" time="0.021" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssBiasState" />
+  </testsuite>
+</testsuites>

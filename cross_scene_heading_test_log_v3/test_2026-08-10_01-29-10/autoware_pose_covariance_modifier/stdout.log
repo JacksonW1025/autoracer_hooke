@@ -1,0 +1,37 @@
+UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/CTestConfiguration.ini
+Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/CTestConfiguration.ini
+   Site: ubuntu-2204-4090
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20260809-1729 - Experimental
+UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/CTestConfiguration.ini
+Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/CTestConfiguration.ini
+Test project /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: test_pose_covariance_modifier
+
+1: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml" "--package-name" "autoware_pose_covariance_modifier" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/ament_cmake_gtest/test_pose_covariance_modifier.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml"
+1: Test timeout computed to be: 60
+1: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier':
+1:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml
+1: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+1: -- run_test.py: return code 1
+1: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml' with failed test
+1: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml'
+1/1 Test #1: test_pose_covariance_modifier ....***Failed    0.13 sec
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+gtest    =   0.13 sec*proc (1 test)
+
+Total Test time (real) =   0.13 sec
+
+The following tests FAILED:
+	  1 - test_pose_covariance_modifier (Failed)

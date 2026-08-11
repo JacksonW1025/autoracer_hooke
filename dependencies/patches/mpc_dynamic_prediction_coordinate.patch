@@ -1,0 +1,15 @@
+--- a/src/autoware/universe/control/autoware_mpc_lateral_controller/src/mpc.cpp
++++ b/src/autoware/universe/control/autoware_mpc_lateral_controller/src/mpc.cpp
+@@ -115,8 +115,11 @@
+ 
+   /* calculate predicted trajectory */
+   Eigen::VectorXd initial_state = m_use_delayed_initial_state ? x0_delayed : x0;
++  const auto prediction_coordinate =
++    m_vehicle_model_ptr->modelName() == "dynamics" ? "frenet" : "world";
+   predicted_trajectory = calculatePredictedTrajectory(
+-    mpc_matrix, initial_state, Uex, mpc_resampled_ref_trajectory, prediction_dt, "world");
++    mpc_matrix, initial_state, Uex, mpc_resampled_ref_trajectory, prediction_dt,
++    prediction_coordinate);
+ 
+   // Publish predicted trajectories in different coordinates for debugging
+   // purposes

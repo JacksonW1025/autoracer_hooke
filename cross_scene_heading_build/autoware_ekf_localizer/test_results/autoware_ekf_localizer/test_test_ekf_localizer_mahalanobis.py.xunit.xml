@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="autoware_ekf_localizer" tests="1" failures="0" time="0.456" errors="1" skipped="0">
+  <testcase classname="autoware_ekf_localizer" name="test_test_ekf_localizer_mahalanobis.py.xunit.missing_result" time="0.456">
+    <error message="The test did not generate a result file:&#10;&#10;usage: launch_test.py [-h] [--package-name PACKAGE_NAME] [-v] [-s]&#10;                      [--junit-xml XMLPATH]&#10;                      launch_test_file [launch_arguments ...]&#10;launch_test.py: error: No module named 'rclpy._rclpy_pybind11'&#10;The C extension '/opt/ros/humble/lib/python3.10/site-packages/_rclpy_pybind11.cpython-313-x86_64-linux-gnu.so' isn't present on the system. Please refer to 'https://docs.ros.org/en/humble/Guides/Installation-Troubleshooting.html#import-failing-without-library-present-on-the-system' for possible solutions&#10;"/>
+  </testcase>
+</testsuite>

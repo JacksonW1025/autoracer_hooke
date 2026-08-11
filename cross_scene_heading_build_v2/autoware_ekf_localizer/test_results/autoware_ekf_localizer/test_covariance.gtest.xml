@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="2" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:18" name="AllTests">
+  <testsuite name="EKFCovarianceToPoseMessageCovariance" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:18">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:18" classname="autoware_ekf_localizer.EKFCovarianceToPoseMessageCovariance" />
+  </testsuite>
+  <testsuite name="EKFCovarianceToTwistMessageCovariance" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:18">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:18" classname="autoware_ekf_localizer.EKFCovarianceToTwistMessageCovariance" />
+  </testsuite>
+</testsuites>

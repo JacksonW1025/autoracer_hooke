@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="6" failures="0" disabled="0" errors="0" time="0.01" timestamp="2026-08-10T01:30:19" name="AllTests">
+  <testsuite name="GnssCorrection" tests="6" failures="0" disabled="0" errors="0" time="0.01" timestamp="2026-08-10T01:30:19">
+    <testcase name="freshness_authority_has_frozen_boundaries" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssCorrection" />
+    <testcase name="authority_limits_only_reacquisition" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssCorrection" />
+    <testcase name="covariance_uses_receiver_floor_and_ndt_reference" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssCorrection" />
+    <testcase name="bias_only_update_cannot_move_local_motion_state" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssCorrection" />
+    <testcase name="repeated_bias_only_updates_preserve_local_filter_numerically" status="run" result="completed" time="0.01" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssCorrection" />
+    <testcase name="public_projection_changes_only_xy" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.GnssCorrection" />
+  </testsuite>
+</testsuites>

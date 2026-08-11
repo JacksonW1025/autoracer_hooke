@@ -1,0 +1,183 @@
+UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/CTestConfiguration.ini
+Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/CTestConfiguration.ini
+   Site: ubuntu-2204-4090
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20260809-1730 - Experimental
+UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/CTestConfiguration.ini
+Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/CTestConfiguration.ini
+Test project /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: test_pose_covariance_modifier
+
+1: Test command: /usr/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml" "--package-name" "autoware_pose_covariance_modifier" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/ament_cmake_gtest/test_pose_covariance_modifier.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_pose_covariance_modifier" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml"
+1: Test timeout computed to be: 60
+1: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier':
+1:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_pose_covariance_modifier --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml
+1: [==========] Running 48 tests from 1 test suite.
+1: [----------] Global test environment set-up.
+1: [----------] 48 tests from PoseCovarianceModifier
+1: [ RUN      ] PoseCovarianceModifier.official_policy_preserves_xy_boundaries
+1: [ERROR] [1786296616.084654469] [pose_covariance_modifier_test_0.PoseCovarianceModifierNode]: Input variance of NDT exceeds bound values. Variance values of NDT were not modified. Check your bound values for NDT stddev.
+1: [       OK ] PoseCovarianceModifier.official_policy_preserves_xy_boundaries (225 ms)
+1: [ RUN      ] PoseCovarianceModifier.official_policy_ignores_optional_receiver_status_contract
+1: [       OK ] PoseCovarianceModifier.official_policy_ignores_optional_receiver_status_contract (56 ms)
+1: [ RUN      ] PoseCovarianceModifier.quality_contract_rejects_missing_status
+1: [WARN] [1786296616.294489660] [pose_covariance_modifier_test_2.PoseCovarianceModifierNode]: GNSS position rejected because no source-time-aligned receiver solution status exists
+1: [       OK ] PoseCovarianceModifier.quality_contract_rejects_missing_status (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.quality_contract_accepts_fixed_and_applies_covariance_floor
+1: [       OK ] PoseCovarianceModifier.quality_contract_accepts_fixed_and_applies_covariance_floor (120 ms)
+1: [ RUN      ] PoseCovarianceModifier.quality_contract_preserves_distinct_float_and_spp_weight
+1: [       OK ] PoseCovarianceModifier.quality_contract_preserves_distinct_float_and_spp_weight (187 ms)
+1: [ RUN      ] PoseCovarianceModifier.quality_contract_rejects_nofix_unknown_and_not_used
+1: [WARN] [1786296616.728487384] [pose_covariance_modifier_test_5.PoseCovarianceModifierNode]: GNSS position rejected because receiver has no usable fix
+1: [WARN] [1786296616.791287296] [pose_covariance_modifier_test_5.PoseCovarianceModifierNode]: GNSS position rejected because receiver has no usable fix
+1: [WARN] [1786296616.855149929] [pose_covariance_modifier_test_5.PoseCovarianceModifierNode]: GNSS position rejected because receiver did not use GNSS1
+1: [       OK ] PoseCovarianceModifier.quality_contract_rejects_nofix_unknown_and_not_used (254 ms)
+1: [ RUN      ] PoseCovarianceModifier.quality_contract_rejects_stale_status
+1: [WARN] [1786296616.977481899] [pose_covariance_modifier_test_6.PoseCovarianceModifierNode]: GNSS position rejected because no source-time-aligned receiver solution status exists
+1: [       OK ] PoseCovarianceModifier.quality_contract_rejects_stale_status (122 ms)
+1: [ RUN      ] PoseCovarianceModifier.quality_contract_can_disable_weak_solution_classes
+1: [WARN] [1786296617.099345083] [pose_covariance_modifier_test_7.PoseCovarianceModifierNode]: GNSS RTK-float position rejected by policy
+1: [WARN] [1786296617.162260326] [pose_covariance_modifier_test_7.PoseCovarianceModifierNode]: GNSS SPP/PSRDIFF position rejected by policy
+1: [       OK ] PoseCovarianceModifier.quality_contract_can_disable_weak_solution_classes (185 ms)
+1: [ RUN      ] PoseCovarianceModifier.gnss_subscription_depth_defaults_to_official_ten
+1: [       OK ] PoseCovarianceModifier.gnss_subscription_depth_defaults_to_official_ten (26 ms)
+1: [ RUN      ] PoseCovarianceModifier.gnss_subscription_depth_must_be_positive
+1: [       OK ] PoseCovarianceModifier.gnss_subscription_depth_must_be_positive (15 ms)
+1: [ RUN      ] PoseCovarianceModifier.depth_one_discards_stale_gnss_backlog_and_keeps_latest
+1: [       OK ] PoseCovarianceModifier.depth_one_discards_stale_gnss_backlog_and_keeps_latest (156 ms)
+1: [ RUN      ] PoseCovarianceModifier.official_policy_preserves_yaw_and_z_boundaries
+1: [       OK ] PoseCovarianceModifier.official_policy_preserves_yaw_and_z_boundaries (153 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_publishes_trusted_gnss_and_unmodified_ndt
+1: [       OK ] PoseCovarianceModifier.ndt_primary_publishes_trusted_gnss_and_unmodified_ndt (90 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_never_publishes_gnss_only
+1: [WARN] [1786296617.660336276] [pose_covariance_modifier_test_13.PoseCovarianceModifierNode]: GNSS pose rejected because no fresh valid NDT pose exists
+1: [       OK ] PoseCovarianceModifier.ndt_primary_never_publishes_gnss_only (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_rejects_untrusted_and_stale_gnss
+1: [WARN] [1786296617.884522798] [pose_covariance_modifier_test_14.PoseCovarianceModifierNode]: GNSS pose rejected because no fresh valid NDT pose exists
+1: [       OK ] PoseCovarianceModifier.ndt_primary_rejects_untrusted_and_stale_gnss (195 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_and_gnss_use_independent_source_age_budgets
+1: [WARN] [1786296618.021286060] [pose_covariance_modifier_test_15.PoseCovarianceModifierNode]: GNSS pose has timed out: receive_age=0.079 sec limit=0.050 sec
+1: [WARN] [1786296618.121587907] [pose_covariance_modifier_test_15.PoseCovarianceModifierNode]: GNSS pose timestamp is outside the freshness window: age=0.070 sec limit=0.050 sec
+1: [WARN] [1786296618.373575313] [pose_covariance_modifier_test_15.PoseCovarianceModifierNode]: Rejected invalid or stale NDT pose
+1: [       OK ] PoseCovarianceModifier.ndt_and_gnss_use_independent_source_age_budgets (487 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_freshness_uses_its_own_longer_age_budget
+1: [       OK ] PoseCovarianceModifier.ndt_freshness_uses_its_own_longer_age_budget (161 ms)
+1: [ RUN      ] PoseCovarianceModifier.qualified_gnss_ins_heading_is_an_opt_in_yaw_observation
+1: [       OK ] PoseCovarianceModifier.qualified_gnss_ins_heading_is_an_opt_in_yaw_observation (121 ms)
+1: [ RUN      ] PoseCovarianceModifier.gnss_ins_heading_defaults_to_disabled
+1: [       OK ] PoseCovarianceModifier.gnss_ins_heading_defaults_to_disabled (121 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_rejects_invalid_covariance
+1: [WARN] [1786296618.866373976] [pose_covariance_modifier_test_19.PoseCovarianceModifierNode]: GNSS covariance has a non-positive diagonal
+1: [WARN] [1786296618.955952790] [pose_covariance_modifier_test_20.PoseCovarianceModifierNode]: GNSS covariance has a non-positive diagonal
+1: [WARN] [1786296619.044704756] [pose_covariance_modifier_test_21.PoseCovarianceModifierNode]: GNSS covariance contains a non-finite value
+1: [WARN] [1786296619.135404622] [pose_covariance_modifier_test_22.PoseCovarianceModifierNode]: GNSS covariance contains a non-finite value
+1: [       OK ] PoseCovarianceModifier.ndt_primary_rejects_invalid_covariance (358 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_rejects_invalid_horizontal_covariance_matrix
+1: [WARN] [1786296619.225905635] [pose_covariance_modifier_test_23.PoseCovarianceModifierNode]: GNSS XY covariance is not symmetric
+1: [WARN] [1786296619.257302216] [pose_covariance_modifier_test_23.PoseCovarianceModifierNode]: GNSS XY covariance is not positive definite
+1: [       OK ] PoseCovarianceModifier.ndt_primary_rejects_invalid_horizontal_covariance_matrix (121 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_keeps_xy_and_removes_inertial_yaw
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_keeps_xy_and_removes_inertial_yaw (90 ms)
+1: [ RUN      ] PoseCovarianceModifier.component_gated_height_publishes_independent_xy_and_z_measurements
+1: [       OK ] PoseCovarianceModifier.component_gated_height_publishes_independent_xy_and_z_measurements (90 ms)
+1: [ RUN      ] PoseCovarianceModifier.component_gated_height_survives_xy_rejection_without_gnss_yaw
+1: [       OK ] PoseCovarianceModifier.component_gated_height_survives_xy_rejection_without_gnss_yaw (91 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_control_master_switch_suppresses_xy_and_height
+1: [       OK ] PoseCovarianceModifier.ndt_control_master_switch_suppresses_xy_and_height (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_never_publishes_gnss_only_or_bad_xy
+1: [WARN] [1786296619.675248531] [pose_covariance_modifier_test_28.PoseCovarianceModifierNode]: GNSS position rejected before the first valid NDT pose
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_never_publishes_gnss_only_or_bad_xy (120 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_control_uses_same_path_but_disables_only_gnss_updates
+1: [       OK ] PoseCovarianceModifier.ndt_control_uses_same_path_but_disables_only_gnss_updates (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.cross_source_nis_soft_gate_uses_both_source_covariances
+1: [       OK ] PoseCovarianceModifier.cross_source_nis_soft_gate_uses_both_source_covariances (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.cross_source_nis_hard_gate_distinguishes_confidence
+1: [WARN] [1786296620.007071128] [pose_covariance_modifier_test_31.PoseCovarianceModifierNode]: GNSS position rejected by the hard cross-source NIS gate
+1: [       OK ] PoseCovarianceModifier.cross_source_nis_hard_gate_distinguishes_confidence (179 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_accepts_gnss_after_initialized_ndt_times_out
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_accepts_gnss_after_initialized_ndt_times_out (158 ms)
+1: [ RUN      ] PoseCovarianceModifier.independent_xy_and_height_continue_after_initialized_ndt_times_out
+1: [WARN] [1786296620.306120420] [pose_covariance_modifier_test_34.PoseCovarianceModifierNode]: GNSS position rejected before the first valid NDT pose
+1: [       OK ] PoseCovarianceModifier.independent_xy_and_height_continue_after_initialized_ndt_times_out (184 ms)
+1: [ RUN      ] PoseCovarianceModifier.guarded_xy_and_independent_height_are_separable_after_ndt_timeout
+1: [WARN] [1786296620.603604875] [pose_covariance_modifier_test_35.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.guarded_xy_and_independent_height_are_separable_after_ndt_timeout (165 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_guard_rejects_gnss_after_ndt_times_out
+1: [WARN] [1786296620.765913346] [pose_covariance_modifier_test_36.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_guard_rejects_gnss_after_ndt_times_out (161 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_guard_rejects_source_time_mismatch
+1: [WARN] [1786296620.855352629] [pose_covariance_modifier_test_37.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_guard_rejects_source_time_mismatch (90 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_guard_accepts_fresh_aligned_gnss
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_guard_accepts_fresh_aligned_gnss (90 ms)
+1: [ RUN      ] PoseCovarianceModifier.trusted_outage_bridge_requires_prior_cross_source_warmup
+1: [WARN] [1786296621.200843010] [pose_covariance_modifier_test_39.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.trusted_outage_bridge_requires_prior_cross_source_warmup (255 ms)
+1: [ RUN      ] PoseCovarianceModifier.trusted_outage_bridge_is_bounded_and_inflates_covariance
+1: [WARN] [1786296621.850179483] [pose_covariance_modifier_test_40.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.trusted_outage_bridge_is_bounded_and_inflates_covariance (648 ms)
+1: [ RUN      ] PoseCovarianceModifier.trusted_outage_bridge_rejects_and_revokes_on_gnss_jump
+1: [WARN] [1786296622.167854491] [pose_covariance_modifier_test_41.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [WARN] [1786296622.198121010] [pose_covariance_modifier_test_41.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.trusted_outage_bridge_rejects_and_revokes_on_gnss_jump (350 ms)
+1: [ RUN      ] PoseCovarianceModifier.trusted_outage_bridge_accepts_eight_of_ten_recent_agreements
+1: [       OK ] PoseCovarianceModifier.trusted_outage_bridge_accepts_eight_of_ten_recent_agreements (766 ms)
+1: [ RUN      ] PoseCovarianceModifier.trusted_outage_bridge_rejects_seven_of_ten_recent_agreements
+1: [WARN] [1786296623.729903634] [pose_covariance_modifier_test_43.PoseCovarianceModifierNode]: GNSS position rejected because no fresh, source-time-aligned NDT pose exists
+1: [       OK ] PoseCovarianceModifier.trusted_outage_bridge_rejects_seven_of_ten_recent_agreements (764 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_rejects_large_ndt_innovation
+1: [WARN] [1786296623.819435248] [pose_covariance_modifier_test_44.PoseCovarianceModifierNode]: GNSS position rejected by the NDT innovation gate
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_rejects_large_ndt_innovation (122 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_motion_compensates_only_innovation_gate
+1: [WARN] [1786296623.969749562] [pose_covariance_modifier_test_45.PoseCovarianceModifierNode]: GNSS position rejected by the NDT innovation gate
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_motion_compensates_only_innovation_gate (240 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_soft_gate_only_inflates_gnss_xy_covariance
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_soft_gate_only_inflates_gnss_xy_covariance (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.ndt_primary_position_soft_gate_retains_hard_outer_limit
+1: [WARN] [1786296624.269648753] [pose_covariance_modifier_test_48.PoseCovarianceModifierNode]: GNSS position rejected by the NDT innovation gate
+1: [       OK ] PoseCovarianceModifier.ndt_primary_position_soft_gate_retains_hard_outer_limit (89 ms)
+1: [ RUN      ] PoseCovarianceModifier.causal_conflict_filter_requires_agreement_warmup
+1: [WARN] [1786296624.360423490] [pose_covariance_modifier_test_49.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296624.423176031] [pose_covariance_modifier_test_49.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [       OK ] PoseCovarianceModifier.causal_conflict_filter_requires_agreement_warmup (217 ms)
+1: [ RUN      ] PoseCovarianceModifier.causal_conflict_filter_locks_out_startup_false_fix
+1: [WARN] [1786296624.576065932] [pose_covariance_modifier_test_50.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296624.638897945] [pose_covariance_modifier_test_50.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296624.702009640] [pose_covariance_modifier_test_50.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296624.766149846] [pose_covariance_modifier_test_50.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296624.830304692] [pose_covariance_modifier_test_50.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [       OK ] PoseCovarianceModifier.causal_conflict_filter_locks_out_startup_false_fix (344 ms)
+1: [ RUN      ] PoseCovarianceModifier.causal_conflict_filter_allows_bounded_ndt_jump
+1: [WARN] [1786296624.919980677] [pose_covariance_modifier_test_51.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296624.982745178] [pose_covariance_modifier_test_51.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [       OK ] PoseCovarianceModifier.causal_conflict_filter_allows_bounded_ndt_jump (279 ms)
+1: [ RUN      ] PoseCovarianceModifier.causal_conflict_filter_rejects_and_latches_gnss_jump
+1: [WARN] [1786296625.201033679] [pose_covariance_modifier_test_52.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296625.263852581] [pose_covariance_modifier_test_52.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296625.390927740] [pose_covariance_modifier_test_52.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [WARN] [1786296625.455127037] [pose_covariance_modifier_test_52.PoseCovarianceModifierNode]: GNSS position rejected by the causal conflict filter
+1: [       OK ] PoseCovarianceModifier.causal_conflict_filter_rejects_and_latches_gnss_jump (346 ms)
+1: [----------] 48 tests from PoseCovarianceModifier (9531 ms total)
+1: 
+1: [----------] Global test environment tear-down
+1: [==========] 48 tests from 1 test suite ran. (9531 ms total)
+1: [  PASSED  ] 48 tests.
+1: -- run_test.py: return code 0
+1: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml'
+1: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_pose_covariance_modifier/test_results/autoware_pose_covariance_modifier/test_pose_covariance_modifier.gtest.xml'
+1/1 Test #1: test_pose_covariance_modifier ....   Passed    9.78 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Label Time Summary:
+gtest    =   9.78 sec*proc (1 test)
+
+Total Test time (real) =   9.78 sec

@@ -13,6 +13,7 @@ from autoracer_planning.fixed_course import (
     _accelerations,
     apply_road_extents,
     build_asset,
+    center_course_in_road_corridor,
     curvature_speed_envelope,
     holdout_errors,
     load_course_asset,
@@ -119,6 +120,59 @@ def test_road_extents_create_conservative_functional_boundaries():
     assert bounded[0].right_offset == pytest.approx(1.45)
     assert metrics["road_eval_minimum_outward_clearance_m"] == pytest.approx(0.2)
     assert metrics["vehicle_footprint_minimum_margin_m"] == pytest.approx(0.2995)
+
+
+def test_road_corridor_centering_moves_away_from_narrow_edge_without_inventing_width():
+    samples = [_course_sample(float(index), float(index), 0.0) for index in range(5)]
+    extents = [
+        RoadExtentSample(
+            index=index,
+            s=float(index),
+            x=float(index),
+            y=0.0,
+            yaw=0.0,
+            center_on_road=True,
+            left_road_extent=3.0,
+            right_road_extent=1.4,
+        )
+        for index in range(5)
+    ]
+    config = replace(
+        CourseBuildConfig(),
+        road_corridor_centering_max_shift_m=0.2,
+        road_corridor_centering_smoothing_radius=0,
+        road_corridor_centering_max_step_m=0.2,
+    )
+
+    centered, centered_extents, metrics = center_course_in_road_corridor(
+        samples, extents, config
+    )
+
+    assert [sample.x for sample in centered] == pytest.approx(range(5))
+    assert [sample.y for sample in centered] == pytest.approx([0.2] * 5)
+    assert [extent.left_road_extent for extent in centered_extents] == pytest.approx(
+        [2.8] * 5
+    )
+    assert [extent.right_road_extent for extent in centered_extents] == pytest.approx(
+        [1.6] * 5
+    )
+    assert metrics["road_corridor_centering_max_abs_shift_m"] == pytest.approx(0.2)
+
+
+def test_road_corridor_centering_is_byte_semantics_noop_when_disabled():
+    samples = [_course_sample(float(index), float(index), 0.0) for index in range(2)]
+    extents = [
+        RoadExtentSample(index, float(index), float(index), 0.0, 0.0, True, 3.0, 1.4)
+        for index in range(2)
+    ]
+
+    centered, centered_extents, metrics = center_course_in_road_corridor(
+        samples, extents, CourseBuildConfig()
+    )
+
+    assert centered == samples
+    assert centered_extents == extents
+    assert metrics["road_corridor_centering_enabled"] == 0.0
 
 
 def _write_vehicle_state(path: Path, lateral_offset: float):

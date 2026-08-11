@@ -1,0 +1,13 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+ - /opt/anaconda3/bin/python3 -m launch_testing.launch_test /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_mahalanobis.py --junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml --package-name=autoware_ekf_localizer
+
+usage: launch_test.py [-h] [--package-name PACKAGE_NAME] [-v] [-s]
+                      [--junit-xml XMLPATH]
+                      launch_test_file [launch_arguments ...]
+launch_test.py: error: No module named 'rclpy._rclpy_pybind11'
+The C extension '/opt/ros/humble/lib/python3.10/site-packages/_rclpy_pybind11.cpython-313-x86_64-linux-gnu.so' isn't present on the system. Please refer to 'https://docs.ros.org/en/humble/Guides/Installation-Troubleshooting.html#import-failing-without-library-present-on-the-system' for possible solutions
+
+
+-- run_test.py: return code 2
+-- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml' with failed test
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml'

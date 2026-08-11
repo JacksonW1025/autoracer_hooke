@@ -1,0 +1,8 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter':
+ - /opt/ros/humble/bin/ament_cppcheck --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/cppcheck.xunit.xml --include_dirs /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter/include
+
+cppcheck 2.7 has known performance issues and therefore will not be used, set the AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS environment variable to override this.
+
+
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/cppcheck.xunit.xml'

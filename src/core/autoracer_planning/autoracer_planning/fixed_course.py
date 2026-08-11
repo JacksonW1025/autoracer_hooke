@@ -94,6 +94,12 @@ class CourseBuildConfig:
     carmaker_route_length_m: float = 10803.772
     sample_interval_m: float = 0.5
     min_raw_point_distance_m: float = 0.02
+    # Collection runs hold the vehicle still while sensors and localization
+    # become ready.  Tiny tyre/solver motion during that hold is not a route
+    # tangent and must not become the first controller segment.  Zero keeps
+    # the historical behaviour; qualified cross-scene builds opt in to a
+    # small, progress-defined trim.
+    startup_trim_distance_m: float = 0.0
     smoothing_radius: int = 2
     max_smoothing_offset_m: float = 0.05
     left_offset_m: float = 1.8
@@ -101,9 +107,22 @@ class CourseBuildConfig:
     road_edge_margin_m: float = 0.2
     vehicle_width_m: float = 1.801
     minimum_footprint_margin_m: float = 0.2
+    # Optional, deterministic road-corridor centering.  Zero preserves every
+    # historical course byte-for-byte.  When enabled, the construction path
+    # may move only laterally, within measured RoadEval extents, to move away
+    # from a locally narrow edge.  The shift is smoothed and rate limited so
+    # that it cannot create a new steering discontinuity.
+    road_corridor_centering_max_shift_m: float = 0.0
+    road_corridor_centering_smoothing_radius: int = 20
+    road_corridor_centering_max_step_m: float = 0.0125
     require_roadeval_boundaries: bool = True
     max_speed_mps: float = 5.0
     max_lateral_accel_mps2: float = 1.5
+    # Optional vehicle/controller trackability limit.  A zero value preserves
+    # all historical profiles.  When enabled, v * |curvature| is bounded so a
+    # fixed course cannot demand a yaw rate beyond the validated closed-loop
+    # bandwidth even when its centripetal-acceleration limit is satisfied.
+    max_course_yaw_rate_radps: float = 0.0
     max_accel_mps2: float = 0.8
     max_decel_mps2: float = -1.5
     holdout_p95_limit_m: float = 0.75
@@ -171,12 +190,41 @@ def extract_continuous_path(
     states: Sequence[RawState],
     cutoff_time: float,
     min_point_distance_m: float,
+    start_time: float | None = None,
 ) -> list[tuple[float, float, float]]:
     stamps = [state.stamp for state in states]
+    if start_time is None:
+        start_time = stamps[0]
+    if not math.isfinite(start_time) or start_time >= cutoff_time:
+        raise ValueError("path start time must be finite and before cutoff")
+    start_index = bisect.bisect_left(stamps, start_time)
     end_index = bisect.bisect_left(stamps, cutoff_time)
-    candidates = list(states[:end_index])
     if end_index == 0:
         raise ValueError("cutoff occurs before the first vehicle state")
+
+    candidates: list[RawState] = []
+    if start_index <= 0:
+        candidates.append(states[0])
+        start_index = 1
+    elif start_index >= len(states):
+        raise ValueError("path start occurs after the last vehicle state")
+    else:
+        previous = states[start_index - 1]
+        current = states[start_index]
+        dt = current.stamp - previous.stamp
+        ratio = 0.0 if dt <= 1e-9 else (start_time - previous.stamp) / dt
+        ratio = min(1.0, max(0.0, ratio))
+        candidates.append(
+            RawState(
+                start_time,
+                _lerp(previous.x, current.x, ratio),
+                _lerp(previous.y, current.y, ratio),
+                _lerp(previous.z, current.z, ratio),
+            )
+        )
+    candidates.extend(
+        state for state in states[start_index:end_index] if state.stamp > start_time
+    )
     if end_index < len(states):
         previous = states[end_index - 1]
         current = states[end_index]
@@ -516,6 +564,173 @@ def load_road_extents(path: Path) -> list[RoadExtentSample]:
     return extents
 
 
+def write_road_extents(path: Path, extents: Iterable[RoadExtentSample]) -> None:
+    with path.open("w", encoding="ascii", newline="") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(ROAD_EXTENT_COLUMNS)
+        for extent in extents:
+            writer.writerow(
+                (
+                    extent.index,
+                    f"{extent.s:.12g}",
+                    f"{extent.x:.12g}",
+                    f"{extent.y:.12g}",
+                    f"{extent.yaw:.12g}",
+                    int(extent.center_on_road),
+                    f"{extent.left_road_extent:.12g}",
+                    f"{extent.right_road_extent:.12g}",
+                )
+            )
+
+
+def center_course_in_road_corridor(
+    samples: Sequence[CourseSample],
+    extents: Sequence[RoadExtentSample],
+    config: CourseBuildConfig,
+) -> tuple[list[CourseSample], list[RoadExtentSample], dict[str, float]]:
+    """Move an opt-in course laterally toward the measured road corridor center.
+
+    Positive shift is to the left of the original course tangent.  Therefore
+    the measured left extent decreases by the shift and the right extent
+    increases by it.  Every target is projected into the physical feasibility
+    interval before and after smoothing; no extrapolated road area is used.
+    """
+    if len(samples) != len(extents):
+        raise ValueError(
+            f"RoadEval extent count mismatch: course={len(samples)}, extents={len(extents)}"
+        )
+    max_shift = config.road_corridor_centering_max_shift_m
+    if not math.isfinite(max_shift) or max_shift < 0.0:
+        raise ValueError("road corridor centering maximum shift must be finite and nonnegative")
+    if config.road_corridor_centering_smoothing_radius < 0:
+        raise ValueError("road corridor centering smoothing radius must be nonnegative")
+    if (
+        not math.isfinite(config.road_corridor_centering_max_step_m)
+        or config.road_corridor_centering_max_step_m <= 0.0
+    ):
+        raise ValueError("road corridor centering maximum step must be finite and positive")
+
+    for index, (sample, extent) in enumerate(zip(samples, extents)):
+        if extent.index != index:
+            raise ValueError(
+                f"RoadEval extent index mismatch at row {index}: {extent.index}"
+            )
+        geometry_error = max(
+            abs(sample.s - extent.s),
+            abs(sample.x - extent.x),
+            abs(sample.y - extent.y),
+            abs(_normalize_angle(sample.yaw - extent.yaw)),
+        )
+        if geometry_error > 1e-6:
+            raise ValueError(
+                f"RoadEval extent geometry mismatch at row {index}: {geometry_error:.3e}"
+            )
+
+    if max_shift == 0.0:
+        return list(samples), list(extents), {
+            "road_corridor_centering_enabled": 0.0,
+            "road_corridor_centering_min_shift_m": 0.0,
+            "road_corridor_centering_max_shift_m": 0.0,
+            "road_corridor_centering_max_step_m": 0.0,
+        }
+
+    required_extent = (
+        0.5 * config.vehicle_width_m
+        + config.minimum_footprint_margin_m
+        + config.road_edge_margin_m
+    )
+    bounds: list[tuple[float, float]] = []
+    targets: list[float] = []
+    for index, extent in enumerate(extents):
+        if not extent.center_on_road:
+            raise ValueError(f"course center is off-road at row {index}")
+        lower = max(-max_shift, required_extent - extent.right_road_extent)
+        upper = min(max_shift, extent.left_road_extent - required_extent)
+        if lower > upper + 1e-9:
+            raise ValueError(
+                f"road corridor cannot contain the configured footprint at row {index}"
+            )
+        target = 0.5 * (extent.left_road_extent - extent.right_road_extent)
+        bounds.append((lower, upper))
+        targets.append(min(upper, max(lower, target)))
+
+    radius = config.road_corridor_centering_smoothing_radius
+    smoothed: list[float] = []
+    for index, (lower, upper) in enumerate(bounds):
+        begin = max(0, index - radius)
+        end = min(len(targets), index + radius + 1)
+        target = sum(targets[begin:end]) / (end - begin)
+        smoothed.append(min(upper, max(lower, target)))
+
+    step = config.road_corridor_centering_max_step_m
+    for index in range(1, len(smoothed)):
+        lower, upper = bounds[index]
+        target = min(smoothed[index - 1] + step, max(smoothed[index - 1] - step, smoothed[index]))
+        smoothed[index] = min(upper, max(lower, target))
+    for index in range(len(smoothed) - 2, -1, -1):
+        lower, upper = bounds[index]
+        target = min(smoothed[index + 1] + step, max(smoothed[index + 1] - step, smoothed[index]))
+        smoothed[index] = min(upper, max(lower, target))
+
+    maximum_step = max(
+        (abs(current - previous) for previous, current in zip(smoothed, smoothed[1:])),
+        default=0.0,
+    )
+    if maximum_step > step + 1e-9:
+        raise ValueError(
+            "road corridor feasibility changes faster than the configured shift-rate bound"
+        )
+
+    points = [
+        (
+            sample.x - math.sin(sample.yaw) * shift,
+            sample.y + math.cos(sample.yaw) * shift,
+            sample.z,
+        )
+        for sample, shift in zip(samples, smoothed)
+    ]
+    distances = cumulative_distances(points)
+    yaws = _forward_yaws(points)
+    curvatures = [_curvature(points, index) for index in range(len(points))]
+    velocities = _velocity_profile(points, curvatures, config)
+    accelerations = _accelerations(points, velocities)
+    centered = [
+        CourseSample(
+            s=distances[index],
+            x=point[0],
+            y=point[1],
+            z=point[2],
+            yaw=yaws[index],
+            curvature=curvatures[index],
+            left_offset=config.left_offset_m,
+            right_offset=config.right_offset_m,
+            target_velocity=velocities[index],
+            target_acceleration=accelerations[index],
+        )
+        for index, point in enumerate(points)
+    ]
+    centered_extents = [
+        RoadExtentSample(
+            index=index,
+            s=centered[index].s,
+            x=centered[index].x,
+            y=centered[index].y,
+            yaw=centered[index].yaw,
+            center_on_road=extent.center_on_road,
+            left_road_extent=extent.left_road_extent - smoothed[index],
+            right_road_extent=extent.right_road_extent + smoothed[index],
+        )
+        for index, extent in enumerate(extents)
+    ]
+    return centered, centered_extents, {
+        "road_corridor_centering_enabled": 1.0,
+        "road_corridor_centering_min_shift_m": min(smoothed),
+        "road_corridor_centering_max_shift_m": max(smoothed),
+        "road_corridor_centering_max_abs_shift_m": max(map(abs, smoothed)),
+        "road_corridor_centering_max_step_m": maximum_step,
+    }
+
+
 def apply_road_extents(
     samples: Sequence[CourseSample],
     extents: Sequence[RoadExtentSample],
@@ -718,18 +933,37 @@ def build_asset(
     holdout_progress = load_progress_states(holdout_route_progress)
     build_cutoff = cutoff_time_for_distance(build_progress, config.carmaker_route_length_m)
     holdout_cutoff = cutoff_time_for_distance(holdout_progress, config.carmaker_route_length_m)
+    build_start = cutoff_time_for_distance(
+        build_progress, config.startup_trim_distance_m
+    )
+    holdout_start = cutoff_time_for_distance(
+        holdout_progress, config.startup_trim_distance_m
+    )
     build_path = extract_continuous_path(
-        build_states, build_cutoff, config.min_raw_point_distance_m
+        build_states,
+        build_cutoff,
+        config.min_raw_point_distance_m,
+        build_start,
     )
     holdout_path = extract_continuous_path(
-        holdout_states, holdout_cutoff, config.min_raw_point_distance_m
+        holdout_states,
+        holdout_cutoff,
+        config.min_raw_point_distance_m,
+        holdout_start,
     )
     samples, build_metrics = build_course_samples(build_path, config)
     road_extent_metrics = None
+    output_road_extents = None
     if road_extents is not None:
-        samples, road_extent_metrics = apply_road_extents(
-            samples, load_road_extents(road_extents), config
+        source_road_extents = load_road_extents(road_extents)
+        samples, output_road_extents, centering_metrics = center_course_in_road_corridor(
+            samples, source_road_extents, config
         )
+        samples, road_extent_metrics = apply_road_extents(
+            samples, output_road_extents, config
+        )
+        road_extent_metrics.update(centering_metrics)
+        build_metrics["course_length_m"] = samples[-1].s
     errors = holdout_errors(
         samples,
         holdout_path,
@@ -757,7 +991,10 @@ def build_asset(
     extents_asset = None
     if road_extents is not None:
         extents_asset = temporary / "road_extents.csv"
-        shutil.copyfile(road_extents, extents_asset)
+        if config.road_corridor_centering_max_shift_m > 0.0:
+            write_road_extents(extents_asset, output_road_extents or ())
+        else:
+            shutil.copyfile(road_extents, extents_asset)
     manifest = {
         "schema_version": 2,
         "route_id": config.route_id,
@@ -788,15 +1025,26 @@ def build_asset(
             "carmaker_route_length_m": config.carmaker_route_length_m,
             "course_length_m": samples[-1].s,
             "sample_interval_m": config.sample_interval_m,
+            "startup_trim_distance_m": config.startup_trim_distance_m,
             "frame_contract": "CarMaker Fr0 == localization map",
             "maximum_left_offset_m": config.left_offset_m,
             "maximum_right_offset_m": config.right_offset_m,
             "road_edge_margin_m": config.road_edge_margin_m,
             "vehicle_width_m": config.vehicle_width_m,
             "minimum_footprint_margin_m": config.minimum_footprint_margin_m,
+            "road_corridor_centering_max_shift_m": (
+                config.road_corridor_centering_max_shift_m
+            ),
+            "road_corridor_centering_smoothing_radius": (
+                config.road_corridor_centering_smoothing_radius
+            ),
+            "road_corridor_centering_max_step_m": (
+                config.road_corridor_centering_max_step_m
+            ),
             "boundary_semantics": (
-                "progress-indexed functional Frenet offsets, capped at 1.8 m and "
-                "inset from RoadEval road extents"
+                "progress-indexed functional Frenet offsets, capped at 1.8 m, "
+                "inset from RoadEval road extents, with optional bounded lateral "
+                "centering inside the same measured corridor"
             ),
             "road_eval_evidence": (
                 "course center and both functional offsets independently evaluated "
@@ -862,11 +1110,15 @@ def _velocity_profile(
     curvatures: Sequence[float],
     config: CourseBuildConfig,
 ) -> list[float]:
+    if config.max_course_yaw_rate_radps < 0.0:
+        raise ValueError("maximum course yaw rate must be non-negative")
     speeds = []
     for curvature in curvatures:
         limit = config.max_speed_mps
         if abs(curvature) > 1e-9:
             limit = min(limit, math.sqrt(config.max_lateral_accel_mps2 / abs(curvature)))
+            if config.max_course_yaw_rate_radps > 0.0:
+                limit = min(limit, config.max_course_yaw_rate_radps / abs(curvature))
         speeds.append(max(0.0, limit))
     speeds[0] = 0.0
     speeds[-1] = 0.0

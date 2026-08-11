@@ -50,6 +50,9 @@ def generate_launch_description():
     ndt_scan_matcher_param_path = LaunchConfiguration(
         "ndt_scan_matcher_param_path"
     )
+    voxel_grid_downsample_filter_param_path = LaunchConfiguration(
+        "voxel_grid_downsample_filter_param_path"
+    )
     localization_pointcloud_container_name = LaunchConfiguration(
         "localization_pointcloud_container_name"
     )
@@ -218,10 +221,8 @@ def generate_launch_description():
                     "pointcloud_preprocessor",
                     "crop_box_filter_measurement_range.param.yaml",
                 ),
-                "ndt_scan_matcher/pointcloud_preprocessor/voxel_grid_downsample_filter_param_path": _localization_param(
-                    "ndt_scan_matcher",
-                    "pointcloud_preprocessor",
-                    "voxel_grid_filter.param.yaml",
+                "ndt_scan_matcher/pointcloud_preprocessor/voxel_grid_downsample_filter_param_path": (
+                    voxel_grid_downsample_filter_param_path
                 ),
                 "ndt_scan_matcher/pointcloud_preprocessor/random_downsample_filter_param_path": _localization_param(
                     "ndt_scan_matcher",
@@ -319,8 +320,22 @@ def generate_launch_description():
             ),
             DeclareLaunchArgument(
                 "ndt_scan_matcher_param_path",
-                default_value=_localization_param(
-                    "ndt_scan_matcher", "ndt_scan_matcher.param.yaml"
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_NDT_PARAM_PATH",
+                    default_value=_localization_param(
+                        "ndt_scan_matcher", "ndt_scan_matcher.param.yaml"
+                    ),
+                ),
+            ),
+            DeclareLaunchArgument(
+                "voxel_grid_downsample_filter_param_path",
+                default_value=EnvironmentVariable(
+                    "CM_LOCALIZATION_VOXEL_GRID_PARAM_PATH",
+                    default_value=_localization_param(
+                        "ndt_scan_matcher",
+                        "pointcloud_preprocessor",
+                        "voxel_grid_filter.param.yaml",
+                    ),
                 ),
             ),
             DeclareLaunchArgument(

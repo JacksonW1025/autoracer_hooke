@@ -1,0 +1,361 @@
+UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/CTestConfiguration.ini
+Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/CTestConfiguration.ini
+   Site: ubuntu-2204-4090
+   Build name: (empty)
+ Add coverage exclude regular expressions.
+Create new tag: 20260809-1729 - Experimental
+UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/CTestConfiguration.ini
+Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/CTestConfiguration.ini
+Test project /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+      Start  1: test_test_ekf_localizer_launch.py
+
+1: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/launch_test/test_test_ekf_localizer_launch.py.txt" "--command" "/opt/anaconda3/bin/python3" "-m" "launch_testing.launch_test" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_launch.py" "--junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml" "--package-name=autoware_ekf_localizer"
+1: Test timeout computed to be: 30
+1: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+1:  - /opt/anaconda3/bin/python3 -m launch_testing.launch_test /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_launch.py --junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml --package-name=autoware_ekf_localizer
+1: usage: launch_test.py [-h] [--package-name PACKAGE_NAME] [-v] [-s]
+1:                       [--junit-xml XMLPATH]
+1:                       launch_test_file [launch_arguments ...]
+1: launch_test.py: error: No module named 'rclpy._rclpy_pybind11'
+1: The C extension '/opt/ros/humble/lib/python3.10/site-packages/_rclpy_pybind11.cpython-313-x86_64-linux-gnu.so' isn't present on the system. Please refer to 'https://docs.ros.org/en/humble/Guides/Installation-Troubleshooting.html#import-failing-without-library-present-on-the-system' for possible solutions
+1: -- run_test.py: return code 2
+1: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml' with failed test
+1: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml'
+ 1/19 Test  #1: test_test_ekf_localizer_launch.py ........***Failed    0.57 sec
+test 2
+      Start  2: test_test_ekf_localizer_mahalanobis.py
+
+2: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/launch_test/test_test_ekf_localizer_mahalanobis.py.txt" "--command" "/opt/anaconda3/bin/python3" "-m" "launch_testing.launch_test" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_mahalanobis.py" "--junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml" "--package-name=autoware_ekf_localizer"
+2: Test timeout computed to be: 30
+2: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+2:  - /opt/anaconda3/bin/python3 -m launch_testing.launch_test /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_mahalanobis.py --junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml --package-name=autoware_ekf_localizer
+2: usage: launch_test.py [-h] [--package-name PACKAGE_NAME] [-v] [-s]
+2:                       [--junit-xml XMLPATH]
+2:                       launch_test_file [launch_arguments ...]
+2: launch_test.py: error: No module named 'rclpy._rclpy_pybind11'
+2: The C extension '/opt/ros/humble/lib/python3.10/site-packages/_rclpy_pybind11.cpython-313-x86_64-linux-gnu.so' isn't present on the system. Please refer to 'https://docs.ros.org/en/humble/Guides/Installation-Troubleshooting.html#import-failing-without-library-present-on-the-system' for possible solutions
+2: -- run_test.py: return code 2
+2: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml' with failed test
+2: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_mahalanobis.py.xunit.xml'
+ 2/19 Test  #2: test_test_ekf_localizer_mahalanobis.py ...***Failed    0.55 sec
+test 3
+      Start  3: test_aged_object_queue
+
+3: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_aged_object_queue.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_aged_object_queue" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml"
+3: Test timeout computed to be: 60
+3: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+3:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_aged_object_queue --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml
+3: Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+3: [==========] Running 5 tests from 1 test suite.
+3: [----------] Global test environment set-up.
+3: [----------] 5 tests from AgedObjectQueue
+3: [ RUN      ] AgedObjectQueue.DiscardsObjectWhenAgeReachesMaximum
+3: [       OK ] AgedObjectQueue.DiscardsObjectWhenAgeReachesMaximum (0 ms)
+3: [ RUN      ] AgedObjectQueue.MultipleObjects
+3: [       OK ] AgedObjectQueue.MultipleObjects (0 ms)
+3: [ RUN      ] AgedObjectQueue.Empty
+3: [       OK ] AgedObjectQueue.Empty (0 ms)
+3: [ RUN      ] AgedObjectQueue.Clear
+3: [       OK ] AgedObjectQueue.Clear (0 ms)
+3: [ RUN      ] AgedObjectQueue.Back
+3: [       OK ] AgedObjectQueue.Back (0 ms)
+3: [----------] 5 tests from AgedObjectQueue (0 ms total)
+3: 
+3: [----------] Global test environment tear-down
+3: [==========] 5 tests from 1 test suite ran. (0 ms total)
+3: [  PASSED  ] 5 tests.
+3: -- run_test.py: return code 0
+3: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml'
+3: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_aged_object_queue.gtest.xml'
+ 3/19 Test  #3: test_aged_object_queue ...................   Passed    0.11 sec
+test 4
+      Start  4: test_covariance
+
+4: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_covariance.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_covariance" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml"
+4: Test timeout computed to be: 60
+4: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+4:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_covariance --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml
+4: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_covariance: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+4: -- run_test.py: return code 1
+4: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml' with failed test
+4: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_covariance.gtest.xml'
+ 4/19 Test  #4: test_covariance ..........................***Failed    0.13 sec
+test 5
+      Start  5: test_diagnostics
+
+5: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_diagnostics.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_diagnostics" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml"
+5: Test timeout computed to be: 60
+5: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+5:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_diagnostics --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml
+5: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_diagnostics: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+5: -- run_test.py: return code 1
+5: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml' with failed test
+5: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_diagnostics.gtest.xml'
+ 5/19 Test  #5: test_diagnostics .........................***Failed    0.13 sec
+test 6
+      Start  6: test_gnss_bias_state
+
+6: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_gnss_bias_state.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_bias_state" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml"
+6: Test timeout computed to be: 60
+6: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+6:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_bias_state --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml
+6: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_bias_state: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+6: -- run_test.py: return code 1
+6: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml' with failed test
+6: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_bias_state.gtest.xml'
+ 6/19 Test  #6: test_gnss_bias_state .....................***Failed    0.13 sec
+test 7
+      Start  7: test_gnss_correction
+
+7: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_gnss_correction.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_correction" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml"
+7: Test timeout computed to be: 60
+7: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+7:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_correction --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml
+7: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_gnss_correction: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+7: -- run_test.py: return code 1
+7: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml' with failed test
+7: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_gnss_correction.gtest.xml'
+ 7/19 Test  #7: test_gnss_correction .....................***Failed    0.13 sec
+test 8
+      Start  8: test_mahalanobis
+
+8: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_mahalanobis.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_mahalanobis" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml"
+8: Test timeout computed to be: 60
+8: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+8:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_mahalanobis --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml
+8: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_mahalanobis: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+8: -- run_test.py: return code 1
+8: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml' with failed test
+8: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_mahalanobis.gtest.xml'
+ 8/19 Test  #8: test_mahalanobis .........................***Failed    0.13 sec
+test 9
+      Start  9: test_measurement
+
+9: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_measurement.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_measurement" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml"
+9: Test timeout computed to be: 60
+9: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+9:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_measurement --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml
+9: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_measurement: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+9: -- run_test.py: return code 1
+9: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml' with failed test
+9: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_measurement.gtest.xml'
+ 9/19 Test  #9: test_measurement .........................***Failed    0.11 sec
+test 10
+      Start 10: test_numeric
+
+10: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_numeric.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_numeric" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml"
+10: Test timeout computed to be: 60
+10: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+10:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_numeric --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml
+10: Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+10: [==========] Running 2 tests from 1 test suite.
+10: [----------] Global test environment set-up.
+10: [----------] 2 tests from Numeric
+10: [ RUN      ] Numeric.has_nan
+10: [       OK ] Numeric.has_nan (0 ms)
+10: [ RUN      ] Numeric.has_inf
+10: [       OK ] Numeric.has_inf (0 ms)
+10: [----------] 2 tests from Numeric (0 ms total)
+10: 
+10: [----------] Global test environment tear-down
+10: [==========] 2 tests from 1 test suite ran. (0 ms total)
+10: [  PASSED  ] 2 tests.
+10: -- run_test.py: return code 0
+10: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml'
+10: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_numeric.gtest.xml'
+10/19 Test #10: test_numeric .............................   Passed    0.11 sec
+test 11
+      Start 11: test_position_only_innovation_monitor
+
+11: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_position_only_innovation_monitor.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_position_only_innovation_monitor" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml"
+11: Test timeout computed to be: 60
+11: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+11:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_position_only_innovation_monitor --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml
+11: Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+11: [==========] Running 8 tests from 1 test suite.
+11: [----------] Global test environment set-up.
+11: [----------] 8 tests from PositionOnlyInnovationMonitor
+11: [ RUN      ] PositionOnlyInnovationMonitor.disabled_is_strict_no_op
+11: [       OK ] PositionOnlyInnovationMonitor.disabled_is_strict_no_op (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.persistent_signed_innovation_latches_after_warmup
+11: [       OK ] PositionOnlyInnovationMonitor.persistent_signed_innovation_latches_after_warmup (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.alternating_zero_mean_sequence_does_not_latch
+11: [       OK ] PositionOnlyInnovationMonitor.alternating_zero_mean_sequence_does_not_latch (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.timestamp_gap_resets_unlatched_sequence
+11: [       OK ] PositionOnlyInnovationMonitor.timestamp_gap_resets_unlatched_sequence (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.repeated_smoothing_application_is_not_a_new_sample
+11: [       OK ] PositionOnlyInnovationMonitor.repeated_smoothing_application_is_not_a_new_sample (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.repeated_smoothing_application_preserves_latched_rejection
+11: [       OK ] PositionOnlyInnovationMonitor.repeated_smoothing_application_preserves_latched_rejection (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.latched_monitor_requires_consecutive_clean_recovery
+11: [       OK ] PositionOnlyInnovationMonitor.latched_monitor_requires_consecutive_clean_recovery (0 ms)
+11: [ RUN      ] PositionOnlyInnovationMonitor.non_finite_input_fails_closed_when_enabled
+11: [       OK ] PositionOnlyInnovationMonitor.non_finite_input_fails_closed_when_enabled (0 ms)
+11: [----------] 8 tests from PositionOnlyInnovationMonitor (0 ms total)
+11: 
+11: [----------] Global test environment tear-down
+11: [==========] 8 tests from 1 test suite ran. (0 ms total)
+11: [  PASSED  ] 8 tests.
+11: -- run_test.py: return code 0
+11: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml'
+11: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml'
+11/19 Test #11: test_position_only_innovation_monitor ....   Passed    0.12 sec
+test 12
+      Start 12: test_simple_1d_filter
+
+12: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_simple_1d_filter.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_simple_1d_filter" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml"
+12: Test timeout computed to be: 60
+12: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+12:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_simple_1d_filter --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml
+12: Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+12: [==========] Running 6 tests from 1 test suite.
+12: [----------] Global test environment set-up.
+12: [----------] 6 tests from Simple1DFilter
+12: [ RUN      ] Simple1DFilter.split_predict_and_correct_is_equivalent_to_legacy_update
+12: [       OK ] Simple1DFilter.split_predict_and_correct_is_equivalent_to_legacy_update (0 ms)
+12: [ RUN      ] Simple1DFilter.covariance_grows_on_every_predict_tick_without_measurement
+12: [       OK ] Simple1DFilter.covariance_grows_on_every_predict_tick_without_measurement (0 ms)
+12: [ RUN      ] Simple1DFilter.multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise
+12: [       OK ] Simple1DFilter.multiple_measurements_in_one_predict_tick_do_not_duplicate_process_noise (0 ms)
+12: [ RUN      ] Simple1DFilter.prediction_before_initialization_is_a_noop
+12: [       OK ] Simple1DFilter.prediction_before_initialization_is_a_noop (0 ms)
+12: [ RUN      ] Simple1DFilter.kinematic_prediction_moves_state_and_grows_covariance
+12: [       OK ] Simple1DFilter.kinematic_prediction_moves_state_and_grows_covariance (0 ms)
+12: [ RUN      ] Simple1DFilter.invalid_kinematic_prediction_is_a_noop
+12: [       OK ] Simple1DFilter.invalid_kinematic_prediction_is_a_noop (0 ms)
+12: [----------] 6 tests from Simple1DFilter (0 ms total)
+12: 
+12: [----------] Global test environment tear-down
+12: [==========] 6 tests from 1 test suite ran. (0 ms total)
+12: [  PASSED  ] 6 tests.
+12: -- run_test.py: return code 0
+12: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml'
+12: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_simple_1d_filter.gtest.xml'
+12/19 Test #12: test_simple_1d_filter ....................   Passed    0.12 sec
+test 13
+      Start 13: test_state_transition
+
+13: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_state_transition.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_state_transition" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml"
+13: Test timeout computed to be: 60
+13: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+13:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_state_transition --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml
+13: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_state_transition: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+13: -- run_test.py: return code 1
+13: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml' with failed test
+13: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_state_transition.gtest.xml'
+13/19 Test #13: test_state_transition ....................***Failed    0.13 sec
+test 14
+      Start 14: test_string
+
+14: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_string.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_string" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml"
+14: Test timeout computed to be: 60
+14: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+14:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_string --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml
+14: Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+14: [==========] Running 1 test from 1 test suite.
+14: [----------] Global test environment set-up.
+14: [----------] 1 test from erase_leading_slash
+14: [ RUN      ] erase_leading_slash.SmokeTest
+14: [       OK ] erase_leading_slash.SmokeTest (0 ms)
+14: [----------] 1 test from erase_leading_slash (0 ms total)
+14: 
+14: [----------] Global test environment tear-down
+14: [==========] 1 test from 1 test suite ran. (1 ms total)
+14: [  PASSED  ] 1 test.
+14: -- run_test.py: return code 0
+14: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml'
+14: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_string.gtest.xml'
+14/19 Test #14: test_string ..............................   Passed    0.11 sec
+test 15
+      Start 15: test_warning_message
+
+15: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cmake_gtest/test_warning_message.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_warning_message" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml"
+15: Test timeout computed to be: 60
+15: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+15:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_warning_message --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml
+15: /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_warning_message: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)
+15: -- run_test.py: return code 1
+15: -- run_test.py: generate result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml' with failed test
+15: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml'
+15/19 Test #15: test_warning_message .....................***Failed    0.13 sec
+test 16
+      Start 16: copyright
+
+16: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_copyright/copyright.txt" "--command" "/opt/ros/humble/bin/ament_copyright" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml"
+16: Test timeout computed to be: 200
+16: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+16:  - /opt/ros/humble/bin/ament_copyright --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml
+16: No problems found, checked 40 files
+16: -- run_test.py: return code 0
+16: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/copyright.xunit.xml'
+16/19 Test #16: copyright ................................   Passed    1.24 sec
+test 17
+      Start 17: cppcheck
+
+17: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_cppcheck/cppcheck.txt" "--command" "/opt/ros/humble/bin/ament_cppcheck" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml" "--include_dirs" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/include"
+17: Test timeout computed to be: 300
+17: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+17:  - /opt/ros/humble/bin/ament_cppcheck --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml --include_dirs /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/include
+17: cppcheck 2.7 has known performance issues and therefore will not be used, set the AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS environment variable to override this.
+17: -- run_test.py: return code 0
+17: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/cppcheck.xunit.xml'
+17/19 Test #17: cppcheck .................................   Passed    0.23 sec
+test 18
+      Start 18: lint_cmake
+
+18: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_lint_cmake/lint_cmake.txt" "--command" "/opt/ros/humble/bin/ament_lint_cmake" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml"
+18: Test timeout computed to be: 60
+18: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+18:  - /opt/ros/humble/bin/ament_lint_cmake --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml
+18: 
+18: No problems found
+18: -- run_test.py: return code 0
+18: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/lint_cmake.xunit.xml'
+18/19 Test #18: lint_cmake ...............................   Passed    0.20 sec
+test 19
+      Start 19: xmllint
+
+19: Test command: /opt/anaconda3/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml" "--package-name" "autoware_ekf_localizer" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/ament_xmllint/xmllint.txt" "--command" "/opt/ros/humble/bin/ament_xmllint" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml"
+19: Test timeout computed to be: 60
+19: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer':
+19:  - /opt/ros/humble/bin/ament_xmllint --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml
+19: File 'package.xml' is valid
+19: 
+19: File 'launch/ekf_localizer.launch.xml' is valid
+19: 
+19: No problems found
+19: -- run_test.py: return code 0
+19: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/xmllint.xunit.xml'
+19/19 Test #19: xmllint ..................................   Passed    1.20 sec
+
+47% tests passed, 10 tests failed out of 19
+
+Label Time Summary:
+copyright      =   1.24 sec*proc (1 test)
+cppcheck       =   0.23 sec*proc (1 test)
+gtest          =   1.59 sec*proc (13 tests)
+launch_test    =   1.12 sec*proc (2 tests)
+lint_cmake     =   0.20 sec*proc (1 test)
+linter         =   2.86 sec*proc (4 tests)
+xmllint        =   1.20 sec*proc (1 test)
+
+Total Test time (real) =   5.58 sec
+
+The following tests FAILED:
+	  1 - test_test_ekf_localizer_launch.py (Failed)
+	  2 - test_test_ekf_localizer_mahalanobis.py (Failed)
+	  4 - test_covariance (Failed)
+	  5 - test_diagnostics (Failed)
+	  6 - test_gnss_bias_state (Failed)
+	  7 - test_gnss_correction (Failed)
+	  8 - test_mahalanobis (Failed)
+	  9 - test_measurement (Failed)
+	 13 - test_state_transition (Failed)
+	 15 - test_warning_message (Failed)

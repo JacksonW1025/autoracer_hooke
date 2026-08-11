@@ -1,0 +1,33 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_position_only_innovation_monitor --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml
+
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 8 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 8 tests from PositionOnlyInnovationMonitor
+[ RUN      ] PositionOnlyInnovationMonitor.disabled_is_strict_no_op
+[       OK ] PositionOnlyInnovationMonitor.disabled_is_strict_no_op (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.persistent_signed_innovation_latches_after_warmup
+[       OK ] PositionOnlyInnovationMonitor.persistent_signed_innovation_latches_after_warmup (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.alternating_zero_mean_sequence_does_not_latch
+[       OK ] PositionOnlyInnovationMonitor.alternating_zero_mean_sequence_does_not_latch (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.timestamp_gap_resets_unlatched_sequence
+[       OK ] PositionOnlyInnovationMonitor.timestamp_gap_resets_unlatched_sequence (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.repeated_smoothing_application_is_not_a_new_sample
+[       OK ] PositionOnlyInnovationMonitor.repeated_smoothing_application_is_not_a_new_sample (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.repeated_smoothing_application_preserves_latched_rejection
+[       OK ] PositionOnlyInnovationMonitor.repeated_smoothing_application_preserves_latched_rejection (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.latched_monitor_requires_consecutive_clean_recovery
+[       OK ] PositionOnlyInnovationMonitor.latched_monitor_requires_consecutive_clean_recovery (0 ms)
+[ RUN      ] PositionOnlyInnovationMonitor.non_finite_input_fails_closed_when_enabled
+[       OK ] PositionOnlyInnovationMonitor.non_finite_input_fails_closed_when_enabled (0 ms)
+[----------] 8 tests from PositionOnlyInnovationMonitor (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 8 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 8 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_position_only_innovation_monitor.gtest.xml'

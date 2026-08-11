@@ -1,0 +1,107 @@
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/ekf_module.hpp
+@@ -69,6 +69,15 @@ public:
+     const double proc_var_x_d = proc_var_x_c_ * dt * dt;
+     var_ = var_ + proc_var_x_d;
+   };
++  void predict(const double dt, const double state_delta) {
++    if (!initialized_ || !std::isfinite(dt) || dt <= 0.0 ||
++        !std::isfinite(state_delta)) {
++      return;
++    }
++    x_ += state_delta;
++    const double proc_var_x_d = proc_var_x_c_ * dt * dt;
++    var_ = var_ + proc_var_x_d;
++  };
+   void correct(const double obs, const double obs_var) {
+     if (!initialized_) {
+       init(obs, obs_var);
+--- a/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/include/autoware/ekf_localizer/hyper_parameters.hpp
+@@ -150,4 +150,7 @@ public:
+         pitch_filter_proc_dev(node->declare_parameter<double>(
+             "simple_1d_filter_parameters.pitch_filter_proc_dev")),
++        enable_slope_kinematic_prediction(node->declare_parameter<bool>(
++            "simple_1d_filter_parameters.enable_slope_kinematic_prediction",
++            false)),
+         pose_no_update_count_threshold_warn(node->declare_parameter<int>(
+             "diagnostics.pose_no_update_count_threshold_warn")),
+@@ -224,4 +227,5 @@ public:
+   const double z_filter_proc_dev;
+   const double roll_filter_proc_dev;
+   const double pitch_filter_proc_dev;
++  const bool enable_slope_kinematic_prediction;
+   const size_t pose_no_update_count_threshold_warn;
+--- a/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/src/ekf_module.cpp
+@@ -346,4 +346,18 @@ void EKFModule::predict_with_delay(const double dt) {
+   // a sensor outage, causing a valid recovery observation to be rejected as
+   // overconfidently inconsistent.
+-  z_filter_.predict(dt);
++  if (params_.enable_slope_kinematic_prediction &&
++      pitch_filter_.is_initialized()) {
++    // ROS uses a right-handed base_link frame (x forward, y left, z up), so
++    // an uphill vehicle has a negative pitch. Propagate height with the same
++    // kinematic convention already used by compensate_rph_with_delay(). This
++    // keeps the NDT initial guess on the road when pose updates are briefly
++    // unavailable; subsequent NDT/GNSS height measurements still correct the
++    // one-dimensional state in the normal Kalman update.
++    const double vx = x_curr(IDX::VX);
++    const double pitch = pitch_filter_.get_x();
++    const double delta_z = vx * dt * std::sin(-pitch);
++    z_filter_.predict(dt, delta_z);
++  } else {
++    z_filter_.predict(dt);
++  }
+   roll_filter_.predict(dt);
+--- a/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/simple_1d_filter_parameters.sub_schema.json
++++ b/src/autoware/core/localization/autoware_ekf_localizer/schema/sub/simple_1d_filter_parameters.sub_schema.json
+@@ -20,4 +20,9 @@
+           "type": "number",
+           "description": "Simple1DFilter - Pitch filter process deviation",
+           "default": 0.1
++        },
++        "enable_slope_kinematic_prediction": {
++          "type": "boolean",
++          "description": "Propagate z with longitudinal speed and filtered pitch between pose measurements",
++          "default": false
+         }
+--- a/src/autoware/core/localization/autoware_ekf_localizer/test/test_simple_1d_filter.cpp
++++ b/src/autoware/core/localization/autoware_ekf_localizer/test/test_simple_1d_filter.cpp
+@@ -17,5 +17,7 @@
+ 
+ #include <gtest/gtest.h>
+ 
++#include <limits>
++
+ namespace autoware::ekf_localizer
+ {
+@@ -76,4 +78,28 @@ TEST(Simple1DFilter, prediction_before_initialization_is_a_noop)
+   EXPECT_DOUBLE_EQ(filter.get_var(), 1.0e9);
+ }
+ 
++TEST(Simple1DFilter, kinematic_prediction_moves_state_and_grows_covariance)
++{
++  Simple1DFilter filter;
++  filter.set_proc_var(25.0);
++  filter.init(100.0, 0.25);
++
++  filter.predict(0.02, 0.04);
++
++  EXPECT_DOUBLE_EQ(filter.get_x(), 100.04);
++  EXPECT_NEAR(filter.get_var(), 0.26, 1.0e-12);
++}
++
++TEST(Simple1DFilter, invalid_kinematic_prediction_is_a_noop)
++{
++  Simple1DFilter filter;
++  filter.set_proc_var(25.0);
++  filter.init(100.0, 0.25);
++
++  filter.predict(0.02, std::numeric_limits<double>::quiet_NaN());
++
++  EXPECT_DOUBLE_EQ(filter.get_x(), 100.0);
++  EXPECT_DOUBLE_EQ(filter.get_var(), 0.25);
++}
++
+ }  // namespace autoware::ekf_localizer

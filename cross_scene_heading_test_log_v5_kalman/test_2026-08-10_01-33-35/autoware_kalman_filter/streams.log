@@ -1,0 +1,127 @@
+[0.088s] Invoking command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter': /usr/bin/ctest -C Release -D ExperimentalTest --no-compress-output -V --force-new-ctest-process
+[0.120s] UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/CTestConfiguration.ini
+[0.121s] Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/CTestConfiguration.ini
+[0.121s]    Site: ubuntu-2204-4090
+[0.121s]    Build name: (empty)
+[0.121s]  Add coverage exclude regular expressions.
+[0.121s] Create new tag: 20260809-1733 - Experimental
+[0.121s] UpdateCTestConfiguration  from :/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/CTestConfiguration.ini
+[0.121s] Parse Config file:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/CTestConfiguration.ini
+[0.121s] Test project /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter
+[0.121s] Constructing a list of tests
+[0.122s] Done constructing a list of tests
+[0.122s] Updating test list for fixtures
+[0.122s] Added 0 tests to meet fixture requirements
+[0.122s] Checking test dependency graph...
+[0.122s] Checking test dependency graph end
+[0.122s] test 1
+[0.122s]     Start 1: test_autoware_kalman_filter
+[0.122s] 
+[0.122s] 1: Test command: /usr/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_ros/cmake/run_test_isolated.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml" "--package-name" "autoware_kalman_filter" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/ament_cmake_gtest/test_autoware_kalman_filter.txt" "--command" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_autoware_kalman_filter" "--gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml"
+[0.122s] 1: Test timeout computed to be: 60
+[0.207s] 1: Running with ROS_DOMAIN_ID 1
+[0.207s] 1: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter':
+[0.207s] 1:  - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_autoware_kalman_filter --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml
+[0.220s] 1: [==========] Running 14 tests from 2 test suites.
+[0.220s] 1: [----------] Global test environment set-up.
+[0.221s] 1: [----------] 6 tests from kalman_filter
+[0.221s] 1: [ RUN      ] kalman_filter.kf
+[0.222s] 1: [       OK ] kalman_filter.kf (2 ms)
+[0.222s] 1: [ RUN      ] kalman_filter.repeated_precise_updates_preserve_covariance_invariants
+[3.177s] 1: [       OK ] kalman_filter.repeated_precise_updates_preserve_covariance_invariants (2954 ms)
+[3.177s] 1: [ RUN      ] kalman_filter.invalid_innovation_covariance_does_not_modify_filter
+[3.178s] 1: [       OK ] kalman_filter.invalid_innovation_covariance_does_not_modify_filter (0 ms)
+[3.178s] 1: [ RUN      ] kalman_filter.state_mask_blocks_cross_gain_and_preserves_covariance_invariants
+[3.178s] 1: [       OK ] kalman_filter.state_mask_blocks_cross_gain_and_preserves_covariance_invariants (1 ms)
+[3.178s] 1: [ RUN      ] kalman_filter.all_one_state_mask_matches_unmasked_update
+[3.178s] 1: [       OK ] kalman_filter.all_one_state_mask_matches_unmasked_update (0 ms)
+[3.178s] 1: [ RUN      ] kalman_filter.state_mask_can_decorrelate_selected_and_unselected_states
+[3.178s] 1: [       OK ] kalman_filter.state_mask_can_decorrelate_selected_and_unselected_states (0 ms)
+[3.178s] 1: [----------] 6 tests from kalman_filter (2957 ms total)
+[3.179s] 1: 
+[3.179s] 1: [----------] 8 tests from time_delay_kalman_filter
+[3.179s] 1: [ RUN      ] time_delay_kalman_filter.td_kf
+[3.179s] 1: [       OK ] time_delay_kalman_filter.td_kf (1 ms)
+[3.179s] 1: [ RUN      ] time_delay_kalman_filter.delayed_state_mask_shields_unselected_state_across_history
+[3.179s] 1: [       OK ] time_delay_kalman_filter.delayed_state_mask_shields_unselected_state_across_history (0 ms)
+[3.179s] 1: [ RUN      ] time_delay_kalman_filter.position_only_standard_update_conditions_correlated_motion_state
+[3.179s] 1: [       OK ] time_delay_kalman_filter.position_only_standard_update_conditions_correlated_motion_state (0 ms)
+[3.179s] 1: [ RUN      ] time_delay_kalman_filter.schmidt_position_update_can_condition_velocity_without_yaw
+[3.179s] 1: [       OK ] time_delay_kalman_filter.schmidt_position_update_can_condition_velocity_without_yaw (1 ms)
+[3.179s] 1: [ RUN      ] time_delay_kalman_filter.non_delayed_tail_reduces_dimension_and_tracks_current_value
+[3.182s] 1: [       OK ] time_delay_kalman_filter.non_delayed_tail_reduces_dimension_and_tracks_current_value (3 ms)
+[3.182s] 1: [ RUN      ] time_delay_kalman_filter.delayed_measurement_uses_delayed_vehicle_and_current_tail
+[3.183s] 1: [       OK ] time_delay_kalman_filter.delayed_measurement_uses_delayed_vehicle_and_current_tail (1 ms)
+[3.183s] 1: [ RUN      ] time_delay_kalman_filter.default_layout_remains_fully_delayed
+[3.183s] 1: [       OK ] time_delay_kalman_filter.default_layout_remains_fully_delayed (0 ms)
+[3.183s] 1: [ RUN      ] time_delay_kalman_filter.compact_tail_prediction_matches_explicit_transition
+[3.183s] 1: [       OK ] time_delay_kalman_filter.compact_tail_prediction_matches_explicit_transition (0 ms)
+[3.183s] 1: [----------] 8 tests from time_delay_kalman_filter (6 ms total)
+[3.183s] 1: 
+[3.183s] 1: [----------] Global test environment tear-down
+[3.183s] 1: [==========] 14 tests from 2 test suites ran. (2963 ms total)
+[3.183s] 1: [  PASSED  ] 14 tests.
+[3.184s] 1: -- run_test.py: return code 0
+[3.184s] 1: -- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml'
+[3.186s] 1: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/test_autoware_kalman_filter.gtest.xml'
+[3.202s] 1/5 Test #1: test_autoware_kalman_filter ......   Passed    3.08 sec
+[3.202s] test 2
+[3.202s]     Start 2: cppcheck
+[3.202s] 
+[3.202s] 2: Test command: /usr/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/cppcheck.xunit.xml" "--package-name" "autoware_kalman_filter" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/ament_cppcheck/cppcheck.txt" "--command" "/opt/ros/humble/bin/ament_cppcheck" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/cppcheck.xunit.xml" "--include_dirs" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter/include"
+[3.203s] 2: Test timeout computed to be: 300
+[3.289s] 2: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter':
+[3.289s] 2:  - /opt/ros/humble/bin/ament_cppcheck --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/cppcheck.xunit.xml --include_dirs /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter/include
+[3.405s] 2: cppcheck 2.7 has known performance issues and therefore will not be used, set the AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS environment variable to override this.
+[3.416s] 2: -- run_test.py: return code 0
+[3.416s] 2: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/cppcheck.xunit.xml'
+[3.427s] 2/5 Test #2: cppcheck .........................   Passed    0.22 sec
+[3.427s] test 3
+[3.427s]     Start 3: copyright
+[3.427s] 
+[3.427s] 3: Test command: /usr/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/copyright.xunit.xml" "--package-name" "autoware_kalman_filter" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/ament_copyright/copyright.txt" "--command" "/opt/ros/humble/bin/ament_copyright" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/copyright.xunit.xml"
+[3.427s] 3: Test timeout computed to be: 200
+[3.512s] 3: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter':
+[3.512s] 3:  - /opt/ros/humble/bin/ament_copyright --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/copyright.xunit.xml
+[3.800s] 3: No problems found, checked 6 files
+[3.809s] 3: -- run_test.py: return code 0
+[3.809s] 3: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/copyright.xunit.xml'
+[3.820s] 3/5 Test #3: copyright ........................   Passed    0.39 sec
+[3.820s] test 4
+[3.820s]     Start 4: lint_cmake
+[3.820s] 
+[3.820s] 4: Test command: /usr/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/lint_cmake.xunit.xml" "--package-name" "autoware_kalman_filter" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/ament_lint_cmake/lint_cmake.txt" "--command" "/opt/ros/humble/bin/ament_lint_cmake" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/lint_cmake.xunit.xml"
+[3.820s] 4: Test timeout computed to be: 60
+[3.906s] 4: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter':
+[3.906s] 4:  - /opt/ros/humble/bin/ament_lint_cmake --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/lint_cmake.xunit.xml
+[4.002s] 4: 
+[4.002s] 4: No problems found
+[4.010s] 4: -- run_test.py: return code 0
+[4.010s] 4: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/lint_cmake.xunit.xml'
+[4.021s] 4/5 Test #4: lint_cmake .......................   Passed    0.20 sec
+[4.021s] test 5
+[4.021s]     Start 5: xmllint
+[4.021s] 
+[4.021s] 5: Test command: /usr/bin/python3 "-u" "/opt/ros/humble/share/ament_cmake_test/cmake/run_test.py" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/xmllint.xunit.xml" "--package-name" "autoware_kalman_filter" "--output-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/ament_xmllint/xmllint.txt" "--command" "/opt/ros/humble/bin/ament_xmllint" "--xunit-file" "/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/xmllint.xunit.xml"
+[4.021s] 5: Test timeout computed to be: 60
+[4.106s] 5: -- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/common/autoware_kalman_filter':
+[4.107s] 5:  - /opt/ros/humble/bin/ament_xmllint --xunit-file /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/xmllint.xunit.xml
+[4.920s] 5: File 'package.xml' is valid
+[4.920s] 5: 
+[4.920s] 5: No problems found
+[4.932s] 5: -- run_test.py: return code 0
+[4.933s] 5: -- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter/test_results/autoware_kalman_filter/xmllint.xunit.xml'
+[4.941s] 5/5 Test #5: xmllint ..........................   Passed    0.92 sec
+[4.942s] 
+[4.942s] 100% tests passed, 0 tests failed out of 5
+[4.942s] 
+[4.942s] Label Time Summary:
+[4.942s] copyright     =   0.39 sec*proc (1 test)
+[4.942s] cppcheck      =   0.22 sec*proc (1 test)
+[4.942s] gtest         =   3.08 sec*proc (1 test)
+[4.942s] lint_cmake    =   0.20 sec*proc (1 test)
+[4.943s] linter        =   1.74 sec*proc (4 tests)
+[4.943s] xmllint       =   0.92 sec*proc (1 test)
+[4.943s] 
+[4.943s] Total Test time (real) =   4.82 sec
+[6.537s] Invoked command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_kalman_filter' returned '0': /usr/bin/ctest -C Release -D ExperimentalTest --no-compress-output -V --force-new-ctest-process

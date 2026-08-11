@@ -29,6 +29,8 @@ def test_timed_input_rejects_future_and_out_of_order_commands():
     assert tracker.message == "first"
     assert tracker.rejected_out_of_order == 1
     assert tracker.rejected_future == 1
+    assert tracker.last_future_offset_sec == pytest.approx(0.1)
+    assert tracker.max_future_offset_sec == pytest.approx(0.1)
     assert tracker.fresh(10.19, 0.20)
     assert not tracker.fresh(10.21, 0.20)
 
@@ -160,9 +162,24 @@ def test_runtime_manager_logs_machine_readable_stale_input_evidence_without_debo
     assert '"ndt_pose_source_timeout_sec"' in source
     assert '"source_age_sec": now - tracker.source_stamp_sec' in source
     assert '"receipt_age_sec": now - tracker.receipt_sec' in source
+    assert '"last_future_offset_sec": tracker.last_future_offset_sec' in source
+    assert '"max_future_offset_sec": tracker.max_future_offset_sec' in source
+    assert '"max_timer_gap_wall_sec": self._max_timer_gap_wall_sec' in source
+    assert '"max_timer_duration_wall_sec": self._max_timer_duration_wall_sec' in source
     assert "race runtime stale-input witness" in source
     assert "race runtime stale-input witness instrumentation=V1" in source
     assert "debounce" not in source.split("def _stale_input_witness", 1)[1]
+
+
+def test_runtime_manager_instruments_executor_scheduling_without_changing_timeouts():
+    source = (
+        PACKAGE / "autoracer_safety/race_runtime_manager.py"
+    ).read_text(encoding="utf-8")
+
+    assert "timer_start_wall = time.monotonic()" in source
+    assert "race runtime timer scheduling overrun" in source
+    assert "race runtime timer execution overrun" in source
+    assert '"localization_timeout_sec": 0.20' in source
 
 
 def test_runtime_manager_drains_inputs_separately_from_serialized_watchdog_state():

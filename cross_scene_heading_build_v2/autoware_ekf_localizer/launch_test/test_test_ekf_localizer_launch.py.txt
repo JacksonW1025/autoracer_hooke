@@ -1,0 +1,27 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /usr/bin/python3 -m launch_testing.launch_test /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/vendor_ws/src/autoware/core/localization/autoware_ekf_localizer/test/test_ekf_localizer_launch.py --junit-xml=/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml --package-name=autoware_ekf_localizer
+
+[INFO] [launch]: All log files can be found below /home/cqx/.ros/log/2026-08-10-01-30-16-244967-ubuntu-2204-4090-2413102
+[INFO] [launch]: Default logging verbosity is set to INFO
+test_node_link (autoware_ekf_localizer.TestEKFLocalizer) ... [INFO] [autoware_ekf_localizer_node-1]: process started with pid [2413136]
+[autoware_ekf_localizer_node-1] [WARN] [1786296616.514933814] [ekf_localizer]: Initial pose is not set. Provide initial pose to pose_initializer
+[INFO] [1786296616.540965808] [test_node]: Result of bool service: 
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.374s
+
+OK
+[INFO] [autoware_ekf_localizer_node-1]: sending signal 'SIGINT' to process[autoware_ekf_localizer_node-1]
+[autoware_ekf_localizer_node-1] [INFO] [1786296616.786632287] [rclcpp]: signal_handler(signum=2)
+[INFO] [autoware_ekf_localizer_node-1]: process has finished cleanly [pid 2413136]
+test_exit_code (autoware_ekf_localizer.TestProcessOutput) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+
+
+-- run_test.py: return code 0
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_test_ekf_localizer_launch.py.xunit.xml'

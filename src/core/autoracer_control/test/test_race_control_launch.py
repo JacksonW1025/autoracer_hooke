@@ -6,6 +6,7 @@ RACE_LAUNCH = PACKAGE_ROOT / "launch" / "race_control.launch.py"
 RACE_PARAM = PACKAGE_ROOT / "config" / "race_controller.param.yaml"
 CMAKE = PACKAGE_ROOT / "CMakeLists.txt"
 PACKAGE_XML = PACKAGE_ROOT / "package.xml"
+PRODUCT_ROOT = PACKAGE_ROOT.parents[2]
 
 
 def test_race_control_launch_uses_autoware_mpc_pid_controller_only():
@@ -110,3 +111,22 @@ def test_autoracer_control_packaging_installs_only_runtime_assets_and_dependenci
         "launch_ros",
     ):
         assert f"<exec_depend>{dependency}</exec_depend>" in package_source
+
+
+def test_dynamic_mpc_prediction_uses_supported_coordinate_without_log_flood():
+    lock = (PRODUCT_ROOT / "dependencies" / "versions.lock.yaml").read_text(
+        encoding="utf-8"
+    )
+    patch = PRODUCT_ROOT / "dependencies" / "patches" / (
+        "mpc_dynamic_prediction_coordinate.patch"
+    )
+    source = PRODUCT_ROOT / "vendor_ws" / "src" / "autoware" / "universe" / (
+        "control/autoware_mpc_lateral_controller/src/mpc.cpp"
+    )
+
+    assert "dependencies/patches/mpc_dynamic_prediction_coordinate.patch" in lock
+    assert patch.is_file()
+    source_text = source.read_text(encoding="utf-8")
+    assert 'm_vehicle_model_ptr->modelName() == "dynamics" ? "frenet" : "world"' in source_text
+    assert "prediction_dt,\n    prediction_coordinate);" in source_text
+    assert 'prediction_dt, "world");' not in source_text

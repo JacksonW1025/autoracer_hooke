@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite
+  name="autoware_kalman_filter.cppcheck"
+  tests="6"
+  errors="0"
+  failures="0"
+  time="0.000"
+  skipped="6"
+>
+  <testcase
+    name="include/autoware/kalman_filter/kalman_filter.hpp"
+    classname="autoware_kalman_filter.cppcheck"
+  >
+    <skipped type="skip" message="">
+      ![CDATA[Test Skipped due to cppcheck 2.7 performance issues]]
+    </skipped>
+  </testcase>
+  <testcase
+    name="include/autoware/kalman_filter/time_delay_kalman_filter.hpp"
+    classname="autoware_kalman_filter.cppcheck"
+  >
+    <skipped type="skip" message="">
+      ![CDATA[Test Skipped due to cppcheck 2.7 performance issues]]
+    </skipped>
+  </testcase>
+  <testcase
+    name="src/kalman_filter.cpp"
+    classname="autoware_kalman_filter.cppcheck"
+  >
+    <skipped type="skip" message="">
+      ![CDATA[Test Skipped due to cppcheck 2.7 performance issues]]
+    </skipped>
+  </testcase>
+  <testcase
+    name="src/time_delay_kalman_filter.cpp"
+    classname="autoware_kalman_filter.cppcheck"
+  >
+    <skipped type="skip" message="">
+      ![CDATA[Test Skipped due to cppcheck 2.7 performance issues]]
+    </skipped>
+  </testcase>
+  <testcase
+    name="test/test_kalman_filter.cpp"
+    classname="autoware_kalman_filter.cppcheck"
+  >
+    <skipped type="skip" message="">
+      ![CDATA[Test Skipped due to cppcheck 2.7 performance issues]]
+    </skipped>
+  </testcase>
+  <testcase
+    name="test/test_time_delay_kalman_filter.cpp"
+    classname="autoware_kalman_filter.cppcheck"
+  >
+    <skipped type="skip" message="">
+      ![CDATA[Test Skipped due to cppcheck 2.7 performance issues]]
+    </skipped>
+  </testcase>
+  <system-err>Tests Skipped due to cppcheck 2.7 performance issues</system-err>
+</testsuite>

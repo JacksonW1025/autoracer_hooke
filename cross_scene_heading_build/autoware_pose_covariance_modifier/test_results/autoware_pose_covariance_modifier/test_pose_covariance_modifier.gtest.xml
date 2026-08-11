@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="autoware_pose_covariance_modifier" tests="1" failures="0" time="0.025" errors="1" skipped="0">
+  <testcase classname="autoware_pose_covariance_modifier" name="test_pose_covariance_modifier.gtest.missing_result" time="0.025">
+    <error message="The test did not generate a result file:&#10;&#10;/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build/autoware_pose_covariance_modifier/test_pose_covariance_modifier: /opt/anaconda3/lib/libstdc++.so.6: version `GLIBCXX_3.4.30' not found (required by /opt/ros/humble/lib/librclcpp.so)&#10;"/>
+  </testcase>
+</testsuite>

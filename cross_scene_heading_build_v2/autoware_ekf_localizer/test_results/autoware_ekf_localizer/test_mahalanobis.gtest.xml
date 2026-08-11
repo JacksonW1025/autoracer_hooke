@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="2" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:19" name="AllTests">
+  <testsuite name="squared_mahalanobis" tests="1" failures="0" disabled="0" errors="0" time="0.001" timestamp="2026-08-10T01:30:19">
+    <testcase name="SmokeTest" status="run" result="completed" time="0.001" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.squared_mahalanobis" />
+  </testsuite>
+  <testsuite name="mahalanobis" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-08-10T01:30:19">
+    <testcase name="SmokeTest" status="run" result="completed" time="0" timestamp="2026-08-10T01:30:19" classname="autoware_ekf_localizer.mahalanobis" />
+  </testsuite>
+</testsuites>

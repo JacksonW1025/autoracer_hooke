@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from enum import IntEnum
 import json
+import time
 
 from autoware_adapi_v1_msgs.msg import (
     LocalizationInitializationState,
@@ -79,6 +80,12 @@ class RaceRuntimeManager(Node):
         self._phase_since = self._now()
         self._start_sec = self._phase_since
         self._last_now = -1.0
+        self._last_timer_wall_sec = -1.0
+        self._last_timer_gap_wall_sec = 0.0
+        self._max_timer_gap_wall_sec = 0.0
+        self._last_timer_duration_wall_sec = 0.0
+        self._max_timer_duration_wall_sec = 0.0
+        self._timer_overrun_count = 0
         self._start_requested = bool(self.get_parameter("auto_start").value)
         self._stop_requested = False
         self._activation_armed = False
@@ -423,7 +430,14 @@ class RaceRuntimeManager(Node):
                 "source_age_sec": now - tracker.source_stamp_sec,
                 "sequence": tracker.sequence,
                 "rejected_future": tracker.rejected_future,
+                "last_future_offset_sec": tracker.last_future_offset_sec,
+                "max_future_offset_sec": tracker.max_future_offset_sec,
                 "rejected_out_of_order": tracker.rejected_out_of_order,
+                "last_timer_gap_wall_sec": self._last_timer_gap_wall_sec,
+                "max_timer_gap_wall_sec": self._max_timer_gap_wall_sec,
+                "last_timer_duration_wall_sec": self._last_timer_duration_wall_sec,
+                "max_timer_duration_wall_sec": self._max_timer_duration_wall_sec,
+                "timer_overrun_count": self._timer_overrun_count,
             },
             sort_keys=True,
         )
@@ -553,6 +567,24 @@ class RaceRuntimeManager(Node):
         self._last_service_call[key] = now
 
     def _on_timer(self) -> None:
+        timer_start_wall = time.monotonic()
+        update_period = 1.0 / float(self.get_parameter("update_rate_hz").value)
+        if self._last_timer_wall_sec >= 0.0:
+            self._last_timer_gap_wall_sec = (
+                timer_start_wall - self._last_timer_wall_sec
+            )
+            self._max_timer_gap_wall_sec = max(
+                self._max_timer_gap_wall_sec, self._last_timer_gap_wall_sec
+            )
+            if self._last_timer_gap_wall_sec > 2.0 * update_period:
+                self._timer_overrun_count += 1
+                self.get_logger().warning(
+                    "race runtime timer scheduling overrun: "
+                    f"gap_wall_sec={self._last_timer_gap_wall_sec:.6f} "
+                    f"period_sec={update_period:.6f} "
+                    f"count={self._timer_overrun_count}"
+                )
+        self._last_timer_wall_sec = timer_start_wall
         now = self._now()
         if self._last_now >= 0.0 and now + 0.05 < self._last_now:
             self._reset_state(clear_inputs=True)
@@ -645,6 +677,17 @@ class RaceRuntimeManager(Node):
                 self._call_control_mode(ControlModeCommand.Request.MANUAL)
 
         self._publish(base_failure is None)
+        self._last_timer_duration_wall_sec = time.monotonic() - timer_start_wall
+        self._max_timer_duration_wall_sec = max(
+            self._max_timer_duration_wall_sec,
+            self._last_timer_duration_wall_sec,
+        )
+        if self._last_timer_duration_wall_sec > update_period:
+            self.get_logger().warning(
+                "race runtime timer execution overrun: "
+                f"duration_wall_sec={self._last_timer_duration_wall_sec:.6f} "
+                f"period_sec={update_period:.6f}"
+            )
 
     def _publish(self, ready: bool) -> None:
         stamp = self.get_clock().now().to_msg()

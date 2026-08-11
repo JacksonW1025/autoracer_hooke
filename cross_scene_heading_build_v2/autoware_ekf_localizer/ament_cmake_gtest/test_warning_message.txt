@@ -1,0 +1,39 @@
+-- run_test.py: invoking following command in '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer':
+ - /opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_warning_message --gtest_output=xml:/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml
+
+Running main() from /opt/ros/humble/src/gtest_vendor/src/gtest_main.cc
+[==========] Running 5 tests from 5 test suites.
+[----------] Global test environment set-up.
+[----------] 1 test from pose_delay_step_warning_message
+[ RUN      ] pose_delay_step_warning_message.SmokeTest
+[       OK ] pose_delay_step_warning_message.SmokeTest (0 ms)
+[----------] 1 test from pose_delay_step_warning_message (0 ms total)
+
+[----------] 1 test from twist_delay_step_warning_message
+[ RUN      ] twist_delay_step_warning_message.SmokeTest
+[       OK ] twist_delay_step_warning_message.SmokeTest (0 ms)
+[----------] 1 test from twist_delay_step_warning_message (0 ms total)
+
+[----------] 1 test from pose_delay_time_warning_message
+[ RUN      ] pose_delay_time_warning_message.SmokeTest
+[       OK ] pose_delay_time_warning_message.SmokeTest (0 ms)
+[----------] 1 test from pose_delay_time_warning_message (0 ms total)
+
+[----------] 1 test from twist_delay_time_warning_message
+[ RUN      ] twist_delay_time_warning_message.SmokeTest
+[       OK ] twist_delay_time_warning_message.SmokeTest (0 ms)
+[----------] 1 test from twist_delay_time_warning_message (0 ms total)
+
+[----------] 1 test from mahalanobis_warning_message
+[ RUN      ] mahalanobis_warning_message.SmokeTest
+[       OK ] mahalanobis_warning_message.SmokeTest (0 ms)
+[----------] 1 test from mahalanobis_warning_message (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 5 tests from 5 test suites ran. (0 ms total)
+[  PASSED  ] 5 tests.
+
+
+-- run_test.py: return code 0
+-- run_test.py: inject classname prefix into gtest result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml'
+-- run_test.py: verify result file '/opt/ipg/carmaker/linux64-15.1/autoracer_hooke/cross_scene_heading_build_v2/autoware_ekf_localizer/test_results/autoware_ekf_localizer/test_warning_message.gtest.xml'
